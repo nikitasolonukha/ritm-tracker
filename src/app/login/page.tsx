@@ -5,7 +5,7 @@ import { type FormEvent, useState } from "react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("nikitasolonukha@gmail.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);

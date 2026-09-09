@@ -1,0 +1,34 @@
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+
+export async function middleware(request: NextRequest) {
+  const isLogin = request.nextUrl.pathname === "/login";
+  const isWebhook = request.nextUrl.pathname === "/api/telegram/webhook";
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const configured = Boolean(supabaseUrl && supabaseKey);
+  const demoMode = process.env.NODE_ENV !== "production" && process.env.RITM_DEMO_MODE === "1";
+  if (isWebhook || demoMode) return NextResponse.next();
+  if (!configured) return isLogin ? NextResponse.next() : NextResponse.redirect(new URL("/login?reason=not-configured", request.url));
+  if (!supabaseUrl || !supabaseKey) return NextResponse.next();
+
+  let response = NextResponse.next({ request });
+  const supabase = createServerClient(supabaseUrl, supabaseKey, {
+    cookies: {
+      getAll: () => request.cookies.getAll(),
+      setAll(cookies: Array<{ name: string; value: string; options: CookieOptions }>) {
+        cookies.forEach(({ name, value }) => request.cookies.set(name, value));
+        response = NextResponse.next({ request });
+        cookies.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+      },
+    },
+  });
+  const { data: { user } } = await supabase.auth.getUser();
+  const ownerId = process.env.RITM_OWNER_USER_ID;
+  if (user && ownerId && user.id !== ownerId) return NextResponse.redirect(new URL("/login?reason=forbidden", request.url));
+  if (!user && !isLogin) return NextResponse.redirect(new URL("/login", request.url));
+  if (user && isLogin) return NextResponse.redirect(new URL("/", request.url));
+  return response;
+}
+
+export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon.svg|sw.js).*)"] };

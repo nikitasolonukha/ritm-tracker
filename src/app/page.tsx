@@ -16,6 +16,7 @@ import {
   Upload,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import {
   applyHabitCompletion,
   completeWorkoutSet,
@@ -23,7 +24,7 @@ import {
   getMilestoneState,
   getLocalDate,
   normalizeDecimalInput,
-  parseWorkoutNotes,
+  parseWorkoutNotesBatch,
   restoreRestTimer,
   type ExerciseSet,
 } from "@/lib/tracker";
@@ -33,29 +34,50 @@ const today = () => getLocalDate();
 
 export default function Home() {
   const [state, setState] = useState<TrackerState | null>(null);
+  const [userId, setUserId] = useState<string>();
   const [hydrated, setHydrated] = useState(false);
   const [storageReady, setStorageReady] = useState(false);
+  const [syncReady, setSyncReady] = useState(false);
   const [storageMessage, setStorageMessage] = useState("");
-  const [activeTab, setActiveTab] = useState<"today" | "gym" | "progress">("today");
+  const [activeTab, setActiveTab] = useState<"today" | "gym" | "progress" | "settings">("today");
   const [notes, setNotes] = useState("01.01.2026\nУпражнение A\n10x5, 15x3, 20x8\nУпражнение B\n12x10");
   const [timerNow, setTimerNow] = useState(() => new Date().toISOString());
 
   useEffect(() => {
-    const result = readStateSafely();
-    setState(result.state);
-    setHydrated(true);
-    setStorageReady(result.status === "empty" || result.status === "loaded");
-    if (result.status === "corrupt" || result.status === "unsupported") {
-      setStorageMessage(`${result.error ?? "Локальные данные требуют восстановления"}. Исходная запись сохранена.`);
-    }
+    let cancelled = false;
+    void createClient().auth.getUser().then(async ({ data }) => {
+      if (cancelled) return;
+      const id = data.user?.id;
+      setUserId(id);
+      const result = readStateSafely(id);
+      let nextState = result.state;
+      try {
+        const remoteResponse = await fetch("/api/sync", { cache: "no-store" });
+        if (remoteResponse.ok) {
+          const remote = await remoteResponse.json() as { payload?: TrackerState | null };
+          if (result.status === "empty" && remote.payload && typeof remote.payload === "object") nextState = remote.payload;
+        }
+      } catch {
+        // Local state remains usable while the server is unavailable.
+      }
+      setState(nextState);
+      setHydrated(true);
+      setStorageReady(result.status === "empty" || result.status === "loaded");
+      setSyncReady(true);
+      if (result.status === "corrupt" || result.status === "unsupported") setStorageMessage(`${result.error ?? "Локальные данные требуют восстановления"}. Исходная запись сохранена.`);
+    });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
-    if (hydrated && storageReady && state) {
-      const result = writeState(state);
+    if (hydrated && storageReady && syncReady && state) {
+      const result = writeState(state, userId);
       if (!result.ok) setStorageMessage("Не удалось сохранить изменения на устройстве.");
+      void fetch("/api/sync", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ payload: state, version: state.version }) }).then((response) => {
+        if (!response.ok) setStorageMessage("Сохранено на устройстве; синхронизация пока недоступна.");
+      }).catch(() => setStorageMessage("Сохранено на устройстве; синхронизация пока недоступна."));
     }
-  }, [hydrated, storageReady, state]);
+  }, [hydrated, storageReady, syncReady, state, userId]);
 
   useEffect(() => {
     const id = window.setInterval(() => setTimerNow(new Date().toISOString()), 1000);
@@ -98,12 +120,14 @@ export default function Home() {
   function toggleSet(exerciseId: string, setId: string) {
     const now = new Date().toISOString();
     update((previous) => {
-      const session = completeWorkoutSet({ workout: currentWorkout, commands: previous.workoutCommands ?? [], activeTimer: previous.activeTimer }, exerciseId, setId, `set-${currentWorkout.id}-${exerciseId}-${setId}`, now);
-      if (session.workout === currentWorkout) return previous;
+      const workout = previous.workouts.find((item) => item.id === previous.activeWorkoutId) ?? previous.workouts[0];
+      if (!workout) return previous;
+      const session = completeWorkoutSet({ workout, commands: previous.workoutCommands ?? [], activeTimer: previous.activeTimer }, exerciseId, setId, `set-${workout.id}-${exerciseId}-${setId}`, now);
+      if (session.workout === workout) return previous;
       const command = session.commands.at(-1);
       return {
         ...previous,
-        workouts: previous.workouts.map((workout) => workout.id === currentWorkout.id ? session.workout : workout),
+        workouts: previous.workouts.map((item) => item.id === workout.id ? session.workout : item),
         workoutCommands: session.commands,
         activeTimer: session.activeTimer,
         outbox: command ? [...previous.outbox, { id: `out-${command.id}`, entityId: command.entityId, type: "workout.set.completed", createdAt: now, status: "pending", version: 1, payload: command.payload }] : previous.outbox,
@@ -114,7 +138,7 @@ export default function Home() {
   function updateSet(exerciseId: string, setId: string, patch: Partial<ExerciseSet>) {
     update((previous) => ({
       ...previous,
-      workouts: previous.workouts.map((workout) => workout.id === currentWorkout.id ? {
+      workouts: previous.workouts.map((workout) => workout.id === previous.activeWorkoutId ? {
         ...workout,
         exercises: workout.exercises.map((exercise) => exercise.id === exerciseId ? {
           ...exercise,
@@ -124,14 +148,57 @@ export default function Home() {
     }));
   }
 
-  function importNotes() {
-    const imported = parseWorkoutNotes(notes);
-    if (!notes.trim() || !imported.id || imported.exercises.length === 0) return;
+  function addExercise() {
     update((previous) => {
-      if (previous.workouts.some((workout) => workout.id === imported.id)) return previous;
+      const workout = previous.workouts.find((item) => item.id === previous.activeWorkoutId);
+      if (!workout) return previous;
+      const id = `exercise-${Date.now()}`;
+      return { ...previous, workouts: previous.workouts.map((item) => item.id !== workout.id ? item : { ...item, exercises: [...item.exercises, { id, name: "Новое упражнение", category: "working", restSec: 180, sets: [{ id: `${id}-set-1`, weightKg: null, reps: null, completed: false, weightMode: "total" }] }] }) };
+    });
+  }
+
+  function addSet(exerciseId: string) {
+    update((previous) => ({ ...previous, workouts: previous.workouts.map((workout) => workout.id !== previous.activeWorkoutId ? workout : { ...workout, exercises: workout.exercises.map((exercise) => exercise.id !== exerciseId ? exercise : { ...exercise, sets: [...exercise.sets, { id: `${exercise.id}-set-${exercise.sets.length + 1}-${Date.now()}`, weightKg: null, reps: null, completed: false, weightMode: "total" }] }) }) }));
+  }
+
+  function updateHabit(habitId: string, patch: { title?: string; schedule?: string }) {
+    update((previous) => ({ ...previous, habits: previous.habits.map((habit) => habit.id === habitId ? { ...habit, ...patch } : habit) }));
+  }
+
+  function commitSetField(exerciseId: string, setId: string, field: "weight" | "reps") {
+    update((previous) => {
+      const workout = previous.workouts.find((item) => item.id === previous.activeWorkoutId);
+      const set = workout?.exercises.find((item) => item.id === exerciseId)?.sets.find((item) => item.id === setId);
+      if (!workout || !set) return previous;
+      const raw = field === "weight" ? set.weightDraft ?? "" : set.repsDraft ?? "";
+      const value = field === "weight" ? normalizeDecimalInput(raw) : (/^\d+$/.test(raw.trim()) ? Number(raw) : null);
+      if (raw.trim() && value == null) return previous;
       return {
         ...previous,
-        workouts: [...previous.workouts, imported],
+        workouts: previous.workouts.map((item) => item.id !== workout.id ? item : {
+          ...item,
+          exercises: item.exercises.map((exercise) => exercise.id !== exerciseId ? exercise : {
+            ...exercise,
+            sets: exercise.sets.map((entry) => entry.id !== setId ? entry : {
+              ...entry,
+              ...(field === "weight" ? { weightKg: value } : { reps: value }),
+              ...(field === "weight" ? { weightDraft: undefined } : { repsDraft: undefined }),
+            }),
+          }),
+        }),
+      };
+    });
+  }
+
+  function importNotes() {
+    const imported = parseWorkoutNotesBatch(notes);
+    if (!notes.trim() || imported.length === 0) return;
+    update((previous) => {
+      const fresh = imported.filter((item) => !previous.workouts.some((workout) => workout.id === item.id));
+      if (fresh.length === 0) return previous;
+      return {
+        ...previous,
+        workouts: [...previous.workouts, ...fresh],
         outbox: [
           ...previous.outbox,
           { id: `out-import-${Date.now()}`, type: "workout.saved", createdAt: new Date().toISOString(), status: "pending" },
@@ -181,6 +248,7 @@ export default function Home() {
         <button className={activeTab === "today" ? "active" : ""} onClick={() => setActiveTab("today")}>Сегодня</button>
         <button className={activeTab === "gym" ? "active" : ""} onClick={() => setActiveTab("gym")}>Зал</button>
         <button className={activeTab === "progress" ? "active" : ""} onClick={() => setActiveTab("progress")}>Прогресс</button>
+        <button className={activeTab === "settings" ? "active" : ""} onClick={() => setActiveTab("settings")}>Настройки</button>
       </nav>
 
       {activeTab === "today" && (
@@ -267,15 +335,17 @@ export default function Home() {
                         <input
                           aria-label="Вес"
                           inputMode="decimal"
-                          value={set.weightKg ?? ""}
-                          onChange={(event) => updateSet(exercise.id, set.id, { weightKg: normalizeDecimalInput(event.target.value) })}
+                          value={set.weightDraft ?? (set.weightKg ?? "")}
+                          onChange={(event) => updateSet(exercise.id, set.id, { weightDraft: event.target.value })}
+                          onBlur={() => commitSetField(exercise.id, set.id, "weight")}
                         />
                         <span>кг</span>
                         <input
                           aria-label="Повторы"
                           inputMode="numeric"
-                          value={set.reps ?? ""}
-                          onChange={(event) => updateSet(exercise.id, set.id, { reps: event.target.value === "" ? null : (/^\d+$/.test(event.target.value) ? Number(event.target.value) : set.reps) })}
+                          value={set.repsDraft ?? (set.reps ?? "")}
+                          onChange={(event) => updateSet(exercise.id, set.id, { repsDraft: event.target.value })}
+                          onBlur={() => commitSetField(exercise.id, set.id, "reps")}
                         />
                         <span>раз</span>
                       </div>
@@ -351,6 +421,32 @@ export default function Home() {
             <h2>Диагностика</h2>
             <p className="muted">Supabase и Telegram пока не подключены: локальные команды лежат в очереди и готовы к будущей синхронизации.</p>
             <p className="large">{state.outbox.length}</p>
+          </article>
+        </section>
+      )}
+
+      {activeTab === "settings" && (
+        <section className="grid settingsGrid">
+          <article className="panel wide">
+            <div className="panelTitle"><h2>Действия дня</h2><Activity size={20} /></div>
+            <div className="settingsList">
+              {state.habits.filter((habit) => habit.type !== "workout").map((habit) => <div className="settingRow" key={habit.id}>
+                <input aria-label={`Название ${habit.id}`} value={habit.title} onChange={(event) => updateHabit(habit.id, { title: event.target.value })} />
+                <input aria-label={`Расписание ${habit.id}`} value={habit.schedule} onChange={(event) => updateHabit(habit.id, { schedule: event.target.value })} />
+              </div>)}
+            </div>
+          </article>
+          <article className="panel wide">
+            <div className="panelTitle"><h2>Шаблон тренировки</h2><Dumbbell size={20} /></div>
+            <button className="secondary" onClick={addExercise}><Save size={16} /> Добавить упражнение</button>
+            {(state.workouts.find((workout) => workout.id === state.activeWorkoutId) ?? currentWorkout).exercises.map((exercise) => <div className="settingExercise" key={exercise.id}>
+              <input aria-label={`Упражнение ${exercise.id}`} value={exercise.name} onChange={(event) => update((previous) => ({ ...previous, workouts: previous.workouts.map((workout) => workout.id !== previous.activeWorkoutId ? workout : { ...workout, exercises: workout.exercises.map((item) => item.id === exercise.id ? { ...item, name: event.target.value } : item) }) }))} />
+              <select aria-label={`Отдых ${exercise.id}`} value={exercise.restSec ?? 180} onChange={(event) => update((previous) => ({ ...previous, workouts: previous.workouts.map((workout) => workout.id !== previous.activeWorkoutId ? workout : { ...workout, exercises: workout.exercises.map((item) => item.id === exercise.id ? { ...item, restSec: Number(event.target.value) as 180 | 240 } : item) }) }))}>
+                <option value="180">180 сек</option><option value="240">240 сек</option>
+              </select>
+              <button className="secondary" onClick={() => addSet(exercise.id)}>+ подход</button>
+              <span className="muted">{exercise.sets.length} подходов</span>
+            </div>)}
           </article>
         </section>
       )}

@@ -9,6 +9,8 @@ export type ExerciseSet = {
   weightMode?: WeightMode;
   date?: string;
   component?: "single" | "compound-a" | "compound-b";
+  weightDraft?: string;
+  repsDraft?: string;
 };
 
 export type ExerciseCategory = "warmup" | "working" | "finisher";
@@ -202,16 +204,23 @@ export function completeWorkoutSet(
     result: "applied",
   };
 
+  const nextWorkout: Workout = {
+    ...state.workout,
+    exercises: state.workout.exercises.map((item) => item.id !== exerciseId ? item : {
+      ...item,
+      sets: item.sets.map((set) => set.id === setId ? { ...set, completed: true, weightDraft: undefined, repsDraft: undefined } : set),
+    }),
+  };
+  const pairedIncomplete = target.component === "compound-a"
+    ? exercise.sets.some((set) => set.component === "compound-b" && !set.completed)
+    : target.component === "compound-b"
+      ? exercise.sets.some((set) => set.component === "compound-a" && !set.completed)
+      : false;
+
   return {
-    workout: {
-      ...state.workout,
-      exercises: state.workout.exercises.map((item) => item.id !== exerciseId ? item : {
-        ...item,
-        sets: item.sets.map((set) => set.id === setId ? { ...set, completed: true } : set),
-      }),
-    },
+    workout: nextWorkout,
     commands: [...state.commands, command],
-    activeTimer: {
+    activeTimer: pairedIncomplete ? state.activeTimer : {
       sourceId: command.entityId,
       startedAt: nowIso,
       endsAt: new Date(new Date(nowIso).getTime() + restSec * 1000).toISOString(),
@@ -233,7 +242,11 @@ export function parseWorkoutNotes(input: string): Workout {
   }
 
   const rawDate = lines[0] ?? "";
-  const date = parseDate(rawDate) ?? parseRussianDate(rawDate) ?? getLocalDate();
+  const explicitDate = parseDate(rawDate) ?? parseRussianDate(rawDate);
+  if (/^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b/.test(rawDate) && !parseDate(rawDate)) {
+    return { id: "", date: getLocalDate(), title: "", exercises: [] };
+  }
+  const date = explicitDate ?? getLocalDate();
   const exercises: Exercise[] = [];
 
   for (let i = parseDate(rawDate) || parseRussianDate(rawDate) ? 1 : 0; i < lines.length; i += 1) {
@@ -273,6 +286,19 @@ export function parseWorkoutNotes(input: string): Workout {
     title: `Импорт ${date}`,
     exercises,
   };
+}
+
+export function parseWorkoutNotesBatch(input: string): Workout[] {
+  const lines = input.split(/\r?\n/);
+  const starts = lines.reduce<number[]>((result, line, index) => {
+    if (parseDate(line.trim()) || parseRussianDate(line.trim()) || /^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b/.test(line.trim())) result.push(index);
+    return result;
+  }, []);
+  if (starts.length <= 1) {
+    const workout = parseWorkoutNotes(input);
+    return workout.id ? [workout] : [];
+  }
+  return starts.map((start, index) => parseWorkoutNotes(lines.slice(start, starts[index + 1] ?? lines.length).join("\n"))).filter((workout) => workout.id && workout.exercises.length > 0);
 }
 
 export function suggestNextLoad(history: Array<Pick<ExerciseSet, "weightKg" | "reps" | "completed" | "date">>) {

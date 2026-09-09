@@ -7,16 +7,37 @@ import { createInitialState, createStarterWorkout, readStateSafely, storageKey }
 
 const now = "2026-09-09T10:00:00.000Z";
 
+function workoutFixture() {
+  return {
+    id: "fixture-workout",
+    date: "2026-09-09",
+    title: "Fixture",
+    exercises: [{
+      id: "fixture-exercise",
+      name: "Fixture exercise",
+      category: "working",
+      restSec: 240,
+      sets: [1, 2, 3, 4].map((index) => ({
+        id: `fixture-set-${index}`,
+        weightKg: 45,
+        reps: 8,
+        completed: false,
+        weightMode: "per-hand",
+      })),
+    }],
+  };
+}
+
 test("A01 chest completion starts 240 second rest", () => {
-  const workout = createStarterWorkout("2026-09-09");
-  const result = tracker.completeWorkoutSet({ workout, commands: [], activeTimer: null }, "bench-machine", "bench-1", "cmd-1", now);
+  const workout = workoutFixture();
+  const result = tracker.completeWorkoutSet({ workout, commands: [], activeTimer: null }, "fixture-exercise", "fixture-set-1", "cmd-1", now);
   assert.equal(result.activeTimer.durationSec, 240);
 });
 
 test("A02 completion creates durable command data", () => {
-  const workout = createStarterWorkout("2026-09-09");
-  const result = tracker.completeWorkoutSet({ workout, commands: [], activeTimer: null }, "bench-machine", "bench-1", "cmd-1", now);
-  assert.equal(result.commands[0].payload.setId, "bench-1");
+  const workout = workoutFixture();
+  const result = tracker.completeWorkoutSet({ workout, commands: [], activeTimer: null }, "fixture-exercise", "fixture-set-1", "cmd-1", now);
+  assert.equal(result.commands[0].payload.setId, "fixture-set-1");
 });
 
 test("A03 repeated habit operation is idempotent", () => {
@@ -26,10 +47,10 @@ test("A03 repeated habit operation is idempotent", () => {
 });
 
 test("A04 repeated set command cannot undo completion", () => {
-  const workout = createStarterWorkout("2026-09-09");
+  const workout = workoutFixture();
   const state = { workout, commands: [], activeTimer: null };
-  const first = tracker.completeWorkoutSet(state, "bench-machine", "bench-1", "cmd-1", now);
-  const second = tracker.completeWorkoutSet(first, "bench-machine", "bench-1", "cmd-1", now);
+  const first = tracker.completeWorkoutSet(state, "fixture-exercise", "fixture-set-1", "cmd-1", now);
+  const second = tracker.completeWorkoutSet(first, "fixture-exercise", "fixture-set-1", "cmd-1", now);
   assert.equal(second.workout.exercises[0].sets[0].completed, true);
   assert.equal(second.commands.length, 1);
 });
@@ -39,7 +60,7 @@ test("A05 starter chest program has four working sets", () => {
 });
 
 test("A06 45 kg per side x 8 is 720 kg", () => {
-  const set = createStarterWorkout("2026-09-09").exercises[0].sets[0];
+  const set = workoutFixture().exercises[0].sets[0];
   assert.equal(tracker.calculateExerciseVolume([{ ...set, completed: true }]), 720);
 });
 

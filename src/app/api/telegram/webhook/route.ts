@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { validateTelegramUpdate, verifyTelegramSecret } from "@/lib/telegram";
 
 export const runtime = "nodejs";
@@ -16,8 +17,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
   if (!validateTelegramUpdate(update)) return NextResponse.json({ error: "invalid_update" }, { status: 400 });
-
-  // Deduplication, ownership and callback-to-event checks are intentionally server-side.
-  // They are performed by the Supabase transaction once credentials are configured.
-  return NextResponse.json({ accepted: true, updateId: update.update_id, connected: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) });
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceRoleKey) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+  const admin = createClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
+  const { error } = await admin.from("telegram_updates").upsert({ update_id: update.update_id, payload: update }, { onConflict: "update_id", ignoreDuplicates: true });
+  if (error) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+  return NextResponse.json({ accepted: true, updateId: update.update_id, duplicate: false });
 }

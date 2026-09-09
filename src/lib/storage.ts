@@ -37,6 +37,9 @@ export type TrackerState = {
 
 export const storageKey = "ritm-tracker-state-v1";
 export const storageBackupPrefix = `${storageKey}-backup-`;
+export function getStorageKey(userId?: string) {
+  return userId ? `${storageKey}:${userId}` : storageKey;
+}
 
 export type StateReadResult = {
   state: TrackerState;
@@ -88,18 +91,19 @@ export function createStarterWorkout(localDate = getLocalDate()): Workout {
         name: "Упражнение C",
         category: "working",
         restSec: 180,
-        sets: [1, 2].map((index) => ({ id: `exercise-c-${index}`, weightKg: null, reps: null, completed: false, component: index === 1 ? "compound-a" as const : "compound-b" as const })),
+        sets: [1, 2, 3, 4].map((index) => ({ id: `exercise-c-${index}`, weightKg: null, reps: null, completed: false, component: index % 2 === 1 ? "compound-a" as const : "compound-b" as const })),
       },
     ],
   };
 }
 
-export function readStateSafely(): StateReadResult {
+export function readStateSafely(userId?: string): StateReadResult {
   if (typeof window === "undefined") return { state: createInitialState(), status: "unavailable" };
 
   let raw: string | null;
   try {
-    raw = window.localStorage.getItem(storageKey);
+    raw = window.localStorage.getItem(getStorageKey(userId));
+    if (!raw && userId) raw = window.localStorage.getItem(storageKey);
   } catch (error) {
     return { state: createInitialState(), status: "unavailable", error: error instanceof Error ? error.message : "storage read failed" };
   }
@@ -122,13 +126,14 @@ export function readState(): TrackerState {
   return readStateSafely().state;
 }
 
-export function writeState(state: TrackerState): { ok: boolean; error?: string } {
+export function writeState(state: TrackerState, userId?: string): { ok: boolean; error?: string } {
   if (typeof window === "undefined") return { ok: false, error: "browser storage unavailable" };
-  const temporaryKey = `${storageKey}-pending`;
+  const targetKey = getStorageKey(userId);
+  const temporaryKey = `${targetKey}-pending`;
   try {
     const serialized = JSON.stringify(state);
     window.localStorage.setItem(temporaryKey, serialized);
-    window.localStorage.setItem(storageKey, serialized);
+    window.localStorage.setItem(targetKey, serialized);
     window.localStorage.removeItem(temporaryKey);
     return { ok: true };
   } catch (error) {

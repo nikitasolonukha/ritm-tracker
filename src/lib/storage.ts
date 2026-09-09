@@ -69,26 +69,26 @@ export function createStarterWorkout(localDate = getLocalDate()): Workout {
     exercises: [
       {
         id: "bench-machine",
-        name: "Жим в тренажере",
-        settings: "посадка 6 · ручки 3",
+        name: "Упражнение A",
+        settings: "настроить",
         category: "working",
         restSec: 240,
         weightFactor: 2,
-        sets: [1, 2, 3, 4].map((index) => ({ id: `bench-${index}`, weightKg: 45, reps: 8, completed: false, weightMode: "per-hand" as const })),
+        sets: [1, 2, 3, 4].map((index) => ({ id: `exercise-a-${index}`, weightKg: null, reps: null, completed: false, weightMode: "total" as const })),
       },
       {
         id: "lat-pulldown",
-        name: "Верхний блок",
+        name: "Упражнение B",
         category: "working",
         restSec: 240,
-        sets: [1, 2, 3, 4].map((index) => ({ id: `lat-${index}`, weightKg: 35, reps: 10, completed: false })),
+        sets: [1, 2, 3, 4].map((index) => ({ id: `exercise-b-${index}`, weightKg: null, reps: null, completed: false })),
       },
       {
         id: "lateral-raise",
-        name: "Махи",
+        name: "Упражнение C",
         category: "working",
         restSec: 180,
-        sets: [1, 2].map((index) => ({ id: `raise-${index}`, weightKg: index === 1 ? 12 : 8, reps: 10, completed: false, component: index === 1 ? "compound-a" as const : "compound-b" as const })),
+        sets: [1, 2].map((index) => ({ id: `exercise-c-${index}`, weightKg: null, reps: null, completed: false, component: index === 1 ? "compound-a" as const : "compound-b" as const })),
       },
     ],
   };

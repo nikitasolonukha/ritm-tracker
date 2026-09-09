@@ -37,7 +37,7 @@ export default function Home() {
   const [storageReady, setStorageReady] = useState(false);
   const [storageMessage, setStorageMessage] = useState("");
   const [activeTab, setActiveTab] = useState<"today" | "gym" | "progress">("today");
-  const [notes, setNotes] = useState("09.09.2026\nЖим в тренажере\n20x5, 30x3, 40x1, 45x8, 45x8\nБабочка посадка 6 ручки 3\n30x12, 35 в отказ");
+  const [notes, setNotes] = useState("01.01.2026\nУпражнение A\n10x5, 15x3, 20x8\nУпражнение B\n12x10");
   const [timerNow, setTimerNow] = useState(() => new Date().toISOString());
 
   useEffect(() => {

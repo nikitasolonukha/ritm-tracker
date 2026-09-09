@@ -1,0 +1,17 @@
+{
+  "name": "Ритм",
+  "short_name": "Ритм",
+  "description": "Личный трекер привычек, тренировок и наблюдений.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111312",
+  "theme_color": "#111312",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

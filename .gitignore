@@ -1,0 +1,10 @@
+.next
+node_modules
+.pnpm-store
+dist
+coverage
+.env
+.env.local
+*.tsbuildinfo
+playwright-report
+test-results

@@ -71,7 +71,7 @@ export default function Home() {
   const chiaMilestone = getMilestoneState(state.completions, "chia", 5);
   const rest = state.activeTimer ? restoreRestTimer(state.activeTimer, timerNow) : null;
   const completedToday = state.completions.filter((item) => item.localDate === today()).length;
-  const nextHabit = state.habits.find((habit) => !state.completions.some((item) => item.habitId === habit.id && item.localDate === today()));
+  const nextHabit = state.habits.find((habit) => habit.type !== "workout" && !state.completions.some((item) => item.habitId === habit.id && item.localDate === today()));
 
   function update(mutator: (state: TrackerState) => TrackerState) {
     setState((previous) => previous ? mutator(previous) : previous);
@@ -207,7 +207,7 @@ export default function Home() {
               <ChevronRight size={20} />
             </div>
             <div className="habitList">
-              {state.habits.map((habit) => {
+              {state.habits.filter((habit) => habit.type !== "workout").map((habit) => {
                 const done = state.completions.some((item) => item.habitId === habit.id && item.localDate === today());
                 const Icon = habit.type === "medicine" ? Pill : habit.type === "workout" ? Dumbbell : habit.type === "sleep" ? Moon : Flame;
                 return (

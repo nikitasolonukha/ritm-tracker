@@ -281,11 +281,12 @@ export function suggestNextLoad(history: Array<Pick<ExerciseSet, "weightKg" | "r
 }
 
 export const defaultHabits: Habit[] = [
-  { id: "wake", title: "Подъём", type: "sleep", schedule: "09:30" },
-  { id: "breakfast", title: "Завтрак", type: "meal", schedule: "10:00" },
-  { id: "medicine-am", title: "Утренний приём", privateTitle: "Препарат из назначения", type: "medicine", schedule: "10:15" },
-  { id: "chia", title: "Чиа", type: "habit", schedule: "12:00", targetDays: 5 },
-  { id: "gym", title: "Зал", type: "workout", schedule: "19:00", targetDays: 3 },
+  { id: "wake", title: "Подъём", type: "sleep", schedule: "09:00" },
+  { id: "breakfast", title: "Завтрак", type: "meal", schedule: "после подъёма" },
+  { id: "medicine-am", title: "Утренний приём", privateTitle: "после утренней еды · настроить", type: "medicine", schedule: "после завтрака" },
+  { id: "chia", title: "Чиа", type: "habit", schedule: "дневной приём · настроить", targetDays: 5 },
+  { id: "zinc", title: "Вечерний приём", privateTitle: "после вечерней еды · настроить", type: "medicine", schedule: "после вечерней еды" },
+  { id: "gym", title: "Тренировка", type: "workout", schedule: "пн/ср/пт · время гибкое", targetDays: 3 },
 ];
 
 function looksLikeSetLine(line: string) {

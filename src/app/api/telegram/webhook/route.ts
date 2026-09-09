@@ -19,5 +19,5 @@ export async function POST(request: NextRequest) {
 
   // Deduplication, ownership and callback-to-event checks are intentionally server-side.
   // They are performed by the Supabase transaction once credentials are configured.
-  return NextResponse.json({ accepted: true, updateId: update.update_id, connected: Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) });
+  return NextResponse.json({ accepted: true, updateId: update.update_id, connected: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) });
 }

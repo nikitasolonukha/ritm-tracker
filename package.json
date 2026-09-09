@@ -12,6 +12,8 @@
     "test:coverage": "node --test --experimental-strip-types tests/tracker.test.ts tests/repair.test.ts tests/telegram.test.ts tests/audit-regressions.test.mjs"
   },
   "dependencies": {
+    "@supabase/ssr": "0.7.0",
+    "@supabase/supabase-js": "2.57.4",
     "lucide-react": "^0.468.0",
     "next": "^15.1.0",
     "react": "^19.0.0",

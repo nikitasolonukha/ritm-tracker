@@ -21,7 +21,17 @@ export async function POST(request: NextRequest) {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceRoleKey) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
   const admin = createClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
-  const { error } = await admin.from("telegram_updates").upsert({ update_id: update.update_id, payload: update }, { onConflict: "update_id", ignoreDuplicates: true });
-  if (error) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
-  return NextResponse.json({ accepted: true, updateId: update.update_id, duplicate: false });
+  const { data: existing, error: lookupError } = await admin
+    .from("telegram_updates")
+    .select("update_id")
+    .eq("update_id", update.update_id)
+    .maybeSingle();
+  if (lookupError) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+  if (existing) return NextResponse.json({ accepted: true, updateId: update.update_id, duplicate: true });
+
+  const { error: insertError } = await admin.from("telegram_updates").insert({ update_id: update.update_id, payload: update });
+  if (insertError && insertError.code !== "23505") {
+    return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+  }
+  return NextResponse.json({ accepted: true, updateId: update.update_id, duplicate: Boolean(insertError) });
 }

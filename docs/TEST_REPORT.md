@@ -8,7 +8,7 @@
 - Безопасная гидрация `ritm-tracker-state-v1`: поврежденный JSON резервируется и не перезаписывается начальным состоянием.
 - Локальная дата `Europe/Moscow`, четыре рабочих подхода, per-hand учет, составные махи, идемпотентная команда `completeWorkoutSet` и автотаймер 240/180 секунд.
 - Импорт с inline-упражнениями, десятичной запятой, неизвестными повторами и стабильным ID после нормализации пробелов.
-- Перенесенный аудит регрессий, Supabase migration/RLS/RPC каркас и Telegram webhook validation route.
+- Перенесенный аудит регрессий, Supabase migration/RLS/RPC каркас и Telegram webhook с секретом, валидацией и durable `telegram_updates` journal.
 - Закрытый owner-gated вход через Supabase, fail-closed middleware в `src/middleware.ts`, user-scoped localStorage и `/api/sync`.
 - Настройка действий дня и шаблона тренировки: названия, расписания, упражнения, отдых и количество подходов.
 
@@ -40,8 +40,8 @@ Production build подтвердил middleware manifest с `name: "src/middlew
 
 ## Написано, но не проверено внешними сервисами
 
-- Supabase migrations `ritm_core`, security hardening и `tracker_state` применены к проекту; реальный RPC/изоляция двумя учетными записями еще не прогонялись.
-- Production login и webhook secret проверены на реальном Vercel deployment. Реальная доставка Telegram, callback ownership и дедупликация update в БД еще не прогонялись.
+- Supabase migrations `ritm_core`, security hardening, `tracker_state` и `telegram_updates` применены к проекту; реальный RPC/изоляция двумя учетными записями еще не прогонялись.
+- Production login и webhook secret проверены на реальном Vercel deployment. Реальная доставка Telegram и callback ownership еще не прогонялись; повторная запись `update_id` защищена в route и уникальным ключом БД, но внешний production smoke-test дедупликации еще не выполнен.
 
 ## Не завершено
 

@@ -3,12 +3,12 @@ import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
   const isLogin = request.nextUrl.pathname === "/login";
-  const isWebhook = request.nextUrl.pathname === "/api/telegram/webhook";
+  const isServerEndpoint = ["/api/telegram/webhook", "/api/telegram/worker"].includes(request.nextUrl.pathname);
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   const configured = Boolean(supabaseUrl && supabaseKey);
   const demoMode = process.env.NODE_ENV !== "production" && process.env.RITM_DEMO_MODE === "1";
-  if (isWebhook || demoMode) return NextResponse.next();
+  if (isServerEndpoint || demoMode) return NextResponse.next();
   if (!configured) return isLogin ? NextResponse.next() : NextResponse.redirect(new URL("/login?reason=not-configured", request.url));
   if (!supabaseUrl || !supabaseKey) return NextResponse.next();
 

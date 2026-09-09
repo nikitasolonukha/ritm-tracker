@@ -11,6 +11,7 @@
 - Перенесенный аудит регрессий, Supabase migration/RLS/RPC каркас и Telegram webhook с секретом, валидацией и durable `telegram_updates` journal.
 - Закрытый owner-gated вход через Supabase, fail-closed middleware в `src/middleware.ts`, user-scoped localStorage и `/api/sync`.
 - Настройка действий дня и шаблона тренировки: названия, расписания, упражнения, отдых и количество подходов.
+- Явный выбор режима веса в рабочем подходе, отказ от молчаливого учета неизвестного режима и выход из аккаунта с сохранением локальной очереди.
 
 ## Проверено локально
 
@@ -36,7 +37,7 @@ node --test --experimental-strip-types tests\\tracker.test.ts tests\\repair.test
 
 Production build подтвердил middleware manifest с `name: "src/middleware"` и маршрутами `/api/sync`, `/api/telegram/webhook`.
 
-Проверены отдельно: МСК после полуночи, расчет веса на руку, четыре рабочих подхода, двойное подтверждение, автотаймер, составные части без промежуточного отдыха, пустой и исторический импорт, batch parser, невозможные даты, дубликаты, user-scoped storage, offline JS fallback, резервирование поврежденного storage, secret/update_id Telegram validation.
+Проверены отдельно: МСК после полуночи, расчет веса на руку, явный общий вес, неизвестный режим как unscored, четыре рабочих подхода, двойное подтверждение, автотаймер, составные части без промежуточного отдыха, пустой и исторический импорт, batch parser, невозможные даты, дубликаты, user-scoped storage, offline JS fallback, резервирование поврежденного storage, secret/update_id Telegram validation.
 
 ## Написано, но не проверено внешними сервисами
 

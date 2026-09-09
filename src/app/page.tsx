@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Dumbbell,
   Flame,
+  LogOut,
   Moon,
   Pause,
   Pill,
@@ -92,7 +93,8 @@ export default function Home() {
   const totals = calculateWorkoutTotals(currentWorkout);
   const chiaMilestone = getMilestoneState(state.completions, "chia", 5);
   const rest = state.activeTimer ? restoreRestTimer(state.activeTimer, timerNow) : null;
-  const completedToday = state.completions.filter((item) => item.localDate === today()).length;
+  const visibleHabits = state.habits.filter((habit) => habit.type !== "workout");
+  const completedToday = visibleHabits.filter((habit) => state.completions.some((item) => item.habitId === habit.id && item.localDate === today())).length;
   const nextHabit = state.habits.find((habit) => habit.type !== "workout" && !state.completions.some((item) => item.habitId === habit.id && item.localDate === today()));
 
   function update(mutator: (state: TrackerState) => TrackerState) {
@@ -236,7 +238,7 @@ export default function Home() {
       <section className="statusBand">
         <div>
           <span>Отмечено</span>
-          <strong>{completedToday} из {state.habits.length}</strong>
+          <strong>{completedToday} из {visibleHabits.length}</strong>
         </div>
         <div>
           <span>Объём тренировки</span>
@@ -339,7 +341,15 @@ export default function Home() {
                           onChange={(event) => updateSet(exercise.id, set.id, { weightDraft: event.target.value })}
                           onBlur={() => commitSetField(exercise.id, set.id, "weight")}
                         />
-                        <span>кг</span>
+                        <select
+                          aria-label="Способ учета веса"
+                          value={set.weightMode ?? ""}
+                          onChange={(event) => updateSet(exercise.id, set.id, { weightMode: event.target.value === "" ? undefined : event.target.value as ExerciseSet["weightMode"] })}
+                        >
+                          <option value="">Уточнить</option>
+                          <option value="total">Общий вес</option>
+                          <option value="per-hand">На сторону / гантель</option>
+                        </select>
                         <input
                           aria-label="Повторы"
                           inputMode="numeric"
@@ -447,6 +457,11 @@ export default function Home() {
               <button className="secondary" onClick={() => addSet(exercise.id)}>+ подход</button>
               <span className="muted">{exercise.sets.length} подходов</span>
             </div>)}
+          </article>
+          <article className="panel wide">
+            <div className="panelTitle"><h2>Сеанс</h2><LogOut size={20} /></div>
+            <p className="muted">Выход завершит текущую сессию, сохранив локальную историю и очередь несинхронизированных действий.</p>
+            <button className="secondary" onClick={() => { void createClient().auth.signOut().finally(() => { window.location.assign("/login"); }); }}><LogOut size={16} /> Выйти</button>
           </article>
         </section>
       )}

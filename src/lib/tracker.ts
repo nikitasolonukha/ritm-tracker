@@ -98,6 +98,7 @@ export function calculateExerciseVolume(sets: ExerciseSet[]): number {
       return sum;
     }
 
+    if (set.weightMode !== "total" && set.weightMode !== "per-hand") return sum;
     const multiplier = set.weightMode === "per-hand" ? 2 : 1;
     return sum + set.weightKg * multiplier * set.reps;
   }, 0);
@@ -113,7 +114,7 @@ export function calculateWorkoutTotals(workout: Workout) {
       if (!set.completed) continue;
       completedSets += 1;
 
-      if (set.weightKg == null || set.reps == null) {
+      if (set.weightKg == null || set.reps == null || (set.weightMode !== "total" && set.weightMode !== "per-hand")) {
         unscoredSets += 1;
         continue;
       }

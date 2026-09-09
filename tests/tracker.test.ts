@@ -13,10 +13,10 @@ import {
 
 test("calculates normal barbell/machine volume", () => {
   assert.equal(calculateExerciseVolume([
-    { id: "s1", weightKg: 45, reps: 8, completed: true },
-    { id: "s2", weightKg: 45, reps: 8, completed: true },
-    { id: "s3", weightKg: 45, reps: 8, completed: true },
-    { id: "s4", weightKg: 45, reps: 8, completed: true },
+    { id: "s1", weightKg: 45, reps: 8, completed: true, weightMode: "total" },
+    { id: "s2", weightKg: 45, reps: 8, completed: true, weightMode: "total" },
+    { id: "s3", weightKg: 45, reps: 8, completed: true, weightMode: "total" },
+    { id: "s4", weightKg: 45, reps: 8, completed: true, weightMode: "total" },
   ]), 1440);
 });
 
@@ -36,7 +36,7 @@ test("excludes planned and unknown sets from actual totals", () => {
         id: "e1",
         name: "Бабочка",
         sets: [
-          { id: "s1", weightKg: 30, reps: 12, completed: true },
+          { id: "s1", weightKg: 30, reps: 12, completed: true, weightMode: "total" },
           { id: "s2", weightKg: 35, reps: null, completed: true, note: "в отказ" },
           { id: "s3", weightKg: 40, reps: 10, completed: false },
         ],
@@ -47,6 +47,15 @@ test("excludes planned and unknown sets from actual totals", () => {
   assert.equal(totals.volumeKg, 360);
   assert.equal(totals.completedSets, 2);
   assert.equal(totals.unscoredSets, 1);
+
+  const unknownMode = calculateWorkoutTotals({
+    id: "w2",
+    date: "2026-09-09",
+    title: "Исторический импорт",
+    exercises: [{ id: "e2", name: "Неизвестный вес", sets: [{ id: "s4", weightKg: 45, reps: 8, completed: true }] }],
+  });
+  assert.equal(unknownMode.volumeKg, 0);
+  assert.equal(unknownMode.unscoredSets, 1);
 });
 
 test("does not duplicate habit completion on repeated commands", () => {

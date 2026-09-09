@@ -19,7 +19,7 @@
 node --test --experimental-strip-types tests\\tracker.test.ts tests\\repair.test.ts tests\\telegram.test.ts tests\\audit-regressions.test.mjs
 ```
 
-Результат: 34 теста, 34 passed.
+Результат: 36 тестов, 36 passed.
 
 ```bash
 .\\node_modules\\.bin\\tsc --noEmit
@@ -37,7 +37,7 @@ node --test --experimental-strip-types tests\\tracker.test.ts tests\\repair.test
 
 Production build подтвердил middleware manifest с `name: "src/middleware"` и маршрутами `/api/sync`, `/api/telegram/webhook`.
 
-Проверены отдельно: МСК после полуночи, расчет веса на руку, явный общий вес, неизвестный режим как unscored, четыре рабочих подхода, двойное подтверждение, автотаймер, составные части без промежуточного отдыха, пустой и исторический импорт, batch parser, невозможные даты, дубликаты, user-scoped storage, offline JS fallback, резервирование поврежденного storage, secret/update_id Telegram validation.
+Проверены отдельно: МСК после полуночи, расчет веса на руку, явный общий вес, неизвестный режим как unscored, четыре рабочих подхода, две пары составных плеч с одним отдыхом на пару, двойное подтверждение, автотаймер, пустой и исторический импорт, batch parser, невозможные числовые и русские даты, дубликаты, user-scoped storage, offline JS fallback, резервирование поврежденного storage, secret/update_id Telegram validation.
 
 ## Написано, но не проверено внешними сервисами
 

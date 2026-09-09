@@ -9,6 +9,7 @@ export type ExerciseSet = {
   weightMode?: WeightMode;
   date?: string;
   component?: "single" | "compound-a" | "compound-b";
+  segmentId?: string;
   weightDraft?: string;
   repsDraft?: string;
 };
@@ -212,11 +213,14 @@ export function completeWorkoutSet(
       sets: item.sets.map((set) => set.id === setId ? { ...set, completed: true, weightDraft: undefined, repsDraft: undefined } : set),
     }),
   };
-  const pairedIncomplete = target.component === "compound-a"
-    ? exercise.sets.some((set) => set.component === "compound-b" && !set.completed)
-    : target.component === "compound-b"
-      ? exercise.sets.some((set) => set.component === "compound-a" && !set.completed)
-      : false;
+  const targetIndex = exercise.sets.findIndex((set) => set.id === setId);
+  const segmentKey = target.segmentId ?? (targetIndex >= 0 ? `pair-${Math.floor(targetIndex / 2)}` : "unknown");
+  const pairedIncomplete = target.component === "compound-a" || target.component === "compound-b"
+    ? exercise.sets.some((set, index) => {
+      const key = set.segmentId ?? `pair-${Math.floor(index / 2)}`;
+      return key === segmentKey && set.component !== target.component && !set.completed;
+    })
+    : false;
 
   return {
     workout: nextWorkout,
@@ -244,7 +248,9 @@ export function parseWorkoutNotes(input: string): Workout {
 
   const rawDate = lines[0] ?? "";
   const explicitDate = parseDate(rawDate) ?? parseRussianDate(rawDate);
-  if (/^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b/.test(rawDate) && !parseDate(rawDate)) {
+  const looksLikeDate = /^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b/.test(rawDate)
+    || /^(?:\d{1,2})\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:\s|$)/i.test(rawDate);
+  if (looksLikeDate && !explicitDate) {
     return { id: "", date: getLocalDate(), title: "", exercises: [] };
   }
   const date = explicitDate ?? getLocalDate();
@@ -372,7 +378,11 @@ function parseRussianDate(value: string) {
   if (!match) return null;
   const month = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"].indexOf(match[2]) + 1;
   const year = Number(match[3] ?? getLocalDate().slice(0, 4));
-  return `${year}-${String(month).padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+  const day = Number(match[1]);
+  const candidate = new Date(Date.UTC(year, month - 1, day));
+  return candidate.getUTCFullYear() === year && candidate.getUTCMonth() + 1 === month && candidate.getUTCDate() === day
+    ? `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+    : null;
 }
 
 function slug(value: string) {

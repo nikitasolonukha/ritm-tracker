@@ -91,7 +91,7 @@ export function createStarterWorkout(localDate = getLocalDate()): Workout {
         name: "Упражнение C",
         category: "working",
         restSec: 180,
-        sets: [1, 2, 3, 4].map((index) => ({ id: `exercise-c-${index}`, weightKg: null, reps: null, completed: false, component: index % 2 === 1 ? "compound-a" as const : "compound-b" as const })),
+        sets: [1, 2, 3, 4].map((index) => ({ id: `exercise-c-${index}`, weightKg: null, reps: null, completed: false, weightMode: "total" as const, segmentId: `pair-${Math.ceil(index / 2)}`, component: index % 2 === 1 ? "compound-a" as const : "compound-b" as const })),
       },
     ],
   };

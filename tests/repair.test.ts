@@ -53,3 +53,26 @@ test("default schedule records the user's scheme without inventing clock times",
   assert.equal(defaultHabits.find((habit) => habit.id === "chia")?.schedule, "настроить");
   assert.equal(defaultHabits.find((habit) => habit.id === "zinc")?.privateTitle, "настроить");
 });
+
+test("compound shoulder pairs start one rest per pair", () => {
+  const workout: Workout = {
+    id: "shoulders",
+    date: "2026-09-10",
+    title: "Плечи",
+    exercises: [{ id: "shoulders", name: "Плечи", restSec: 180, sets: [
+      { id: "a1", weightKg: 5, reps: 8, completed: false, component: "compound-a", segmentId: "pair-1", weightMode: "total" },
+      { id: "b1", weightKg: 5, reps: 8, completed: false, component: "compound-b", segmentId: "pair-1", weightMode: "total" },
+      { id: "a2", weightKg: 5, reps: 8, completed: false, component: "compound-a", segmentId: "pair-2", weightMode: "total" },
+      { id: "b2", weightKg: 5, reps: 8, completed: false, component: "compound-b", segmentId: "pair-2", weightMode: "total" },
+    ] }],
+  };
+  const first = completeWorkoutSet({ workout, commands: [], activeTimer: null }, "shoulders", "a1", "a1-command", "2026-09-10T10:00:00.000Z");
+  const second = completeWorkoutSet(first, "shoulders", "b1", "b1-command", "2026-09-10T10:00:01.000Z");
+  assert.equal(first.activeTimer, null);
+  assert.equal(second.activeTimer?.durationSec, 180);
+  assert.equal(second.activeTimer?.sourceId, "shoulders:shoulders:b1");
+});
+
+test("impossible Russian dates are rejected", () => {
+  assert.equal(parseWorkoutNotes("31 февраля 2026\nЖим\n45x8").id, "");
+});

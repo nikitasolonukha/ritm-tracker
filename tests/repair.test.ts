@@ -49,7 +49,7 @@ test("inline imports keep the exercise name and decimal comma", () => {
 });
 
 test("default schedule records the user's scheme without inventing clock times", () => {
-  assert.equal(defaultHabits.find((habit) => habit.id === "wake")?.schedule, "09:00");
-  assert.equal(defaultHabits.find((habit) => habit.id === "chia")?.schedule, "дневной приём · настроить");
-  assert.equal(defaultHabits.find((habit) => habit.id === "zinc")?.privateTitle, "после вечерней еды · настроить");
+  assert.equal(defaultHabits.find((habit) => habit.id === "wake")?.schedule, "настроить");
+  assert.equal(defaultHabits.find((habit) => habit.id === "chia")?.schedule, "настроить");
+  assert.equal(defaultHabits.find((habit) => habit.id === "zinc")?.privateTitle, "настроить");
 });

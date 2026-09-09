@@ -281,12 +281,12 @@ export function suggestNextLoad(history: Array<Pick<ExerciseSet, "weightKg" | "r
 }
 
 export const defaultHabits: Habit[] = [
-  { id: "wake", title: "Подъём", type: "sleep", schedule: "09:00" },
-  { id: "breakfast", title: "Завтрак", type: "meal", schedule: "после подъёма" },
-  { id: "medicine-am", title: "Утренний приём", privateTitle: "после утренней еды · настроить", type: "medicine", schedule: "после завтрака" },
-  { id: "chia", title: "Чиа", type: "habit", schedule: "дневной приём · настроить", targetDays: 5 },
-  { id: "zinc", title: "Вечерний приём", privateTitle: "после вечерней еды · настроить", type: "medicine", schedule: "после вечерней еды" },
-  { id: "gym", title: "Тренировка", type: "workout", schedule: "пн/ср/пт · время гибкое", targetDays: 3 },
+  { id: "wake", title: "Подъём", type: "sleep", schedule: "настроить" },
+  { id: "breakfast", title: "Утренний приём пищи", type: "meal", schedule: "настроить" },
+  { id: "medicine-am", title: "Утренняя привычка", privateTitle: "настроить", type: "medicine", schedule: "настроить" },
+  { id: "chia", title: "Дневная привычка", type: "habit", schedule: "настроить", targetDays: 5 },
+  { id: "zinc", title: "Вечерняя привычка", privateTitle: "настроить", type: "medicine", schedule: "настроить" },
+  { id: "gym", title: "Тренировка", type: "workout", schedule: "настроить", targetDays: 3 },
 ];
 
 function looksLikeSetLine(line: string) {

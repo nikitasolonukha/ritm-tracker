@@ -35,19 +35,19 @@ node --test --experimental-strip-types tests\\tracker.test.ts tests\\repair.test
 
 Результат: 2 теста, 2 passed. Проверены redirect приватной страницы без конфигурации и отсутствие browser-login redirect у webhook. Chromium запускался с разрешением Windows после sandbox `spawn EPERM`.
 
-Production build подтвердил middleware manifest с `name: "src/middleware"` и маршрутами `/api/sync`, `/api/telegram/webhook`.
+Production build подтвердил middleware manifest с `name: "src/middleware"` и маршрутами `/api/sync`, `/api/telegram/webhook`, `/api/telegram/worker`.
 
 Проверены отдельно: МСК после полуночи, расчет веса на руку, явный общий вес, неизвестный режим как unscored, четыре рабочих подхода, две пары составных плеч с одним отдыхом на пару, двойное подтверждение, автотаймер, пустой и исторический импорт, batch parser, невозможные числовые и русские даты, дубликаты, user-scoped storage, offline JS fallback, резервирование поврежденного storage, secret/update_id Telegram validation.
 
 ## Написано, но не проверено внешними сервисами
 
-- Supabase migrations `ritm_core`, security hardening, `tracker_state` и `telegram_updates` применены к проекту; реальный RPC/изоляция двумя учетными записями еще не прогонялись.
+- Supabase migrations `ritm_core`, security hardening, `tracker_state`, `telegram_updates` и server-only lease/retry RPC для `notification_jobs` применены к проекту; реальный RPC/изоляция двумя учетными записями еще не прогонялись.
 - Production login и webhook secret проверены на реальном Vercel deployment. Реальная доставка Telegram и callback ownership еще не прогонялись; повторная запись `update_id` защищена в route и уникальным ключом БД, но внешний production smoke-test дедупликации еще не выполнен.
 
 ## Не завершено
 
 - Полный Auth/Storage client для relational journal, транзакционная sync и интеграционные тесты с двумя пользователями.
-- Полная Telegram очередь due/lease/retry, worker, callback actions и отправка уведомлений.
+- Telegram callback actions, создание due jobs из фактов тренировки и реальный smoke-test отправки уведомления; worker/lease/retry код уже написан.
 - IndexedDB command log, конфликты вкладок/устройств и восстановление после offline.
 - Полный дневной сценарий, наблюдения, фото, экспорт/восстановление и полноценные графики.
 - Playwright E2E всех пользовательских действий, iPhone и блокировка экрана.

@@ -12,3 +12,9 @@ test("webhook is not redirected to browser login", async ({ request }) => {
   expect(response.status()).toBe(401);
   expect(await response.json()).toEqual({ error: "unauthorized" });
 });
+
+test("telegram worker requires its server-side secret", async ({ request }) => {
+  const response = await request.post("/api/telegram/worker", { data: {} });
+  expect(response.status()).toBe(401);
+  expect(await response.json()).toEqual({ error: "unauthorized" });
+});

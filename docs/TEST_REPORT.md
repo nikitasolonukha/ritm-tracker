@@ -4,78 +4,39 @@
 
 ## Реализовано
 
-- Next.js PWA-приложение `Ритм` в текущей папке.
-- Главный экран привычек с быстрыми отметками.
-- Дневник тренировки с подходами, весом, повторами, таймером отдыха и расчётом объёма.
-- Парсер вставленных заметок тренировок.
-- Локальное сохранение состояния и outbox будущей синхронизации.
-- PWA manifest, SVG icon и service worker.
-- Документация `.env.example`, README и этот отчёт.
+- PWA `Ритм` с дневными привычками, тренировкой, таймером и локальным outbox.
+- Безопасная гидрация `ritm-tracker-state-v1`: поврежденный JSON резервируется и не перезаписывается начальным состоянием.
+- Локальная дата `Europe/Moscow`, четыре рабочих подхода, per-hand учет, составные махи, идемпотентная команда `completeWorkoutSet` и автотаймер 240/180 секунд.
+- Импорт с inline-упражнениями, десятичной запятой, неизвестными повторами и стабильным ID после нормализации пробелов.
+- Перенесенный аудит регрессий, Supabase migration/RLS/RPC каркас и Telegram webhook validation route.
 
-## Автоматически проверено
+## Проверено локально
 
 ```bash
-node --test --experimental-strip-types tests\tracker.test.ts
+node --test --experimental-strip-types tests\\tracker.test.ts tests\\repair.test.ts tests\\telegram.test.ts tests\\audit-regressions.test.mjs
 ```
 
-Результат: 8 тестов, 8 passed.
-
-Покрытые сценарии:
-
-- `45×8×4 = 1440` для обычного веса.
-- Гантели с `per-hand` режимом.
-- Плановые и неполные подходы не входят в фактический объём.
-- Повтор команды и двойной тап не создают дубль.
-- Пять разных локальных дней отличаются от пяти отметок за один день.
-- Восстановление таймера 240/180 секунд после refresh.
-- Импорт даты, упражнений, настроек тренажёра и записи `в отказ` без выдуманных повторов.
-- Подсказка веса появляется только после стабильной истории.
+Результат: 33 теста, 33 passed.
 
 ```bash
-.\node_modules\.bin\tsc --noEmit
+.\\node_modules\\.bin\\tsc --noEmit
+.\\node_modules\\.bin\\eslint "src/**/*.{ts,tsx}" "tests/**/*.ts"
+.\\node_modules\\.bin\\next build
 ```
 
-Результат: passed.
+Все три проверки прошли. E2E smoke test ранее проходил на desktop `1440x1000` и mobile `390x844`; после текущих изменений требуется повторный визуальный прогон.
 
-```bash
-.\node_modules\.bin\eslint "src/**/*.{ts,tsx}" "tests/**/*.ts"
-```
+Проверены отдельно: МСК после полуночи, `45×2×8=720`, четыре рабочих подхода, двойное подтверждение, автотаймер, пустой и исторический импорт, дубликаты, offline JS fallback, резервирование поврежденного storage, secret/update_id Telegram validation.
 
-Результат: passed.
+## Написано, но не проверено внешними сервисами
 
-```bash
-.\node_modules\.bin\next build
-```
-
-Результат: passed. Главная страница собрана как static route.
-
-Ограничение окружения: `pnpm test` и `pnpm lint` внутри текущей Codex-обёртки падали до запуска scripts с `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`, потому что wrapper пытался выполнить dependency check/install без TTY. Те же проверки через локальные бинарники выше прошли.
-
-## Вручную проверено
-
-- Headless Chromium smoke test на `http://localhost:3000`:
-  - desktop viewport `1440x1000`;
-  - mobile viewport `390x844`;
-  - загрузка главной страницы;
-  - переход во вкладку `Зал`;
-  - запуск таймера `180`;
-  - импорт заметок;
-  - сохранение скриншотов [desktop-home.png](./desktop-home.png) и [mobile-home.png](./mobile-home.png).
-
-Команда запускалась через Playwright. Первый запуск потребовал установку Chromium.
-
-## Требует ключей или действий пользователя
-
-- Supabase project URL/keys, миграции и Storage bucket.
-- Telegram bot token, webhook secret, owner id и регистрация webhook.
-- Деплой на Vercel и проверка, что preview-сборки не отправляют production-уведомления.
-- Установка PWA на iPhone, блокировка экрана, проверка Telegram-уведомлений и сценарии с наушниками.
+- Supabase migration, RLS policies и owner-scoped RPC: статически просмотрены и покрыты контрактными тестами, но реальный проект Supabase не подключен.
+- Telegram webhook route: проверяется секрет и формат update; реальная доставка, callback ownership и дедупликация в БД еще не прогонялись.
 
 ## Не завершено
 
-- Реальный backend, RLS и интеграционные тесты с Postgres.
-- Реальные Telegram reminders и callback buttons.
-- Фото кожи/тела, приватные signed URLs и удаление файлов.
-- Offline IndexedDB command log с конфликтами между вкладками/устройствами.
-- Playwright E2E сценарии.
-- Экспорт/восстановление JSON/CSV.
+- Реальный Auth/Storage client, транзакционная sync и интеграционные тесты с двумя пользователями.
+- Полная Telegram очередь due/lease/retry, worker и регистрация webhook.
+- IndexedDB command log, конфликты вкладок/устройств и восстановление после offline.
+- Полный дневной сценарий, наблюдения, фото, экспорт/восстановление и полноценные графики.
+- Playwright E2E всех пользовательских действий, iPhone и блокировка экрана.

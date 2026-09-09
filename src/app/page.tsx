@@ -15,85 +15,106 @@ import {
   Timer,
   Upload,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   applyHabitCompletion,
+  completeWorkoutSet,
   calculateWorkoutTotals,
   getMilestoneState,
+  getLocalDate,
+  normalizeDecimalInput,
   parseWorkoutNotes,
   restoreRestTimer,
-  suggestNextLoad,
   type ExerciseSet,
 } from "@/lib/tracker";
-import { createInitialState, readState, writeState, type TrackerState } from "@/lib/storage";
+import { readStateSafely, writeState, type TrackerState } from "@/lib/storage";
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => getLocalDate();
 
 export default function Home() {
-  const [state, setState] = useState<TrackerState>(() => createInitialState());
+  const [state, setState] = useState<TrackerState | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  const [storageReady, setStorageReady] = useState(false);
+  const [storageMessage, setStorageMessage] = useState("");
   const [activeTab, setActiveTab] = useState<"today" | "gym" | "progress">("today");
   const [notes, setNotes] = useState("09.09.2026\nЖим в тренажере\n20x5, 30x3, 40x1, 45x8, 45x8\nБабочка посадка 6 ручки 3\n30x12, 35 в отказ");
   const [timerNow, setTimerNow] = useState(() => new Date().toISOString());
 
   useEffect(() => {
-    setState(readState());
+    const result = readStateSafely();
+    setState(result.state);
+    setHydrated(true);
+    setStorageReady(result.status === "empty" || result.status === "loaded");
+    if (result.status === "corrupt" || result.status === "unsupported") {
+      setStorageMessage(`${result.error ?? "Локальные данные требуют восстановления"}. Исходная запись сохранена.`);
+    }
   }, []);
 
   useEffect(() => {
-    writeState(state);
-  }, [state]);
+    if (hydrated && storageReady && state) {
+      const result = writeState(state);
+      if (!result.ok) setStorageMessage("Не удалось сохранить изменения на устройстве.");
+    }
+  }, [hydrated, storageReady, state]);
 
   useEffect(() => {
     const id = window.setInterval(() => setTimerNow(new Date().toISOString()), 1000);
     return () => window.clearInterval(id);
   }, []);
 
-  const currentWorkout = state.workouts[0];
-  const totals = useMemo(() => calculateWorkoutTotals(currentWorkout), [currentWorkout]);
+  if (!state) {
+    return <main className="shell"><section className="panel"><p className="muted">Читаю сохраненные данные…</p></section></main>;
+  }
+
+  const currentWorkout = state.workouts.find((workout) => workout.id === state.activeWorkoutId) ?? state.workouts[0];
+  const totals = calculateWorkoutTotals(currentWorkout);
   const chiaMilestone = getMilestoneState(state.completions, "chia", 5);
   const rest = state.activeTimer ? restoreRestTimer(state.activeTimer, timerNow) : null;
   const completedToday = state.completions.filter((item) => item.localDate === today()).length;
   const nextHabit = state.habits.find((habit) => !state.completions.some((item) => item.habitId === habit.id && item.localDate === today()));
 
   function update(mutator: (state: TrackerState) => TrackerState) {
-    setState((previous) => mutator(previous));
+    setState((previous) => previous ? mutator(previous) : previous);
   }
 
   function completeHabit(habitId: string) {
     const now = new Date().toISOString();
-    update((previous) => ({
-      ...previous,
-      completions: applyHabitCompletion(previous.completions, {
-        id: `${habitId}-${today()}`,
-        habitId,
-        completedAt: now,
-        localDate: today(),
-        source: "web",
-      }),
-      outbox: [
-        ...previous.outbox,
-        { id: `out-${habitId}-${now}`, type: "habit.completed", createdAt: now, status: "pending" },
-      ],
-    }));
+    update((previous) => {
+      if (previous.completions.some((item) => item.habitId === habitId && item.localDate === today())) return previous;
+      return {
+        ...previous,
+        completions: applyHabitCompletion(previous.completions, {
+          id: `${habitId}-${today()}`,
+          habitId,
+          completedAt: now,
+          localDate: today(),
+          source: "web",
+        }),
+        outbox: [...previous.outbox, { id: `out-${habitId}-${today()}`, entityId: `${habitId}:${today()}`, type: "habit.completed", createdAt: now, status: "pending", version: 1 }],
+      };
+    });
   }
 
   function toggleSet(exerciseId: string, setId: string) {
-    update((previous) => ({
-      ...previous,
-      workouts: previous.workouts.map((workout, index) => index === 0 ? {
-        ...workout,
-        exercises: workout.exercises.map((exercise) => exercise.id === exerciseId ? {
-          ...exercise,
-          sets: exercise.sets.map((set) => set.id === setId ? { ...set, completed: !set.completed } : set),
-        } : exercise),
-      } : workout),
-    }));
+    const now = new Date().toISOString();
+    update((previous) => {
+      const session = completeWorkoutSet({ workout: currentWorkout, commands: previous.workoutCommands ?? [], activeTimer: previous.activeTimer }, exerciseId, setId, `set-${currentWorkout.id}-${exerciseId}-${setId}`, now);
+      if (session.workout === currentWorkout) return previous;
+      const command = session.commands.at(-1);
+      return {
+        ...previous,
+        workouts: previous.workouts.map((workout) => workout.id === currentWorkout.id ? session.workout : workout),
+        workoutCommands: session.commands,
+        activeTimer: session.activeTimer,
+        outbox: command ? [...previous.outbox, { id: `out-${command.id}`, entityId: command.entityId, type: "workout.set.completed", createdAt: now, status: "pending", version: 1, payload: command.payload }] : previous.outbox,
+      };
+    });
   }
 
   function updateSet(exerciseId: string, setId: string, patch: Partial<ExerciseSet>) {
     update((previous) => ({
       ...previous,
-      workouts: previous.workouts.map((workout, index) => index === 0 ? {
+      workouts: previous.workouts.map((workout) => workout.id === currentWorkout.id ? {
         ...workout,
         exercises: workout.exercises.map((exercise) => exercise.id === exerciseId ? {
           ...exercise,
@@ -105,11 +126,12 @@ export default function Home() {
 
   function importNotes() {
     const imported = parseWorkoutNotes(notes);
+    if (!notes.trim() || !imported.id || imported.exercises.length === 0) return;
     update((previous) => {
       if (previous.workouts.some((workout) => workout.id === imported.id)) return previous;
       return {
         ...previous,
-        workouts: [imported, ...previous.workouts],
+        workouts: [...previous.workouts, imported],
         outbox: [
           ...previous.outbox,
           { id: `out-import-${Date.now()}`, type: "workout.saved", createdAt: new Date().toISOString(), status: "pending" },
@@ -119,12 +141,13 @@ export default function Home() {
   }
 
   function startTimer(durationSec: number) {
+    const now = new Date();
     update((previous) => ({
       ...previous,
-      activeTimer: { startedAt: new Date().toISOString(), durationSec },
+      activeTimer: { startedAt: now.toISOString(), endsAt: new Date(now.getTime() + durationSec * 1000).toISOString(), durationSec, status: "running", version: (previous.activeTimer?.version ?? 0) + 1 },
       outbox: [
         ...previous.outbox,
-        { id: `timer-${Date.now()}`, type: "timer.started", createdAt: new Date().toISOString(), status: "pending" },
+        { id: `timer-${Date.now()}`, type: "timer.started", createdAt: now.toISOString(), status: "pending", version: 1 },
       ],
     }));
   }
@@ -141,6 +164,8 @@ export default function Home() {
         </button>
       </section>
 
+      {storageMessage && <p className="storageMessage" role="status">{storageMessage}</p>}
+
       <section className="statusBand">
         <div>
           <span>Отмечено</span>
@@ -149,10 +174,6 @@ export default function Home() {
         <div>
           <span>Объём тренировки</span>
           <strong>{totals.volumeKg.toLocaleString("ru-RU")} кг</strong>
-        </div>
-        <div>
-          <span>Очередь sync</span>
-          <strong>{state.outbox.filter((item) => item.status === "pending").length}</strong>
         </div>
       </section>
 
@@ -229,7 +250,6 @@ export default function Home() {
             </div>
 
             {currentWorkout.exercises.map((exercise) => {
-              const suggestion = suggestNextLoad(exercise.sets.map((set) => ({ ...set, date: currentWorkout.date })));
               return (
                 <div className="exercise" key={exercise.id}>
                   <div className="exerciseHead">
@@ -237,7 +257,6 @@ export default function Home() {
                       <h3>{exercise.name}</h3>
                       {exercise.settings && <p>{exercise.settings}</p>}
                     </div>
-                    {suggestion && <span className="hint">+2.5 кг</span>}
                   </div>
                   <div className="sets">
                     {exercise.sets.map((set) => (
@@ -249,14 +268,14 @@ export default function Home() {
                           aria-label="Вес"
                           inputMode="decimal"
                           value={set.weightKg ?? ""}
-                          onChange={(event) => updateSet(exercise.id, set.id, { weightKg: Number(event.target.value) || null })}
+                          onChange={(event) => updateSet(exercise.id, set.id, { weightKg: normalizeDecimalInput(event.target.value) })}
                         />
                         <span>кг</span>
                         <input
                           aria-label="Повторы"
                           inputMode="numeric"
                           value={set.reps ?? ""}
-                          onChange={(event) => updateSet(exercise.id, set.id, { reps: Number(event.target.value) || null })}
+                          onChange={(event) => updateSet(exercise.id, set.id, { reps: event.target.value === "" ? null : (/^\d+$/.test(event.target.value) ? Number(event.target.value) : set.reps) })}
                         />
                         <span>раз</span>
                       </div>
@@ -307,7 +326,7 @@ export default function Home() {
               {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((day, index) => (
                 <div className="day" key={day}>
                   <span>{day}</span>
-                  <strong>{index < Math.min(completedToday, 7) ? completedToday : 0}</strong>
+                    <strong>{weekCount(state, index)}</strong>
                 </div>
               ))}
             </div>
@@ -343,4 +362,15 @@ function formatTime(totalSec: number) {
   const minutes = Math.floor(totalSec / 60).toString().padStart(2, "0");
   const seconds = (totalSec % 60).toString().padStart(2, "0");
   return `${minutes}:${seconds}`;
+}
+
+function weekCount(state: TrackerState, index: number) {
+  const now = new Date();
+  const day = (now.getDay() + 6) % 7;
+  const target = new Date(now);
+  target.setDate(now.getDate() - day + index);
+  const date = getLocalDate(target);
+  const habits = state.completions.filter((item) => item.localDate === date).length;
+  const workouts = state.workouts.filter((workout) => workout.date === date && calculateWorkoutTotals(workout).completedSets > 0).length;
+  return habits + workouts;
 }

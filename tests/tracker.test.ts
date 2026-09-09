@@ -116,12 +116,12 @@ test("parses pasted workout notes without inventing unknown reps", () => {
   assert.equal(workout.exercises[1].sets[1].note, "в отказ");
 });
 
-test("suggests load only after stable completed history", () => {
+test("does not show an unverified load suggestion", () => {
   assert.equal(suggestNextLoad([
     { date: "2026-09-01", weightKg: 45, reps: 8, completed: true },
     { date: "2026-09-05", weightKg: 45, reps: 8, completed: true },
     { date: "2026-09-09", weightKg: 45, reps: 9, completed: true },
-  ])?.nextWeightKg, 47.5);
+  ]), null);
 
   assert.equal(suggestNextLoad([
     { date: "2026-09-01", weightKg: 45, reps: 8, completed: true },

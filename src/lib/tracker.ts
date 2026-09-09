@@ -8,12 +8,18 @@ export type ExerciseSet = {
   note?: string;
   weightMode?: WeightMode;
   date?: string;
+  component?: "single" | "compound-a" | "compound-b";
 };
+
+export type ExerciseCategory = "warmup" | "working" | "finisher";
 
 export type Exercise = {
   id: string;
   name: string;
   settings?: string;
+  category?: ExerciseCategory;
+  restSec?: 180 | 240;
+  weightFactor?: number;
   sets: ExerciseSet[];
 };
 
@@ -42,9 +48,47 @@ export type Habit = {
 };
 
 export type RestTimer = {
+  sourceId?: string;
   startedAt: string;
+  endsAt?: string;
   durationSec: number;
+  status?: "running" | "expired" | "cancelled";
+  version?: number;
 };
+
+export type WorkoutCommand = {
+  id: string;
+  type: "workout.set.completed";
+  entityId: string;
+  payload: { exerciseId: string; setId: string; workoutId: string };
+  createdAt: string;
+  version: number;
+  result: "applied" | "duplicate";
+};
+
+export type WorkoutSessionState = {
+  workout: Workout;
+  commands: WorkoutCommand[];
+  activeTimer: RestTimer | null;
+};
+
+export function getLocalDate(date = new Date(), timeZone = "Europe/Moscow"): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+export function normalizeDecimalInput(value: string): number | null {
+  const normalized = value.trim().replace(",", ".");
+  if (!normalized || !/^\d+(?:\.\d+)?$/.test(normalized)) return null;
+  const number = Number(normalized);
+  return Number.isFinite(number) && number >= 0 ? number : null;
+}
 
 export function calculateExerciseVolume(sets: ExerciseSet[]): number {
   return sets.reduce((sum, set) => {
@@ -123,12 +167,58 @@ export function getMilestoneState(
 export function restoreRestTimer(timer: RestTimer, nowIso = new Date().toISOString()) {
   const startedMs = new Date(timer.startedAt).getTime();
   const nowMs = new Date(nowIso).getTime();
-  const elapsedSec = Math.max(0, Math.floor((nowMs - startedMs) / 1000));
-  const remainingSec = Math.max(0, timer.durationSec - elapsedSec);
+  const endsMs = timer.endsAt ? new Date(timer.endsAt).getTime() : startedMs + timer.durationSec * 1000;
+  const remainingSec = Math.max(0, Math.ceil((endsMs - nowMs) / 1000));
 
   return {
     remainingSec,
     expired: remainingSec === 0,
+  };
+}
+
+export function completeWorkoutSet(
+  state: WorkoutSessionState,
+  exerciseId: string,
+  setId: string,
+  commandId: string,
+  nowIso: string,
+): WorkoutSessionState {
+  if (state.commands.some((command) => command.id === commandId || command.entityId === `${state.workout.id}:${exerciseId}:${setId}`)) {
+    return state;
+  }
+
+  const exercise = state.workout.exercises.find((item) => item.id === exerciseId);
+  const target = exercise?.sets.find((set) => set.id === setId);
+  if (!exercise || !target || target.completed) return state;
+
+  const restSec = exercise.restSec ?? (exercise.category === "working" && /груд|жим|спин|тя|блок/i.test(exercise.name) ? 240 : 180);
+  const command: WorkoutCommand = {
+    id: commandId,
+    type: "workout.set.completed",
+    entityId: `${state.workout.id}:${exerciseId}:${setId}`,
+    payload: { exerciseId, setId, workoutId: state.workout.id },
+    createdAt: nowIso,
+    version: 1,
+    result: "applied",
+  };
+
+  return {
+    workout: {
+      ...state.workout,
+      exercises: state.workout.exercises.map((item) => item.id !== exerciseId ? item : {
+        ...item,
+        sets: item.sets.map((set) => set.id === setId ? { ...set, completed: true } : set),
+      }),
+    },
+    commands: [...state.commands, command],
+    activeTimer: {
+      sourceId: command.entityId,
+      startedAt: nowIso,
+      endsAt: new Date(new Date(nowIso).getTime() + restSec * 1000).toISOString(),
+      durationSec: restSec,
+      status: "running",
+      version: (state.activeTimer?.version ?? 0) + 1,
+    },
   };
 }
 
@@ -138,12 +228,26 @@ export function parseWorkoutNotes(input: string): Workout {
     .map((line) => line.trim())
     .filter(Boolean);
 
+  if (lines.length === 0) {
+    return { id: "", date: getLocalDate(), title: "", exercises: [] };
+  }
+
   const rawDate = lines[0] ?? "";
-  const date = parseDate(rawDate) ?? new Date().toISOString().slice(0, 10);
+  const date = parseDate(rawDate) ?? parseRussianDate(rawDate) ?? getLocalDate();
   const exercises: Exercise[] = [];
 
-  for (let i = parseDate(rawDate) ? 1 : 0; i < lines.length; i += 1) {
+  for (let i = parseDate(rawDate) || parseRussianDate(rawDate) ? 1 : 0; i < lines.length; i += 1) {
     const line = lines[i];
+
+    const inline = line.match(/^(.*?)\s*\((.*)\)\s*$/);
+    if (inline) {
+      const { name, settings } = splitExerciseNameAndSettings(inline[1].trim());
+      const sets = parseSetLine(inline[2]);
+      if (sets.length === 0) continue;
+      exercises.push({ id: slug(`${name}-${i}`), name, settings, category: "working", restSec: 180, sets });
+      continue;
+    }
+
     if (looksLikeSetLine(line)) continue;
 
     const nextLine = lines[i + 1] ?? "";
@@ -154,14 +258,17 @@ export function parseWorkoutNotes(input: string): Workout {
       id: slug(`${name}-${i}`),
       name,
       settings,
+      category: "working",
+      restSec: 180,
       sets,
     });
 
     if (sets.length > 0) i += 1;
   }
 
+  const normalizedInput = lines.map((line) => line.replace(/\s+/g, " ").trim().toLowerCase()).join("\n");
   return {
-    id: `import-${date}-${hash(input)}`,
+    id: `import-${date}-${hash(normalizedInput)}`,
     date,
     title: `Импорт ${date}`,
     exercises,
@@ -169,24 +276,8 @@ export function parseWorkoutNotes(input: string): Workout {
 }
 
 export function suggestNextLoad(history: Array<Pick<ExerciseSet, "weightKg" | "reps" | "completed" | "date">>) {
-  const scored = history
-    .filter((set) => set.completed && set.weightKg != null && set.reps != null)
-    .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
-
-  if (scored.length < 3) return null;
-
-  const lastThree = scored.slice(-3);
-  const sameWeight = lastThree.every((set) => set.weightKg === lastThree[0].weightKg);
-  const stableReps = lastThree.every((set) => (set.reps ?? 0) >= 8);
-
-  if (!sameWeight || !stableReps || lastThree[0].weightKg == null) {
-    return null;
-  }
-
-  return {
-    reason: "Последние три результата стабильные. Можно попробовать небольшой шаг вверх.",
-    nextWeightKg: lastThree[0].weightKg + 2.5,
-  };
+  void history;
+  return null;
 }
 
 export const defaultHabits: Habit[] = [
@@ -202,7 +293,8 @@ function looksLikeSetLine(line: string) {
 }
 
 function parseSetLine(line: string): ExerciseSet[] {
-  return line.split(/[,;]/).map((chunk, index) => {
+  const decimalSafe = line.replace(/(\d+),(\d+)(?=\s*[xх×])/gi, "$1.$2");
+  return decimalSafe.split(/[,;]/).map((chunk, index) => {
     const trimmed = chunk.trim();
     const match = trimmed.match(/(\d+(?:[.,]\d+)?)\s*[xх×]\s*(\d+)/i);
     if (match) {
@@ -242,7 +334,17 @@ function parseDate(value: string) {
   if (!match) return null;
 
   const year = match[3].length === 2 ? `20${match[3]}` : match[3];
-  return `${year}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+  const iso = `${year}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+  const candidate = new Date(`${iso}T00:00:00Z`);
+  return candidate.getUTCFullYear() === Number(year) && candidate.getUTCMonth() + 1 === Number(match[2]) && candidate.getUTCDate() === Number(match[1]) ? iso : null;
+}
+
+function parseRussianDate(value: string) {
+  const match = value.toLowerCase().match(/(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:\s+(\d{4}))?/);
+  if (!match) return null;
+  const month = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"].indexOf(match[2]) + 1;
+  const year = Number(match[3] ?? getLocalDate().slice(0, 4));
+  return `${year}-${String(month).padStart(2, "0")}-${match[1].padStart(2, "0")}`;
 }
 
 function slug(value: string) {

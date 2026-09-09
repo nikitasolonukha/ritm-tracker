@@ -77,8 +77,8 @@ p {
 
 h1 {
   margin-bottom: 0;
-  font-size: clamp(34px, 7vw, 78px);
-  line-height: 0.95;
+  font-size: clamp(30px, 4vw, 48px);
+  line-height: 1;
   letter-spacing: 0;
   text-wrap: balance;
 }
@@ -149,7 +149,7 @@ textarea:focus-visible {
 
 .statusBand {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 1px;
   overflow: hidden;
   margin: 22px 0;
@@ -229,6 +229,15 @@ textarea:focus-visible {
   background:
     linear-gradient(135deg, rgba(183, 243, 107, 0.18), rgba(127, 215, 196, 0.08)),
     var(--surface);
+}
+
+.storageMessage {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(243, 197, 107, 0.45);
+  border-radius: 8px;
+  color: var(--warning);
+  background: rgba(243, 197, 107, 0.08);
 }
 
 .wide,

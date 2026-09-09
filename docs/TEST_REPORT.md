@@ -33,7 +33,7 @@ node --test --experimental-strip-types tests\\tracker.test.ts tests\\repair.test
 .\node_modules\.bin\playwright test --project=chromium
 ```
 
-Результат: 2 теста, 2 passed. Проверены redirect приватной страницы без конфигурации и отсутствие browser-login redirect у webhook. Chromium запускался с разрешением Windows после sandbox `spawn EPERM`.
+Результат: 3 теста, 3 passed. Проверены redirect приватной страницы без конфигурации, отсутствие browser-login redirect у webhook и отдельная защита worker. Chromium запускался с разрешением Windows после sandbox `spawn EPERM`.
 
 Production build подтвердил middleware manifest с `name: "src/middleware"` и маршрутами `/api/sync`, `/api/telegram/webhook`, `/api/telegram/worker`.
 
@@ -42,7 +42,7 @@ Production build подтвердил middleware manifest с `name: "src/middlew
 ## Написано, но не проверено внешними сервисами
 
 - Supabase migrations `ritm_core`, security hardening, `tracker_state`, `telegram_updates` и server-only lease/retry RPC для `notification_jobs` применены к проекту; реальный RPC/изоляция двумя учетными записями еще не прогонялись.
-- Production login и webhook secret проверены на реальном Vercel deployment. Реальная доставка Telegram и callback ownership еще не прогонялись; повторная запись `update_id` защищена в route и уникальным ключом БД, но внешний production smoke-test дедупликации еще не выполнен.
+- Production login, webhook secret и worker secret проверены на реальном Vercel deployment. Реальная доставка Telegram и callback ownership еще не прогонялись; webhook-дедупликация `update_id` уже проверена внешним smoke-test, worker проверен на отказ при неверном секрете.
 
 ## Не завершено
 

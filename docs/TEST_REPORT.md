@@ -12,6 +12,7 @@
 - Закрытый owner-gated вход через Supabase, fail-closed middleware в `src/middleware.ts`, user-scoped localStorage и `/api/sync`.
 - Настройка действий дня и шаблона тренировки: названия, расписания, упражнения, отдых и количество подходов.
 - Явный выбор режима веса в рабочем подходе, отказ от молчаливого учета неизвестного режима и выход из аккаунта с сохранением локальной очереди.
+- Одноразовая Telegram-ссылка из настроек, hash-only хранение токена, подтверждение `/start` только для незарегистрированного и неистекшего токена.
 
 ## Проверено локально
 
@@ -35,7 +36,7 @@ node --test --experimental-strip-types tests\\tracker.test.ts tests\\repair.test
 
 Результат: 3 теста, 3 passed. Проверены redirect приватной страницы без конфигурации, отсутствие browser-login redirect у webhook и отдельная защита worker. Chromium запускался с разрешением Windows после sandbox `spawn EPERM`.
 
-Production build подтвердил middleware manifest с `name: "src/middleware"` и маршрутами `/api/sync`, `/api/telegram/webhook`, `/api/telegram/worker`.
+Production build подтвердил middleware manifest с `name: "src/middleware"` и маршрутами `/api/sync`, `/api/telegram/link`, `/api/telegram/webhook`, `/api/telegram/worker`.
 
 Проверены отдельно: МСК после полуночи, расчет веса на руку, явный общий вес, неизвестный режим как unscored, четыре рабочих подхода, две пары составных плеч с одним отдыхом на пару, двойное подтверждение, автотаймер, пустой и исторический импорт, batch parser, невозможные числовые и русские даты, дубликаты, user-scoped storage, offline JS fallback, резервирование поврежденного storage, secret/update_id Telegram validation.
 
@@ -47,7 +48,7 @@ Production build подтвердил middleware manifest с `name: "src/middlew
 ## Не завершено
 
 - Полный Auth/Storage client для relational journal, транзакционная sync и интеграционные тесты с двумя пользователями.
-- Telegram callback actions, создание due jobs из фактов тренировки и реальный smoke-test отправки уведомления; worker/lease/retry код уже написан.
+- Telegram callback actions, создание due jobs из фактов тренировки и реальный smoke-test отправки уведомления; worker/lease/retry и одноразовая привязка уже написаны.
 - IndexedDB command log, конфликты вкладок/устройств и восстановление после offline.
 - Полный дневной сценарий, наблюдения, фото, экспорт/восстановление и полноценные графики.
 - Playwright E2E всех пользовательских действий, iPhone и блокировка экрана.

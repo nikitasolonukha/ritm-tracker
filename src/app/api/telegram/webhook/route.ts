@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { validateTelegramUpdate, verifyTelegramSecret } from "@/lib/telegram";
+import { hashTelegramLinkToken, validateTelegramUpdate, verifyTelegramSecret } from "@/lib/telegram";
 
 export const runtime = "nodejs";
 
@@ -32,6 +32,25 @@ export async function POST(request: NextRequest) {
   const { error: insertError } = await admin.from("telegram_updates").insert({ update_id: update.update_id, payload: update });
   if (insertError && insertError.code !== "23505") {
     return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+  }
+  if (update.message?.text?.startsWith("/start ") && update.message.chat?.id != null) {
+    const rawToken = update.message.text.slice(7).trim();
+    if (rawToken) {
+      const { data: link } = await admin.from("telegram_links")
+        .select("user_id")
+        .eq("token_hash", hashTelegramLinkToken(rawToken))
+        .gt("expires_at", new Date().toISOString())
+        .is("confirmed_at", null)
+        .maybeSingle();
+      if (link) {
+        await admin.from("telegram_links").update({ telegram_user_id: update.message.chat.id, confirmed_at: new Date().toISOString() }).eq("user_id", link.user_id);
+        await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ chat_id: update.message.chat.id, text: "Telegram подключен к Ритму." }),
+        });
+      }
+    }
   }
   return NextResponse.json({ accepted: true, updateId: update.update_id, duplicate: Boolean(insertError) });
 }

@@ -8,6 +8,7 @@ import {
   Dumbbell,
   Flame,
   LogOut,
+  Link2,
   Moon,
   Pause,
   Pill,
@@ -43,6 +44,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<"today" | "gym" | "progress" | "settings">("today");
   const [notes, setNotes] = useState("01.01.2026\nУпражнение A\n10x5, 15x3, 20x8\nУпражнение B\n12x10");
   const [timerNow, setTimerNow] = useState(() => new Date().toISOString());
+  const [telegramLink, setTelegramLink] = useState<string>();
+  const [telegramMessage, setTelegramMessage] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -219,6 +222,18 @@ export default function Home() {
         { id: `timer-${Date.now()}`, type: "timer.started", createdAt: now.toISOString(), status: "pending", version: 1 },
       ],
     }));
+  }
+
+  async function createTelegramLink() {
+    setTelegramMessage("Создаю одноразовую ссылку…");
+    const response = await fetch("/api/telegram/link", { method: "POST" });
+    const body = await response.json().catch(() => ({})) as { link?: string; error?: string };
+    if (!response.ok || !body.link) {
+      setTelegramMessage(body.error === "telegram_unavailable" ? "Telegram временно недоступен." : "Не удалось создать ссылку.");
+      return;
+    }
+    setTelegramLink(body.link);
+    setTelegramMessage("Ссылка действует 10 минут и используется один раз.");
   }
 
   return (
@@ -445,6 +460,13 @@ export default function Home() {
                 <input aria-label={`Расписание ${habit.id}`} value={habit.schedule} onChange={(event) => updateHabit(habit.id, { schedule: event.target.value })} />
               </div>)}
             </div>
+          </article>
+          <article className="panel wide">
+            <div className="panelTitle"><h2>Telegram</h2><Link2 size={20} /></div>
+            <p className="muted">Создай одноразовую ссылку, открой её в Telegram и отправь боту команду запуска.</p>
+            <button className="secondary" onClick={() => { void createTelegramLink(); }}><Link2 size={16} /> Подключить Telegram</button>
+            {telegramLink && <a className="telegramLink" href={telegramLink} target="_blank" rel="noreferrer">Открыть ссылку подключения</a>}
+            {telegramMessage && <p className="storageMessage" role="status">{telegramMessage}</p>}
           </article>
           <article className="panel wide">
             <div className="panelTitle"><h2>Шаблон тренировки</h2><Dumbbell size={20} /></div>

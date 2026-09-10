@@ -92,6 +92,312 @@ textarea {
   }
 }
 
+/* Dedicated workout navigation and focus mode. */
+.appPage {
+  padding-bottom: 108px;
+}
+
+.pageHeader,
+.sectionHeading,
+.workoutTop,
+.workoutProgress,
+.resumeBanner,
+.programCard,
+.workWeight,
+.completeState,
+.restState {
+  display: flex;
+  align-items: center;
+}
+
+.pageHeader,
+.sectionHeading,
+.workoutTop,
+.workoutProgress,
+.resumeBanner,
+.programCard {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pageHeader,
+.sectionHeading {
+  margin-bottom: 24px;
+}
+
+.sectionHeading h2 {
+  margin-top: 4px;
+}
+
+.resumeBanner,
+.programCard {
+  min-height: 86px;
+  margin-bottom: 12px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  background: var(--surface);
+}
+
+.resumeBanner {
+  border-color: rgba(183, 243, 107, 0.45);
+  background: rgba(183, 243, 107, 0.1);
+}
+
+.resumeBanner span,
+.programCard > div:nth-child(2) {
+  min-width: 0;
+}
+
+.resumeBanner small,
+.programCard small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+}
+
+.programList {
+  display: grid;
+  gap: 10px;
+}
+
+.programCard {
+  justify-content: initial;
+}
+
+.programCard > svg {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.programCard h3 {
+  margin: 0;
+}
+
+.programCard p {
+  margin: 5px 0 0;
+  color: var(--muted);
+}
+
+.programIcon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--accent);
+  background: rgba(183, 243, 107, 0.12);
+}
+
+.emptyState {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding: 42px 0;
+  color: var(--muted);
+}
+
+.emptyState h2,
+.emptyState p {
+  margin: 0;
+}
+
+.bottomNav {
+  position: fixed;
+  z-index: 10;
+  right: 16px;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  left: 16px;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  width: min(620px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(14, 16, 15, 0.94);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(18px);
+}
+
+.bottomNav a {
+  display: grid;
+  min-height: 52px;
+  place-items: center;
+  gap: 4px;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  text-decoration: none;
+}
+
+.bottomNav a.active {
+  color: var(--bg);
+  background: var(--accent);
+  font-weight: 800;
+}
+
+.workoutMode {
+  min-height: 100vh;
+  padding: 18px max(18px, calc((100vw - 720px) / 2));
+  background: radial-gradient(circle at 50% 0, rgba(183, 243, 107, 0.1), transparent 420px), var(--bg);
+}
+
+.workoutTop {
+  max-width: 720px;
+  margin: 0 auto 42px;
+}
+
+.workoutTop > a,
+.workoutTop > button {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.workoutTimer {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.workoutProgress {
+  max-width: 720px;
+  margin: 0 auto 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.activeExercise {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: clamp(24px, 6vw, 56px);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(25, 28, 26, 0.94);
+}
+
+.activeExercise h1 {
+  margin: 7px 0;
+  font-size: clamp(32px, 7vw, 60px);
+}
+
+.setState,
+.restState,
+.completeState {
+  margin-top: 42px;
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+}
+
+.setState label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.workWeight {
+  align-items: baseline;
+  gap: 10px;
+  margin: 10px 0 24px;
+}
+
+.workWeight strong {
+  font-size: clamp(46px, 12vw, 88px);
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+.workWeight span,
+.restState small {
+  color: var(--muted);
+}
+
+.recordButton {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.restState,
+.completeState {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.restState strong {
+  font-size: clamp(60px, 16vw, 112px);
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+.completeState svg {
+  color: var(--accent);
+}
+
+.fieldError {
+  margin: 8px 0 0;
+  color: var(--warning);
+}
+
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface-2);
+  text-decoration: none;
+}
+
+.workoutCancel {
+  display: flex;
+  width: min(720px, 100%);
+  margin: 16px auto 0;
+}
+
+@media (max-width: 520px) {
+  .appPage {
+    padding-bottom: 96px;
+  }
+
+  .pageHeader h1 {
+    font-size: 34px;
+  }
+
+  .programCard {
+    padding: 14px;
+  }
+
+  .workoutMode {
+    padding: 14px;
+  }
+
+  .workoutTop {
+    margin-bottom: 28px;
+  }
+
+  .activeExercise {
+    padding: 24px 18px;
+  }
+}
+
 button {
   cursor: pointer;
 }

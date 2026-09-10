@@ -20,7 +20,7 @@
 node --test --experimental-strip-types tests\\tracker.test.ts tests\\repair.test.ts tests\\telegram.test.ts tests\\audit-regressions.test.mjs
 ```
 
-Результат: 37 тестов, 37 passed.
+Результат: 38 тестов, 38 passed.
 
 ```bash
 .\\node_modules\\.bin\\tsc --noEmit
@@ -38,7 +38,7 @@ node --test --experimental-strip-types tests\\tracker.test.ts tests\\repair.test
 
 Production build подтвердил middleware manifest с `name: "src/middleware"` и маршрутами `/api/sync`, `/api/telegram/link`, `/api/telegram/webhook`, `/api/telegram/worker`.
 
-Проверены отдельно: МСК после полуночи, расчет веса на руку, явный общий вес, неизвестный режим как unscored, четыре рабочих подхода, две пары составных плеч с одним отдыхом на пару, двойное подтверждение, автотаймер, пустой и исторический импорт, batch parser, невозможные числовые и русские даты, дубликаты, user-scoped storage, offline JS fallback, резервирование поврежденного storage, secret/update_id Telegram validation.
+Проверены отдельно: МСК после полуночи, расчет веса на руку, явный общий вес, неизвестный режим как unscored, четыре рабочих подхода, две пары составных плеч с одним отдыхом на пару, untouched/empty/valid/invalid drafts, stable JSON comparison, двойное подтверждение, автотаймер, пустой и исторический импорт, batch parser, невозможные числовые и русские даты, дубликаты, user-scoped storage, offline JS fallback, резервирование поврежденного storage, secret/update_id Telegram validation.
 
 ## Написано, но не проверено внешними сервисами
 
@@ -47,7 +47,8 @@ Production build подтвердил middleware manifest с `name: "src/middlew
 
 ## Не завершено
 
-- Полный Auth/Storage client для relational journal, связывание snapshot с relational фактами и интеграционные тесты двух устройств/двух пользователей.
+- Полный Auth/Storage client для relational journal, связывание snapshot с relational фактами и живые интеграционные тесты двух устройств/двух пользователей.
+- UI разрешения конфликта с безопасным merge/export; текущая версия сохраняет обе стороны и приостанавливает отправку до явного разрешения.
 - Telegram callback actions, создание due jobs из фактов тренировки и реальный smoke-test отправки уведомления; worker/lease/retry и одноразовая привязка уже написаны.
 - IndexedDB command log, конфликты вкладок/устройств и восстановление после offline.
 - Полный дневной сценарий, наблюдения, фото, экспорт/восстановление и полноценные графики.

@@ -28,6 +28,7 @@ import {
   getLocalDate,
   parseWorkoutNotesBatch,
   restoreRestTimer,
+  stableStringify,
   type ExerciseSet,
 } from "@/lib/tracker";
 import { readStateSafely, writeState, type TrackerState } from "@/lib/storage";
@@ -48,6 +49,8 @@ export default function Home() {
   const [telegramMessage, setTelegramMessage] = useState("");
   const syncRevision = useRef(0);
   const lastSyncedPayload = useRef("");
+  const syncInFlight = useRef(false);
+  const [syncWake, setSyncWake] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,11 +60,12 @@ export default function Home() {
       setUserId(id);
       const result = readStateSafely(id);
       let nextState = result.state;
-      let syncAllowed = true;
+      let syncAllowed = false;
       let remoteLoaded = false;
       try {
         const remoteResponse = await fetch("/api/sync", { cache: "no-store" });
         if (remoteResponse.ok) {
+          syncAllowed = true;
           const remote = await remoteResponse.json() as { payload?: TrackerState | null; version?: number };
           syncRevision.current = remote.version ?? 0;
           if (remote.payload && typeof remote.payload === "object") {
@@ -78,7 +82,7 @@ export default function Home() {
         // Local state remains usable while the server is unavailable.
       }
       setState(nextState);
-      if (remoteLoaded) lastSyncedPayload.current = JSON.stringify(nextState);
+      if (remoteLoaded) lastSyncedPayload.current = stableStringify(nextState);
       setHydrated(true);
       setStorageReady(result.status === "empty" || result.status === "loaded");
       setSyncReady(syncAllowed);
@@ -88,16 +92,21 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (hydrated && storageReady && syncReady && state) {
+    if (hydrated && storageReady && state) {
       const result = writeState(state, userId);
       if (!result.ok) setStorageMessage("Не удалось сохранить изменения на устройстве.");
-      const serialized = JSON.stringify(state);
+      if (!result.ok || !syncReady) return;
+      const serialized = stableStringify(state);
       if (serialized === lastSyncedPayload.current) return;
+      if (syncInFlight.current) return;
+      syncInFlight.current = true;
       void fetch("/api/sync", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ payload: state, expectedRevision: syncRevision.current }) }).then(async (response) => {
         if (response.ok) {
           const body = await response.json() as { revision?: number };
           syncRevision.current = body.revision ?? syncRevision.current;
           lastSyncedPayload.current = serialized;
+          syncInFlight.current = false;
+          setSyncWake((value) => value + 1);
           return;
         }
         if (response.status === 409) {
@@ -105,14 +114,30 @@ export default function Home() {
           if (conflict.remote) {
             try { window.localStorage.setItem(`ritm-tracker-sync-conflict:${userId ?? "unknown"}:${conflict.revision ?? 0}`, JSON.stringify(conflict.remote)); } catch { /* keep local copy */ }
           }
+          syncInFlight.current = false;
           setSyncReady(false);
           setStorageMessage("Конфликт синхронизации. Локальная и серверная версии сохранены отдельно.");
           return;
         }
+        syncInFlight.current = false;
         setStorageMessage("Сохранено на устройстве; синхронизация пока недоступна.");
-      }).catch(() => setStorageMessage("Сохранено на устройстве; синхронизация пока недоступна."));
+      }).catch(async () => {
+        const check = await fetch("/api/sync", { cache: "no-store" }).catch(() => null);
+        if (check?.ok) {
+          const remote = await check.json().catch(() => null) as { payload?: TrackerState | null; version?: number } | null;
+          if (remote?.payload && stableStringify(remote.payload) === serialized) {
+            syncRevision.current = remote.version ?? syncRevision.current;
+            lastSyncedPayload.current = serialized;
+            syncInFlight.current = false;
+            setSyncWake((value) => value + 1);
+            return;
+          }
+        }
+        syncInFlight.current = false;
+        setStorageMessage("Сохранено на устройстве; синхронизация пока недоступна.");
+      });
     }
-  }, [hydrated, storageReady, syncReady, state, userId]);
+  }, [hydrated, storageReady, syncReady, state, userId, syncWake]);
 
   useEffect(() => {
     const id = window.setInterval(() => setTimerNow(new Date().toISOString()), 1000);
@@ -124,6 +149,7 @@ export default function Home() {
   }
 
   const currentWorkout = state.workouts.find((workout) => workout.id === state.activeWorkoutId) ?? state.workouts[0];
+  const editableWorkout = state.workouts.find((workout) => workout.id === state.activeWorkoutId) ?? currentWorkout;
   const totals = calculateWorkoutTotals(currentWorkout);
   const chiaMilestone = getMilestoneState(state.completions, "chia", 5);
   const rest = state.activeTimer ? restoreRestTimer(state.activeTimer, timerNow) : null;
@@ -356,6 +382,12 @@ export default function Home() {
 
       {activeTab === "gym" && (
         <section className="grid gymGrid">
+          {!currentWorkout && <article className="panel wide">
+            <div className="panelTitle"><h2>Первая тренировка</h2><Dumbbell size={22} /></div>
+            <p className="muted">Активной тренировки нет. Начни сессию из настроек, чтобы добавить упражнения и подходы.</p>
+            <button className="primary" onClick={() => setActiveTab("settings")}><Dumbbell size={18} /> Открыть настройки</button>
+          </article>}
+          {currentWorkout && <>
           <article className="panel workoutPanel">
             <div className="panelTitle">
               <div>
@@ -438,6 +470,7 @@ export default function Home() {
             <textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
             <button className="primary" onClick={importNotes}><Save size={18} /> Разобрать и сохранить</button>
           </article>
+          </>}
         </section>
       )}
 
@@ -502,7 +535,7 @@ export default function Home() {
           <article className="panel wide">
             <div className="panelTitle"><h2>Шаблон тренировки</h2><Dumbbell size={20} /></div>
             <button className="secondary" onClick={addExercise}><Save size={16} /> Добавить упражнение</button>
-            {(state.workouts.find((workout) => workout.id === state.activeWorkoutId) ?? currentWorkout).exercises.map((exercise) => <div className="settingExercise" key={exercise.id}>
+            {editableWorkout?.exercises.map((exercise) => <div className="settingExercise" key={exercise.id}>
               <input aria-label={`Упражнение ${exercise.id}`} value={exercise.name} onChange={(event) => update((previous) => ({ ...previous, workouts: previous.workouts.map((workout) => workout.id !== previous.activeWorkoutId ? workout : { ...workout, exercises: workout.exercises.map((item) => item.id === exercise.id ? { ...item, name: event.target.value } : item) }) }))} />
               <select aria-label={`Отдых ${exercise.id}`} value={exercise.restSec ?? 180} onChange={(event) => update((previous) => ({ ...previous, workouts: previous.workouts.map((workout) => workout.id !== previous.activeWorkoutId ? workout : { ...workout, exercises: workout.exercises.map((item) => item.id === exercise.id ? { ...item, restSec: Number(event.target.value) as 180 | 240 } : item) }) }))}>
                 <option value="180">180 сек</option><option value="240">240 сек</option>
@@ -510,6 +543,7 @@ export default function Home() {
               <button className="secondary" onClick={() => addSet(exercise.id)}>+ подход</button>
               <span className="muted">{exercise.sets.length} подходов</span>
             </div>)}
+            {!editableWorkout && <p className="muted">Шаблон пока не создан.</p>}
           </article>
           <article className="panel wide">
             <div className="panelTitle"><h2>Сеанс</h2><LogOut size={20} /></div>

@@ -93,6 +93,14 @@ export function normalizeDecimalInput(value: string): number | null {
   return Number.isFinite(number) && number >= 0 ? number : null;
 }
 
+export function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value as Record<string, unknown>).sort().map((key) => `${JSON.stringify(key)}:${stableStringify((value as Record<string, unknown>)[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
 export type DraftCommitResult =
   | { status: "untouched" }
   | { status: "empty"; value: null }
@@ -120,10 +128,12 @@ export function calculateExerciseVolume(sets: ExerciseSet[]): number {
   }, 0);
 }
 
-export function calculateWorkoutTotals(workout: Workout) {
+export function calculateWorkoutTotals(workout: Workout | undefined) {
   let completedSets = 0;
   let unscoredSets = 0;
   let volumeKg = 0;
+
+  if (!workout) return { completedSets: 0, exercises: 0, unscoredSets: 0, volumeKg: 0 };
 
   for (const exercise of workout.exercises) {
     for (const set of exercise.sets) {

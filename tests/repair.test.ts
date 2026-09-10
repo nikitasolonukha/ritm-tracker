@@ -35,6 +35,12 @@ test("stable JSON ignores object key order but preserves array order", () => {
   assert.notEqual(stableStringify({ values: [1, 2] }), stableStringify({ values: [2, 1] }));
 });
 
+test("stable JSON is valid when optional transport fields are undefined", () => {
+  const encoded = stableStringify({ z: undefined, a: [undefined, Number.NaN, { b: undefined, a: 1 }] });
+  assert.equal(encoded, '{"a":[null,null,{"a":1}]}');
+  assert.doesNotThrow(() => JSON.parse(encoded));
+});
+
 test("45 kg per side for 8 reps is 720 kg", () => {
   assert.equal(calculateExerciseVolume([{ id: "s", weightKg: 45, reps: 8, completed: true, weightMode: "per-hand" }]), 720);
 });

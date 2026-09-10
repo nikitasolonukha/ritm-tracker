@@ -94,11 +94,25 @@ export function normalizeDecimalInput(value: string): number | null {
 }
 
 export function stableStringify(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
-  if (value && typeof value === "object") {
-    return `{${Object.keys(value as Record<string, unknown>).sort().map((key) => `${JSON.stringify(key)}:${stableStringify((value as Record<string, unknown>)[key])}`).join(",")}}`;
+  return stableJson(value);
+}
+
+/** Stable JSON for transport: object undefined values follow JSON.stringify semantics, array holes become null. */
+function stableJson(value: unknown): string {
+  if (value === undefined || typeof value === "function" || typeof value === "symbol") return "undefined";
+  if (value === null) return "null";
+  if (typeof value === "number") return Number.isFinite(value) ? JSON.stringify(value) : "null";
+  if (typeof value === "bigint") throw new TypeError("BigInt values are not supported in tracker state");
+  if (typeof value === "string" || typeof value === "boolean") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map((item) => { const serialized = stableJson(item); return serialized === "undefined" ? "null" : serialized; }).join(",")}]`;
+  if (value instanceof Date) return JSON.stringify(value.toJSON());
+  if (typeof value === "object") {
+    return `{${Object.keys(value as Record<string, unknown>).sort().flatMap((key) => {
+      const serialized = stableJson((value as Record<string, unknown>)[key]);
+      return serialized === "undefined" ? [] : [`${JSON.stringify(key)}:${serialized}`];
+    }).join(",")}}`;
   }
-  return JSON.stringify(value);
+  return "undefined";
 }
 
 export type DraftCommitResult =

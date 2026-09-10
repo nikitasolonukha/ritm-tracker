@@ -1093,6 +1093,12 @@ textarea {
 .summaryMetrics span { color: var(--muted); font-size: 13px; }
 .weightEditor label { display: grid; gap: 8px; color: var(--muted); font-size: 13px; }
 .weightEditor input { min-height: 48px; font-size: 18px; }
+.weightEditor h2 { margin: 0; font-size: 20px; font-weight: 600; }
+.weightEditorActions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.weightScope { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; color: var(--muted); font-size: 13px; }
+.weightScope legend { margin-bottom: 4px; color: var(--text); font-weight: 600; }
+.weightScope label { display: flex; grid-template-columns: auto 1fr; align-items: center; gap: 8px; }
+.weightScope input { width: 18px; min-height: 18px; accent-color: var(--accent); }
 .checkLabel { display: flex !important; grid-template-columns: auto 1fr; align-items: center; gap: 8px !important; }
 .checkLabel input { width: 20px; min-height: 20px; accent-color: var(--accent); }
 @media (min-width: 900px) {
@@ -1107,4 +1113,5 @@ textarea {
   .goalCard { align-items: flex-start !important; flex-direction: column !important; }
   .goalSegments { width: 100% !important; }
   .activeExercise { padding: 22px 18px !important; }
+  .weightEditor { position: fixed; z-index: 20; right: 0; bottom: 0; left: 0; margin: 0; padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); border-radius: 32px 32px 0 0; box-shadow: 0 -18px 60px rgba(0,0,0,.45); }
 }

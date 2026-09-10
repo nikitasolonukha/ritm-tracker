@@ -17,7 +17,12 @@ export default function TodayPage() {
   const active = sessionState.workoutSessions?.find((item) => item.status === "active");
   const actionable = state.habits.filter((habit) => habit.type !== "workout");
   const pending = actionable.filter((habit) => !state.completions.some((item) => item.habitId === habit.id && item.localDate === today));
-  const finishedSessions = (sessionState.workoutSessions ?? []).filter((item) => item.status === "completed").length;
+  const weekDates = new Set(Array.from({ length: 7 }, (_, index) => { const date = new Date(`${today}T12:00:00`); const mondayOffset = (date.getDay() + 6) % 7; date.setDate(date.getDate() - mondayOffset + index); return getLocalDate(date); }));
+  const finishedSessions = (sessionState.workoutSessions ?? []).filter((item) => {
+    if (item.status !== "completed") return false;
+    const workout = state.workouts.find((candidate) => candidate.id === item.workoutId);
+    return Boolean(workout && weekDates.has(workout.date) && calculateWorkoutTotals(workout).completedSets > 0);
+  }).length;
   const dates = Array.from({ length: 7 }, (_, index) => { const date = new Date(`${today}T12:00:00`); date.setDate(date.getDate() - (6 - index)); return getLocalDate(date); });
   const currentAction = pending[0];
   const complete = (habitId: string) => update((previous) => ({ ...previous, completions: [...previous.completions, { id: `completion-${habitId}-${today}`, habitId, completedAt: new Date().toISOString(), localDate: today, source: "web" }] }));

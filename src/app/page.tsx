@@ -17,15 +17,15 @@ import {
   Timer,
   Upload,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   applyHabitCompletion,
   completeWorkoutSet,
   calculateWorkoutTotals,
+  commitDraftValue,
   getMilestoneState,
   getLocalDate,
-  normalizeDecimalInput,
   parseWorkoutNotesBatch,
   restoreRestTimer,
   type ExerciseSet,
@@ -46,6 +46,8 @@ export default function Home() {
   const [timerNow, setTimerNow] = useState(() => new Date().toISOString());
   const [telegramLink, setTelegramLink] = useState<string>();
   const [telegramMessage, setTelegramMessage] = useState("");
+  const syncRevision = useRef(0);
+  const lastSyncedPayload = useRef("");
 
   useEffect(() => {
     let cancelled = false;
@@ -55,19 +57,31 @@ export default function Home() {
       setUserId(id);
       const result = readStateSafely(id);
       let nextState = result.state;
+      let syncAllowed = true;
+      let remoteLoaded = false;
       try {
         const remoteResponse = await fetch("/api/sync", { cache: "no-store" });
         if (remoteResponse.ok) {
-          const remote = await remoteResponse.json() as { payload?: TrackerState | null };
-          if (result.status === "empty" && remote.payload && typeof remote.payload === "object") nextState = remote.payload;
+          const remote = await remoteResponse.json() as { payload?: TrackerState | null; version?: number };
+          syncRevision.current = remote.version ?? 0;
+          if (remote.payload && typeof remote.payload === "object") {
+            remoteLoaded = true;
+            if (result.status === "empty") nextState = remote.payload;
+            else if (JSON.stringify(result.state) !== JSON.stringify(remote.payload)) {
+              try { window.localStorage.setItem(`ritm-tracker-sync-conflict:${id}:${remote.version ?? 0}`, JSON.stringify(remote.payload)); } catch { /* keep local copy */ }
+              setStorageMessage("Есть несинхронизированная версия на другом устройстве. Локальная копия сохранена отдельно.");
+              syncAllowed = false;
+            }
+          }
         }
       } catch {
         // Local state remains usable while the server is unavailable.
       }
       setState(nextState);
+      if (remoteLoaded) lastSyncedPayload.current = JSON.stringify(nextState);
       setHydrated(true);
       setStorageReady(result.status === "empty" || result.status === "loaded");
-      setSyncReady(true);
+      setSyncReady(syncAllowed);
       if (result.status === "corrupt" || result.status === "unsupported") setStorageMessage(`${result.error ?? "Локальные данные требуют восстановления"}. Исходная запись сохранена.`);
     });
     return () => { cancelled = true; };
@@ -77,8 +91,25 @@ export default function Home() {
     if (hydrated && storageReady && syncReady && state) {
       const result = writeState(state, userId);
       if (!result.ok) setStorageMessage("Не удалось сохранить изменения на устройстве.");
-      void fetch("/api/sync", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ payload: state, version: state.version }) }).then((response) => {
-        if (!response.ok) setStorageMessage("Сохранено на устройстве; синхронизация пока недоступна.");
+      const serialized = JSON.stringify(state);
+      if (serialized === lastSyncedPayload.current) return;
+      void fetch("/api/sync", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ payload: state, expectedRevision: syncRevision.current }) }).then(async (response) => {
+        if (response.ok) {
+          const body = await response.json() as { revision?: number };
+          syncRevision.current = body.revision ?? syncRevision.current;
+          lastSyncedPayload.current = serialized;
+          return;
+        }
+        if (response.status === 409) {
+          const conflict = await response.json().catch(() => ({})) as { remote?: TrackerState | null; revision?: number };
+          if (conflict.remote) {
+            try { window.localStorage.setItem(`ritm-tracker-sync-conflict:${userId ?? "unknown"}:${conflict.revision ?? 0}`, JSON.stringify(conflict.remote)); } catch { /* keep local copy */ }
+          }
+          setSyncReady(false);
+          setStorageMessage("Конфликт синхронизации. Локальная и серверная версии сохранены отдельно.");
+          return;
+        }
+        setStorageMessage("Сохранено на устройстве; синхронизация пока недоступна.");
       }).catch(() => setStorageMessage("Сохранено на устройстве; синхронизация пока недоступна."));
     }
   }, [hydrated, storageReady, syncReady, state, userId]);
@@ -175,9 +206,9 @@ export default function Home() {
       const workout = previous.workouts.find((item) => item.id === previous.activeWorkoutId);
       const set = workout?.exercises.find((item) => item.id === exerciseId)?.sets.find((item) => item.id === setId);
       if (!workout || !set) return previous;
-      const raw = field === "weight" ? set.weightDraft ?? "" : set.repsDraft ?? "";
-      const value = field === "weight" ? normalizeDecimalInput(raw) : (/^\d+$/.test(raw.trim()) ? Number(raw) : null);
-      if (raw.trim() && value == null) return previous;
+      const result = commitDraftValue(field === "weight" ? set.weightDraft : set.repsDraft, field);
+      if (result.status === "untouched" || result.status === "invalid") return previous;
+      const value = result.value;
       return {
         ...previous,
         workouts: previous.workouts.map((item) => item.id !== workout.id ? item : {

@@ -20,7 +20,7 @@
 node --test --experimental-strip-types tests\\tracker.test.ts tests\\repair.test.ts tests\\telegram.test.ts tests\\audit-regressions.test.mjs
 ```
 
-Результат: 36 тестов, 36 passed.
+Результат: 37 тестов, 37 passed.
 
 ```bash
 .\\node_modules\\.bin\\tsc --noEmit
@@ -42,12 +42,12 @@ Production build подтвердил middleware manifest с `name: "src/middlew
 
 ## Написано, но не проверено внешними сервисами
 
-- Supabase migrations `ritm_core`, security hardening, `tracker_state`, `telegram_updates` и server-only lease/retry RPC для `notification_jobs` применены к проекту; реальный RPC/изоляция двумя учетными записями еще не прогонялись.
+- Supabase migrations `ritm_core`, security hardening, `tracker_state`, `telegram_updates`, server-only lease/retry RPC для `notification_jobs` и atomic `save_tracker_state` revision RPC применены к проекту; реальная двухустройственная RPC/изоляция двумя учетными записями еще не прогонялась.
 - Production login, webhook secret и worker secret проверены на реальном Vercel deployment. Реальная доставка Telegram и callback ownership еще не прогонялись; webhook-дедупликация `update_id` уже проверена внешним smoke-test, worker проверен на отказ при неверном секрете.
 
 ## Не завершено
 
-- Полный Auth/Storage client для relational journal, транзакционная sync и интеграционные тесты с двумя пользователями.
+- Полный Auth/Storage client для relational journal, связывание snapshot с relational фактами и интеграционные тесты двух устройств/двух пользователей.
 - Telegram callback actions, создание due jobs из фактов тренировки и реальный smoke-test отправки уведомления; worker/lease/retry и одноразовая привязка уже написаны.
 - IndexedDB command log, конфликты вкладок/устройств и восстановление после offline.
 - Полный дневной сценарий, наблюдения, фото, экспорт/восстановление и полноценные графики.

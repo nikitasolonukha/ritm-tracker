@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   completeWorkoutSet,
   calculateExerciseVolume,
+  commitDraftValue,
   getLocalDate,
   normalizeDecimalInput,
   parseWorkoutNotes,
@@ -19,6 +20,13 @@ test("decimal comma is normalized without turning an empty draft into zero", () 
   assert.equal(normalizeDecimalInput("12,5"), 12.5);
   assert.equal(normalizeDecimalInput(""), null);
   assert.equal(normalizeDecimalInput("-1"), null);
+});
+
+test("draft commit distinguishes untouched, empty, valid, and invalid input", () => {
+  assert.deepEqual(commitDraftValue(undefined, "weight"), { status: "untouched" });
+  assert.deepEqual(commitDraftValue("", "weight"), { status: "empty", value: null });
+  assert.deepEqual(commitDraftValue("12,5", "weight"), { status: "valid", value: 12.5 });
+  assert.deepEqual(commitDraftValue("12x", "reps"), { status: "invalid" });
 });
 
 test("45 kg per side for 8 reps is 720 kg", () => {

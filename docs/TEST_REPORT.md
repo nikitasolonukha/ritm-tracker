@@ -1,6 +1,8 @@
 # TEST_REPORT
 
-Дата: 2026-09-09
+Дата: 2026-09-10
+
+Проверяемый коммит: `f628b4f feat: add dedicated workout mode and journal routes`.
 
 ## Реализовано
 
@@ -13,6 +15,8 @@
 - Настройка действий дня и шаблона тренировки: названия, расписания, упражнения, отдых и количество подходов.
 - Явный выбор режима веса в рабочем подходе, отказ от молчаливого учета неизвестного режима и выход из аккаунта с сохранением локальной очереди.
 - Одноразовая Telegram-ссылка из настроек, hash-only хранение токена, подтверждение `/start` только для незарегистрированного и неистекшего токена.
+- Отдельные страницы `/today`, `/workouts`, `/workouts/templates/[templateId]`, `/workout/[sessionId]`, `/workout/[sessionId]/summary`, `/journal`, `/progress` и `/settings`.
+- Активная сессия с общим таймером, текущим упражнением, сохраненным весом/режимом, фактическими повторениями, отдыхом, явным переходом к следующему упражнению и итогом в истории.
 
 ## Проверено локально
 
@@ -38,6 +42,8 @@ node --test --experimental-strip-types tests\\tracker.test.ts tests\\repair.test
 
 Production build подтвердил middleware manifest с `name: "src/middleware"` и маршрутами `/api/sync`, `/api/telegram/link`, `/api/telegram/webhook`, `/api/telegram/worker`.
 
+Ручной браузерный smoke-test на локальном dev-сервере с явно включенным `RITM_DEMO_MODE=1`: выбор программы -> отдельный экран активной тренировки -> ввод повторений -> запись подхода -> переход через отдых. Проверены viewport 390x844 и 1440x1000; PNG сохранены локально вне Git (`artifacts-workout-390-active.png`, `artifacts-workout-1440-active.png`).
+
 Проверены отдельно: МСК после полуночи, расчет веса на руку, явный общий вес, неизвестный режим как unscored, четыре рабочих подхода, две пары составных плеч с одним отдыхом на пару, untouched/empty/valid/invalid drafts, stable JSON comparison, двойное подтверждение, автотаймер, пустой и исторический импорт, batch parser, невозможные числовые и русские даты, дубликаты, user-scoped storage, offline JS fallback, резервирование поврежденного storage, secret/update_id Telegram validation.
 
 ## Написано, но не проверено внешними сервисами
@@ -53,3 +59,4 @@ Production build подтвердил middleware manifest с `name: "src/middlew
 - IndexedDB command log, конфликты вкладок/устройств и восстановление после offline.
 - Полный дневной сценарий, наблюдения, фото, экспорт/восстановление и полноценные графики.
 - Playwright E2E всех пользовательских действий, iPhone и блокировка экрана.
+- Новый premium UX пока использует локальный state hook; полноценная серверная синхронизация каждой новой сессии и автоматическое создание `notification_jobs` из active workout требуют отдельного интеграционного прогона.

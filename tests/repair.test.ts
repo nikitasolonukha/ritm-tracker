@@ -8,6 +8,7 @@ import {
   getLocalDate,
   normalizeDecimalInput,
   parseWorkoutNotes,
+  stableStringify,
   defaultHabits,
   type Workout,
 } from "../src/lib/tracker.ts";
@@ -27,6 +28,11 @@ test("draft commit distinguishes untouched, empty, valid, and invalid input", ()
   assert.deepEqual(commitDraftValue("", "weight"), { status: "empty", value: null });
   assert.deepEqual(commitDraftValue("12,5", "weight"), { status: "valid", value: 12.5 });
   assert.deepEqual(commitDraftValue("12x", "reps"), { status: "invalid" });
+});
+
+test("stable JSON ignores object key order but preserves array order", () => {
+  assert.equal(stableStringify({ b: 2, a: { d: 4, c: 3 } }), stableStringify({ a: { c: 3, d: 4 }, b: 2 }));
+  assert.notEqual(stableStringify({ values: [1, 2] }), stableStringify({ values: [2, 1] }));
 });
 
 test("45 kg per side for 8 reps is 720 kg", () => {

@@ -10,6 +10,7 @@ type ClaimedJob = {
   source_entity_id: string;
   source_version: number;
   attempts: number;
+  message: string;
 };
 
 export async function POST(request: NextRequest) {
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
     const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: job.telegram_user_id, text: `Напоминание Ритм: ${job.source_entity_id}` }),
+      body: JSON.stringify({ chat_id: job.telegram_user_id, text: job.message }),
     });
     const payload = await response.json().catch(() => ({})) as { ok?: boolean; description?: string; parameters?: { retry_after?: number } };
     if (response.ok && payload.ok) {

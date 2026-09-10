@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { PwaRegistration } from "./pwa";
+import { TrackerProvider } from "@/components/tracker-state";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,7 +20,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="ru">
       <body>
         <PwaRegistration />
-        {children}
+        <TrackerProvider>{children}</TrackerProvider>
       </body>
     </html>
   );

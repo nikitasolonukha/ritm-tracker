@@ -1,5 +1,5 @@
-import { getLocalDate, type Workout } from "./tracker";
-import type { TrackerState } from "./storage";
+import { getLocalDate, type Workout } from "./tracker.ts";
+import type { TrackerState } from "./storage.ts";
 
 export type WorkoutSession = {
   id: string;

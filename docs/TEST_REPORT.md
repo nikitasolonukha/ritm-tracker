@@ -2,7 +2,7 @@
 
 Дата: 2026-09-10
 
-Проверяемый коммит: текущий коммит после `eaa1d8d`.
+Проверяемый коммит: текущий коммит после `800357b`.
 
 ## Реализовано
 
@@ -18,6 +18,7 @@
 - Отдельные страницы `/today`, `/workouts`, `/workouts/templates/[templateId]`, `/workout/[sessionId]`, `/workout/[sessionId]/summary`, `/journal`, `/progress` и `/settings`.
 - Активная сессия с общим таймером, текущим упражнением, сохраненным весом/режимом, фактическими повторениями, отдыхом, явным переходом к следующему упражнению и итогом в истории.
 - `/` перенаправляет в новый `/today`; быстрые действия дня сохраняются и отменяются идемпотентно. `/settings` редактирует первый приватный шаблон: название, упражнения, рабочий вес, повторы и отдых.
+- Общий `TrackerProvider` подключён в корневом layout; новые страницы используют один account-scoped store, локальное сохранение и revision sync queue. Pending set commands передаются в owner-scoped `/api/workout/command` и notification job RPC.
 
 ## Проверено локально
 
@@ -25,7 +26,7 @@
 node --test --experimental-strip-types tests\\tracker.test.ts tests\\repair.test.ts tests\\telegram.test.ts tests\\audit-regressions.test.mjs
 ```
 
-Результат: 38 тестов, 38 passed.
+Результат: 40 тестов, 40 passed.
 
 ```bash
 .\\node_modules\\.bin\\tsc --noEmit
@@ -41,7 +42,7 @@ node --test --experimental-strip-types tests\\tracker.test.ts tests\\repair.test
 
 Результат: 3 теста, 3 passed. Проверены redirect приватной страницы без конфигурации, отсутствие browser-login redirect у webhook и отдельная защита worker. Chromium запускался с разрешением Windows после sandbox `spawn EPERM`.
 
-Production build подтвердил middleware manifest с `name: "src/middleware"` и маршрутами `/api/sync`, `/api/telegram/link`, `/api/telegram/webhook`, `/api/telegram/worker`.
+Production build подтвердил middleware manifest с `name: "src/middleware"` и маршрутами `/api/sync`, `/api/workout/command`, `/api/telegram/link`, `/api/telegram/webhook`, `/api/telegram/worker`.
 
 Ручной браузерный smoke-test на локальном dev-сервере с явно включенным `RITM_DEMO_MODE=1`: `/` -> `/today`, отметка действия -> изменение веса 45 -> 50 в `/settings` -> новый старт использует 50 -> ввод повторений -> запись подхода -> отдых с подписью `Следующий подход 2 из 4`. Viewport 390x844 и 1440x1000 проверены; PNG сохранены локально вне Git (`artifacts-workout-390-active.png`, `artifacts-workout-1440-active.png`, `artifacts-workout-390-rest.png`).
 
@@ -60,4 +61,6 @@ Production build подтвердил middleware manifest с `name: "src/middlew
 - IndexedDB command log, конфликты вкладок/устройств и восстановление после offline.
 - Полный дневной сценарий, наблюдения, фото, экспорт/восстановление и полноценные графики.
 - Playwright E2E всех пользовательских действий, iPhone и блокировка экрана.
-- Новый premium UX пока использует локальный state hook; полноценная серверная синхронизация каждой новой сессии и автоматическое создание `notification_jobs` из active workout требуют отдельного интеграционного прогона.
+- Автоматические тесты двух вкладок/двух устройств и UI разрешения конфликта ещё не закрыты; текущий store сохраняет локальную копию и останавливает server queue при 409.
+- Реальная отправка Telegram по новому job не проверялась в тестовом чате; RPC/миграция применены к Supabase-проекту и проверены наличием функции/колонки, но end-to-end delivery не запускалась.
+- Supabase security advisor после hardening всё ещё сообщает существующую постороннюю `public.RAGformyAIagent` без RLS, отсутствие policy у `telegram_updates`, mutable search path у `set_updated_at`/`match_documents`, public vector extension и отключённую leaked-password protection. Эти внешние предупреждения не скрыты и не изменялись автоматически.

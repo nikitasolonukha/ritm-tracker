@@ -8,8 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint \"src/**/*.{ts,tsx}\" \"tests/**/*.ts\"",
-    "test": "node --test --experimental-strip-types tests/tracker.test.ts tests/repair.test.ts tests/telegram.test.ts tests/audit-regressions.test.mjs",
-    "test:coverage": "node --test --experimental-strip-types tests/tracker.test.ts tests/repair.test.ts tests/telegram.test.ts tests/audit-regressions.test.mjs"
+    "test": "node --test --experimental-strip-types tests/tracker.test.ts tests/repair.test.ts tests/telegram.test.ts tests/audit-regressions.test.mjs tests/workout-session.test.ts",
+    "test:coverage": "node --test --experimental-strip-types tests/tracker.test.ts tests/repair.test.ts tests/telegram.test.ts tests/audit-regressions.test.mjs tests/workout-session.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.7.0",

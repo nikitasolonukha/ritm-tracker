@@ -35,17 +35,25 @@ export function startWorkoutSession(state: SessionTrackerState, templateId: stri
 }
 
 export function finishWorkoutSession(state: SessionTrackerState, sessionId: string, now = new Date()): SessionTrackerState {
+  const session = state.workoutSessions?.find((item) => item.id === sessionId);
+  if (!session || session.status !== "active") return state;
   return {
     ...state,
     workoutSessions: (state.workoutSessions ?? []).map((session) => session.id === sessionId ? { ...session, status: "completed", finishedAt: now.toISOString() } : session),
     activeSessionId: state.activeSessionId === sessionId ? undefined : state.activeSessionId,
+    activeWorkoutId: state.activeWorkoutId === session.workoutId ? undefined : state.activeWorkoutId,
+    activeTimer: state.activeWorkoutId === session.workoutId ? null : state.activeTimer,
   };
 }
 
 export function cancelWorkoutSession(state: SessionTrackerState, sessionId: string, now = new Date()): SessionTrackerState {
+  const session = state.workoutSessions?.find((item) => item.id === sessionId);
+  if (!session || session.status !== "active") return state;
   return {
     ...state,
     workoutSessions: (state.workoutSessions ?? []).map((session) => session.id === sessionId ? { ...session, status: "cancelled", finishedAt: now.toISOString() } : session),
     activeSessionId: state.activeSessionId === sessionId ? undefined : state.activeSessionId,
+    activeWorkoutId: state.activeWorkoutId === session.workoutId ? undefined : state.activeWorkoutId,
+    activeTimer: state.activeWorkoutId === session.workoutId ? null : state.activeTimer,
   };
 }

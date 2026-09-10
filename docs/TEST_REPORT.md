@@ -2,7 +2,7 @@
 
 Дата: 2026-09-10
 
-Проверяемый коммит: `f628b4f feat: add dedicated workout mode and journal routes`.
+Проверяемый коммит: текущий коммит после `eaa1d8d`.
 
 ## Реализовано
 
@@ -17,6 +17,7 @@
 - Одноразовая Telegram-ссылка из настроек, hash-only хранение токена, подтверждение `/start` только для незарегистрированного и неистекшего токена.
 - Отдельные страницы `/today`, `/workouts`, `/workouts/templates/[templateId]`, `/workout/[sessionId]`, `/workout/[sessionId]/summary`, `/journal`, `/progress` и `/settings`.
 - Активная сессия с общим таймером, текущим упражнением, сохраненным весом/режимом, фактическими повторениями, отдыхом, явным переходом к следующему упражнению и итогом в истории.
+- `/` перенаправляет в новый `/today`; быстрые действия дня сохраняются и отменяются идемпотентно. `/settings` редактирует первый приватный шаблон: название, упражнения, рабочий вес, повторы и отдых.
 
 ## Проверено локально
 
@@ -42,7 +43,7 @@ node --test --experimental-strip-types tests\\tracker.test.ts tests\\repair.test
 
 Production build подтвердил middleware manifest с `name: "src/middleware"` и маршрутами `/api/sync`, `/api/telegram/link`, `/api/telegram/webhook`, `/api/telegram/worker`.
 
-Ручной браузерный smoke-test на локальном dev-сервере с явно включенным `RITM_DEMO_MODE=1`: выбор программы -> отдельный экран активной тренировки -> ввод повторений -> запись подхода -> переход через отдых. Проверены viewport 390x844 и 1440x1000; PNG сохранены локально вне Git (`artifacts-workout-390-active.png`, `artifacts-workout-1440-active.png`).
+Ручной браузерный smoke-test на локальном dev-сервере с явно включенным `RITM_DEMO_MODE=1`: `/` -> `/today`, отметка действия -> изменение веса 45 -> 50 в `/settings` -> новый старт использует 50 -> ввод повторений -> запись подхода -> отдых с подписью `Следующий подход 2 из 4`. Viewport 390x844 и 1440x1000 проверены; PNG сохранены локально вне Git (`artifacts-workout-390-active.png`, `artifacts-workout-1440-active.png`, `artifacts-workout-390-rest.png`).
 
 Проверены отдельно: МСК после полуночи, расчет веса на руку, явный общий вес, неизвестный режим как unscored, четыре рабочих подхода, две пары составных плеч с одним отдыхом на пару, untouched/empty/valid/invalid drafts, stable JSON comparison, двойное подтверждение, автотаймер, пустой и исторический импорт, batch parser, невозможные числовые и русские даты, дубликаты, user-scoped storage, offline JS fallback, резервирование поврежденного storage, secret/update_id Telegram validation.
 

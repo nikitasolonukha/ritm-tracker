@@ -36,6 +36,52 @@ textarea {
   font: inherit;
 }
 
+select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 12px;
+  color: var(--text);
+  background: #0e100f;
+}
+
+.settingsEditor > label,
+.settingExercise label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.settingsEditor > .primary {
+  margin-top: 14px;
+}
+
+.settingsEditor .sectionHeading {
+  margin-top: 34px;
+}
+
+.settingExercise {
+  grid-template-columns: minmax(180px, 1.5fr) minmax(90px, 0.7fr) minmax(90px, 0.7fr) minmax(120px, 0.8fr) auto;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 24px;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+@media (max-width: 760px) {
+  .settingExercise {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 .authShell {
   min-height: 100vh;
   display: grid;
@@ -625,6 +671,29 @@ textarea:focus-visible {
   padding: 10px 12px;
   border-radius: 8px;
   text-align: left;
+}
+
+.todayActions .habitRow {
+  grid-template-columns: minmax(0, 1fr) auto;
+  cursor: pointer;
+}
+
+.todayHero {
+  display: grid;
+  gap: 3px;
+  margin: 0 0 18px;
+  padding: 26px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.todayHero strong {
+  font-size: 64px;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+.todayHero span {
+  color: var(--muted);
 }
 
 .habitRow.done {

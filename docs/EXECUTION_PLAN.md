@@ -29,6 +29,8 @@
 ## Этапы 3–5
 
 - [x] Персональные дневные действия и отмена отметок дня в новом `/today`.
+- [x] Premium UI layer on existing routes: graphite/lime tokens, four-item mobile nav, desktop sidebar, Today week/action/goal composition, focused workout set/rest states, weight editor, summary and journal cards.
+- [x] Synthetic browser screenshots at 390 and 1440 px saved under `artifacts/ui-review/` and visually inspected.
 - [ ] События сна/еды и полный профиль расписаний.
 - [ ] Проверяемый импорт, история, аналитика, наблюдения, экспорт и фото.
 - [ ] Мобильная навигация, честные пустые состояния и корректный offline service worker.
@@ -38,3 +40,5 @@
 Код, проверенный локально, проверенный с внешними сервисами и незавершенная работа должны указываться отдельно в `docs/TEST_REPORT.md`. Реальные Telegram, Supabase и iPhone без ключей/устройства не считаются проверенными.
 
 В текущей итерации автоматически проверены 40 unit/integration-style тестов, lint, TypeScript и production build. Браузерно проверены redirect `/` -> `/today`, отметка дня, редактирование веса и запуск сессии в demo-режиме. Реальный Telegram send и two-device conflict resolution не объявлены закрытыми.
+
+UI iteration notes: tokens follow the approved graphite/lime pack (`#10120F`, `#1B1F19`, `#252B22`, `#F3F5EE`, `#A5AE9D`, `#B7F36B`); screenshots are synthetic evidence only. GitHub push and Vercel production deployment remain separate operations; this iteration was not deployed to production.

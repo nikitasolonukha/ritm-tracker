@@ -16,6 +16,9 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
   const [repsTouched, setRepsTouched] = useState(false);
   const [error, setError] = useState("");
   const [confirmFinish, setConfirmFinish] = useState(false);
+  const [weightEditorOpen, setWeightEditorOpen] = useState(false);
+  const [weightDraft, setWeightDraft] = useState("");
+  const [rememberWeight, setRememberWeight] = useState(false);
   const [routeSessionId, setRouteSessionId] = useState<string>();
   useEffect(() => { void params.then(({ sessionId }) => setRouteSessionId(sessionId)); }, [params]);
   useEffect(() => { const id = window.setInterval(() => setNow(new Date().toISOString()), 1000); return () => window.clearInterval(id); }, []);
@@ -27,6 +30,8 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
     const set = exercise?.sets.find((item) => !item.completed);
     setReps(set?.repsDraft ?? "");
     setRepsTouched(false);
+    setWeightDraft(set?.weightKg == null ? "" : String(set.weightKg));
+    setWeightEditorOpen(false);
   }, [state, routeSessionId]);
   if (!state) return <main className="workoutMode"><p className="muted">Восстанавливаю тренировку…</p></main>;
   const sessionState = state as SessionTrackerState;
@@ -42,7 +47,9 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
   const completeExercise = Boolean(exercise && exercise.sets.length > 0 && exercise.sets.every((set) => set.completed));
   const record = () => {
     if (!currentSet || !exercise) return;
-    const value = Number(reps || currentSet.reps || 0);
+    const raw = reps.trim();
+    if (!raw) { setError("Введи фактическое число повторений."); return; }
+    const value = Number(raw);
     if (!Number.isInteger(value) || value < 1 || value > 100) { setError("Укажи целое число повторений от 1 до 100."); return; }
     setError("");
     const saved = update((previous) => {
@@ -60,11 +67,20 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
   const nextExercise = () => update((previous) => ({ ...(previous as SessionTrackerState), workoutSessions: ((previous as SessionTrackerState).workoutSessions ?? []).map((item) => item.id === session.id ? { ...item, activeExerciseIndex: Math.min(item.activeExerciseIndex + 1, workout.exercises.length - 1) } : item) }));
   const finish = () => { if (!confirmFinish) { setConfirmFinish(true); return; } const saved = update((previous) => finishWorkoutSession(previous as SessionTrackerState, session.id)); if (saved) router.push(`/workout/${session.id}/summary`); };
   const collapse = () => { const saved = repsTouched ? update((previous) => ({ ...previous, workouts: previous.workouts.map((item) => item.id !== workout.id ? item : { ...item, exercises: item.exercises.map((itemExercise) => itemExercise.id !== exercise.id ? itemExercise : { ...itemExercise, sets: itemExercise.sets.map((set) => set.id === currentSet?.id ? { ...set, repsDraft: reps } : set) }) }) })) : true; if (saved) router.push("/workouts"); };
+  const saveWeight = () => {
+    const value = Number(weightDraft.replace(",", "."));
+    if (!currentSet || !Number.isFinite(value) || value < 0) { setError("Укажи корректный вес."); return; }
+    const saved = update((previous) => {
+      const next = previous as SessionTrackerState;
+      return { ...next, workouts: next.workouts.map((item) => item.id !== workout.id ? item : { ...item, exercises: item.exercises.map((itemExercise) => itemExercise.id !== exercise.id ? itemExercise : { ...itemExercise, sets: itemExercise.sets.map((set) => set.id === currentSet.id ? { ...set, weightKg: value } : set) }) }), workoutTemplates: rememberWeight ? (next.workoutTemplates ?? []).map((item) => item.title !== workout.title ? item : { ...item, exercises: item.exercises.map((itemExercise) => itemExercise.id !== exercise.id ? itemExercise : { ...itemExercise, sets: itemExercise.sets.map((set) => ({ ...set, weightKg: value })) }) }) : next.workoutTemplates };
+    });
+    if (saved) { setError(""); setWeightEditorOpen(false); }
+  };
   return <main className="workoutMode"><header className="workoutTop"><button className="iconButton" aria-label="Свернуть" onClick={collapse}><ArrowLeft size={20} /></button><span className="workoutTimer"><Clock size={16} /> {formatTime(elapsed)}</span></header>
     <div className="workoutProgress"><span>Упражнение {session.activeExerciseIndex + 1} из {workout.exercises.length}</span><span>{completeExercise ? "Готово" : `Подход ${Math.max(1, setIndex + 1)} из ${exercise.sets.length}`}</span></div>
     <section className="activeExercise"><p className="eyebrow">Текущее упражнение</p><h1>{exercise.name}</h1><p className="muted">{exercise.settings ?? "Рабочий подход"}</p>
-      {rest && !rest.expired && <div className="restState"><span>Отдых</span><strong>{formatTime(rest.remainingSec)}</strong><small>{completeExercise ? (session.activeExerciseIndex < workout.exercises.length - 1 ? "Следующее упражнение готово" : "Программа почти завершена") : `Следующий подход ${Math.min(setIndex + 1, exercise.sets.length)} из ${exercise.sets.length}`}</small><button className="secondary" onClick={() => update((previous) => ({ ...previous, activeTimer: null }))}><Play size={16} /> Пропустить отдых</button></div>}
-      {(!rest || rest.expired) && !completeExercise && <div className="setState"><p className="eyebrow">Подход {Math.max(1, setIndex + 1)} из {exercise.sets.length}</p><div className="workWeight"><strong>{currentSet?.weightKg ?? "—"}</strong><span>{currentSet?.weightMode === "per-hand" ? "кг на сторону" : currentSet?.weightMode === "total" ? "кг общий вес" : "кг · уточнить"}</span></div><label>Фактические повторения<input autoComplete="off" inputMode="numeric" value={reps} onChange={(event) => { setRepsTouched(true); setReps(event.target.value); }} placeholder={`План: ${currentSet?.reps ?? "—"}`} /></label>{error && <p className="fieldError" role="alert">{error}</p>}<button className="primary recordButton" onClick={record}><Check size={20} /> Записать {reps || "повторения"}</button></div>}
+      {rest && !rest.expired && <div className="restState"><span>Отдых</span><strong>{formatTime(rest.remainingSec)}</strong><small>Записано: {currentSet?.weightKg ?? "—"} × {currentSet?.reps ?? "—"}</small><small>{completeExercise ? (session.activeExerciseIndex < workout.exercises.length - 1 ? "Следующее упражнение готово" : "Программа почти завершена") : `Далее — подход ${Math.min(setIndex + 1, exercise.sets.length)} из ${exercise.sets.length}`}</small><div className="restBar"><span style={{ width: `${Math.max(0, Math.min(100, (rest.remainingSec / (sessionState.activeTimer?.durationSec || 1)) * 100))}%` }} /></div><div className="restActions"><button className="secondary" onClick={() => update((previous) => ({ ...previous, activeTimer: previous.activeTimer ? { ...previous.activeTimer, endsAt: new Date(new Date(previous.activeTimer.endsAt ?? new Date().toISOString()).getTime() + 30000).toISOString(), durationSec: previous.activeTimer.durationSec + 30 } : null }))}>+30 секунд</button><button className="secondary" onClick={() => update((previous) => ({ ...previous, activeTimer: null }))}><Play size={16} /> Пропустить отдых</button></div></div>}
+      {(!rest || rest.expired) && !completeExercise && <div className="setState"><p className="eyebrow">Подход {Math.max(1, setIndex + 1)} из {exercise.sets.length}</p><div className="setSegments" aria-label="Подходы">{exercise.sets.map((item, index) => <span className={item.completed ? "done" : item.id === currentSet?.id ? "current" : ""} key={item.id}>{index + 1}</span>)}</div><div className="workWeight"><strong>{currentSet?.weightKg ?? "—"}</strong><span>{currentSet?.weightMode === "per-hand" ? "кг на сторону" : currentSet?.weightMode === "total" ? "кг общий вес" : "кг · уточнить"}</span><button className="secondary weightEditButton" onClick={() => setWeightEditorOpen((value) => !value)}>Изменить</button></div>{weightEditorOpen && <div className="weightEditor"><label>Вес<input inputMode="decimal" value={weightDraft} onChange={(event) => setWeightDraft(event.target.value)} /></label><label className="checkLabel"><input type="checkbox" checked={rememberWeight} onChange={(event) => setRememberWeight(event.target.checked)} /> Запомнить для следующих тренировок</label><button className="secondary" onClick={saveWeight}>Сохранить вес</button></div>}<label className="repsField">Фактические повторения<div className="repsControl"><button type="button" aria-label="Уменьшить" onClick={() => { setRepsTouched(true); setReps(String(Math.max(0, Number(reps || 0) - 1))); }}>−</button><input autoComplete="off" inputMode="numeric" value={reps} onChange={(event) => { setRepsTouched(true); setReps(event.target.value); }} placeholder={`${currentSet?.reps ?? "—"}`} /><button type="button" aria-label="Увеличить" onClick={() => { setRepsTouched(true); setReps(String(Math.min(100, Number(reps || 0) + 1))); }}>+</button></div><small>План: {currentSet?.reps ?? "не задан"}. Это только подсказка.</small></label>{error && <p className="fieldError" role="alert">{error}</p>}<button className="primary recordButton" onClick={record}><Check size={20} /> Записать {reps || "повторения"}</button></div>}
       {completeExercise && <div className="completeState"><Check size={28} /><h2>Упражнение завершено</h2>{session.activeExerciseIndex < workout.exercises.length - 1 ? <button className="primary" onClick={nextExercise}>Следующее упражнение <ChevronRight size={20} /></button> : <button className="primary" onClick={finish}>{confirmFinish ? "Подтвердить завершение" : "Завершить тренировку"}</button>}</div>}
     </section></main>;
 }

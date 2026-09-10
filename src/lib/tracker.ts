@@ -93,6 +93,21 @@ export function normalizeDecimalInput(value: string): number | null {
   return Number.isFinite(number) && number >= 0 ? number : null;
 }
 
+export type DraftCommitResult =
+  | { status: "untouched" }
+  | { status: "empty"; value: null }
+  | { status: "valid"; value: number }
+  | { status: "invalid" };
+
+export function commitDraftValue(raw: string | undefined, field: "weight" | "reps"): DraftCommitResult {
+  if (raw === undefined) return { status: "untouched" };
+  if (!raw.trim()) return { status: "empty", value: null };
+  const value = field === "weight"
+    ? normalizeDecimalInput(raw)
+    : /^\d+$/.test(raw.trim()) ? Number(raw) : null;
+  return value == null ? { status: "invalid" } : { status: "valid", value };
+}
+
 export function calculateExerciseVolume(sets: ExerciseSet[]): number {
   return sets.reduce((sum, set) => {
     if (!set.completed || set.weightKg == null || set.reps == null) {

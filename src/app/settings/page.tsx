@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, LogOut, Plus, Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTrackerState } from "@/components/tracker-state";
+import { createClient } from "@/lib/supabase/client";
+import { setServiceWorkerAccount } from "@/lib/pwa";
 import type { SessionTrackerState } from "@/lib/workout-session";
 import type { ExerciseSet } from "@/lib/tracker";
 
@@ -159,6 +161,11 @@ export default function SettingsPage() {
     else setTelegramMessage("Не удалось проверить статус Telegram.");
   }
 
+  function signOut() {
+    setServiceWorkerAccount();
+    void createClient().auth.signOut().finally(() => { window.location.assign("/login"); });
+  }
+
   const editHabit = (habitId: string, field: "title" | "schedule" | "privateTitle", value: string) => update((previous) => ({
     ...previous,
     habits: previous.habits.map((habit) => habit.id !== habitId ? habit : { ...habit, [field]: value }),
@@ -166,7 +173,7 @@ export default function SettingsPage() {
 
   return <main className="shell appPage">
     <Link className="backLink" href="/today"><ArrowLeft size={18} /> Сегодня</Link>
-    <header className="pageHeader"><div><p className="eyebrow">Аккаунт</p><h1>Настройки</h1></div></header>
+    <header className="pageHeader"><div><p className="eyebrow">Аккаунт</p><h1>Настройки</h1></div><button className="secondary" onClick={signOut}><LogOut size={17} /> Выйти</button></header>
     {storageError && <p className="storageMessage" role="alert">{storageError}</p>}
     {legacyState && <section className="panel migrationNotice"><p className="eyebrow">Старые данные</p><h2>Найдена локальная история</h2><p>Она хранится отдельно и не открывается автоматически другому аккаунту. Перенести её в этот аккаунт?</p><button className="primary" onClick={importLegacy}>Перенести историю</button></section>}
     <section className="panel settingsEditor"><div className="sectionHeading"><div><p className="eyebrow">Telegram</p><h2>Подключение</h2></div><span className="muted" role="status">{telegramStatus === "loading" ? "Проверяю…" : telegramStatus === "connected" ? "Подключён" : telegramStatus === "error" ? "Ошибка доставки" : telegramStatus === "pending" ? "Ожидает подтверждения" : telegramStatus === "disconnected" ? "Не подключён" : "Ссылка истекла"}</span></div><div className="settingsActions"><button className="secondary" onClick={connectTelegram}>{telegramStatus === "connected" ? "Переподключить" : "Подключить"}</button>{telegramStatus === "connected" && <button className="secondary" onClick={disconnectTelegram}>Отключить</button>}<button className="secondary" onClick={refreshTelegramStatus}>Обновить статус</button></div>{telegramLink && <a className="telegramLink" href={telegramLink} target="_blank" rel="noreferrer">Открыть ссылку в Telegram</a>}{telegramMessage && <p className="storageMessage" role="status">{telegramMessage}</p>}{telegramStatus === "error" && <p className="fieldError" role="alert">Telegram отклонил доставку. Переподключи аккаунт.</p>}<div className="sectionHeading"><div><p className="eyebrow">Очередь</p><h3>Диагностика доставки</h3></div></div><p className="muted">Создаёт owner-only job на 60 секунд через notification_jobs и worker. Реальное сообщение отправится только после явного нажатия.</p><button className="secondary" onClick={scheduleTelegramTest} disabled={telegramStatus !== "connected"}>Тест через 60 секунд</button>{telegramTest && <p className="storageMessage" role="status">{telegramTest}</p>}</section>

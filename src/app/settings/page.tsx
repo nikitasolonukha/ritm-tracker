@@ -11,6 +11,7 @@ export default function SettingsPage() {
   const sessionState = state as SessionTrackerState | null;
   const template = sessionState?.workoutTemplates?.[0];
   const [title, setTitle] = useState("");
+  const [telegramTest, setTelegramTest] = useState("");
   if (!state || !template) return <main className="shell appPage"><p className="muted">Загружаю настройки...</p></main>;
 
   const editExercise = (exerciseId: string, field: string, value: string) => update((previous) => {
@@ -66,6 +67,16 @@ export default function SettingsPage() {
     return { ...next, workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id === template.id ? { ...item, title: title || item.title } : item) };
   });
 
+  async function scheduleTelegramTest() {
+    setTelegramTest("Создаю job…");
+    try {
+      const response = await fetch("/api/telegram/test-job", { method: "POST" });
+      const body = await response.json().catch(() => ({})) as { dueAt?: string; error?: string };
+      if (!response.ok) { setTelegramTest(body.error === "telegram_not_linked" ? "Сначала подключи Telegram." : "Не удалось создать job."); return; }
+      setTelegramTest(`Job создан. Срок: ${body.dueAt ? new Date(body.dueAt).toLocaleTimeString("ru-RU") : "через 60 секунд"}.`);
+    } catch { setTelegramTest("Нет связи с сервером."); }
+  }
+
   const editHabit = (habitId: string, field: "title" | "schedule" | "privateTitle", value: string) => update((previous) => ({
     ...previous,
     habits: previous.habits.map((habit) => habit.id !== habitId ? habit : { ...habit, [field]: value }),
@@ -76,6 +87,7 @@ export default function SettingsPage() {
     <header className="pageHeader"><div><p className="eyebrow">Аккаунт</p><h1>Настройки</h1></div></header>
     {storageError && <p className="storageMessage" role="alert">{storageError}</p>}
     {legacyState && <section className="panel migrationNotice"><p className="eyebrow">Старые данные</p><h2>Найдена локальная история</h2><p>Она хранится отдельно и не открывается автоматически другому аккаунту. Перенести её в этот аккаунт?</p><button className="primary" onClick={importLegacy}>Перенести историю</button></section>}
+    <section className="panel settingsEditor"><div className="sectionHeading"><div><p className="eyebrow">Telegram</p><h2>Диагностика очереди</h2></div></div><p className="muted">Создаёт owner-only job на 60 секунд через notification_jobs и worker. Сообщение отправится только при нажатии.</p><button className="secondary" onClick={scheduleTelegramTest}>Тест через 60 секунд</button>{telegramTest && <p className="storageMessage" role="status">{telegramTest}</p>}</section>
     <section className="panel settingsEditor"><div className="sectionHeading"><div><p className="eyebrow">Приватно</p><h2>Ритм дня</h2></div><span className="muted">Названия и расписание</span></div><div className="settingsList">{state.habits.map((habit) => <article className="settingRow habitSettingRow" key={habit.id}><label>Действие<input value={habit.title} onChange={(event) => editHabit(habit.id, "title", event.target.value)} /></label><label>Когда<input value={habit.schedule} placeholder="Например, после завтрака" onChange={(event) => editHabit(habit.id, "schedule", event.target.value)} /></label><label>Название владельца<input value={habit.privateTitle ?? ""} placeholder="Необязательно" onChange={(event) => editHabit(habit.id, "privateTitle", event.target.value)} /></label></article>)}</div></section>
     <section className="panel settingsEditor">
       <label>Название программы<input value={title || template.title} onChange={(event) => setTitle(event.target.value)} /></label>

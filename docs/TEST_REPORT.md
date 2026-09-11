@@ -24,8 +24,9 @@
 ## Production и Telegram
 
 - Production URL: `https://ritm-tracker.vercel.app/`.
-- Последний подтверждённый production deployment до `bb807ab`: `dpl_2HccpC2whw7YCeroxsvK2VFKUbx2` (READY), alias `https://ritm-tracker.vercel.app/`. Новый commit требует отдельной публикации и последующего smoke.
+- Подтверждённый production deployment для `bb807ab`: `dpl_BB8YNyXgpWgfuqxX1wC4kG8Qmw9U` (READY), alias `https://ritm-tracker.vercel.app/`.
 - Production smoke после deployment: `/` -> `200` с оболочкой входа, `/manifest.webmanifest` -> `200`, `/sw.js` -> `200`, webhook GET -> `405` (маршрут доступен и принимает только POST).
+- После `dpl_BB8YNyXgpWgfuqxX1wC4kG8Qmw9U` повторно проверены login shell, manifest и service worker; Vercel runtime errors за 15 минут после публикации: отсутствуют.
 - Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.
 - Supabase project `wlaojddckdebbeqafbbg`: миграции `persistent_telegram_links` и `workout_timer_commands` применены; timer RPC доступен `authenticated`, недоступен `anon`, прямые INSERT в служебные `commands` и `notification_jobs` для `authenticated` запрещены.
 - Telegram `getMe` подтверждает `@solonflowai_treker_bot`.

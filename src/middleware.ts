@@ -8,7 +8,7 @@ export async function middleware(request: NextRequest) {
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   const ownerId = process.env.RITM_OWNER_USER_ID;
   const configured = Boolean(supabaseUrl && supabaseKey && ownerId);
-  const demoMode = process.env.NODE_ENV !== "production" && process.env.RITM_DEMO_MODE === "1";
+  const demoMode = process.env.RITM_DEMO_MODE === "1" && process.env.VERCEL !== "1";
   if (isServerEndpoint || demoMode) return NextResponse.next();
   if (!configured) return isLogin ? NextResponse.next() : NextResponse.redirect(new URL("/login?reason=not-configured", request.url));
   if (!supabaseUrl || !supabaseKey) return NextResponse.next();

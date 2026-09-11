@@ -5,7 +5,8 @@ import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { readOutboxAcks, readStateSafely, writeOutboxAck, writeState, type TrackerState } from "@/lib/storage";
 import { stableStringify } from "@/lib/tracker";
 
-type TrackerStore = { state: TrackerState | null; update: (mutator: (state: TrackerState) => TrackerState) => boolean; importLegacy: () => boolean; legacyState?: TrackerState; userId?: string; storageError?: string };
+type SyncConflict = { local: TrackerState; remote: TrackerState; remoteRevision: number };
+type TrackerStore = { state: TrackerState | null; update: (mutator: (state: TrackerState) => TrackerState) => boolean; importLegacy: () => boolean; resolveSyncConflict: (choice: "local" | "remote") => boolean; syncConflict?: SyncConflict; legacyState?: TrackerState; userId?: string; storageError?: string };
 const TrackerContext = createContext<TrackerStore | null>(null);
 
 async function fetchWithRetry(input: RequestInfo | URL, init: RequestInit = {}, attempts = 3): Promise<Response> {
@@ -32,6 +33,7 @@ function useTrackerStateInternal(): TrackerStore {
   const [userId, setUserId] = useState<string>();
   const [storageError, setStorageError] = useState<string>();
   const [legacyState, setLegacyState] = useState<TrackerState>();
+  const [syncConflict, setSyncConflict] = useState<SyncConflict>();
   const stateRef = useRef<TrackerState | null>(null);
   const identityReady = useRef(false);
   const revisionRef = useRef<number | null>(null);
@@ -84,13 +86,18 @@ function useTrackerStateInternal(): TrackerStore {
             const saved = writeState(remote.payload, data.user.id);
             if (saved.ok && actionSeqRef.current === actionSeqAtFetch) { revisionRef.current = remote.version ?? 0; stateRef.current = remote.payload; setState(remote.payload); }
             else if (stableStringify(remote.payload) === stableStringify(stateRef.current)) revisionRef.current = remote.version ?? 0;
-            else { syncBlockedRef.current = true; setStorageError("Есть изменения на другом устройстве. Локальная копия сохранена до сверки."); }
+            else {
+              syncBlockedRef.current = true;
+              if (stateRef.current) setSyncConflict({ local: stateRef.current, remote: remote.payload, remoteRevision: remote.version ?? 0 });
+              setStorageError("Есть изменения на другом устройстве. Выберите копию для продолжения.");
+            }
           } else if (remote.payload) {
             const same = stableStringify(remote.payload) === stableStringify(stateRef.current);
             if (same) revisionRef.current = remote.version ?? 0;
             else {
               syncBlockedRef.current = true;
-              setStorageError("Есть изменения на другом устройстве. Локальная копия сохранена до сверки.");
+              if (stateRef.current) setSyncConflict({ local: stateRef.current, remote: remote.payload, remoteRevision: remote.version ?? 0 });
+              setStorageError("Есть изменения на другом устройстве. Выберите копию для продолжения.");
             }
           } else {
             revisionRef.current = remote.version ?? 0;
@@ -122,14 +129,21 @@ function useTrackerStateInternal(): TrackerStore {
           const remote = await syncRead.json() as { payload?: TrackerState | null; version?: number };
           if (remote.payload && stableStringify(remote.payload) !== stableStringify(stateRef.current)) {
             syncBlockedRef.current = true;
-            setStorageError("Есть изменения на другом устройстве. Локальная копия сохранена до сверки.");
+            if (stateRef.current) setSyncConflict({ local: stateRef.current, remote: remote.payload, remoteRevision: remote.version ?? 0 });
+            setStorageError("Есть изменения на другом устройстве. Выберите копию для продолжения.");
             return;
           }
           revisionRef.current = remote.version ?? 0;
         }
         const expectedRevision = revisionRef.current;
         const response = await fetchWithRetry("/api/sync", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ payload, expectedRevision }) });
-        if (response.status === 409) { syncBlockedRef.current = true; setStorageError("Есть конфликт на другом устройстве. Локальная копия сохранена."); return; }
+        if (response.status === 409) {
+          const conflict = await response.json().catch(() => ({})) as { remote?: TrackerState; revision?: number };
+          syncBlockedRef.current = true;
+          if (conflict.remote && stateRef.current) setSyncConflict({ local: stateRef.current, remote: conflict.remote, remoteRevision: conflict.revision ?? expectedRevision + 1 });
+          setStorageError("Есть конфликт на другом устройстве. Выберите копию для продолжения.");
+          return;
+        }
         if (!response.ok) throw new Error("sync write failed");
         const saved = await response.json() as { revision?: number };
         revisionRef.current = saved.revision ?? expectedRevision + 1;
@@ -156,7 +170,25 @@ function useTrackerStateInternal(): TrackerStore {
     if (imported) setLegacyState(undefined);
     return imported;
   }
-  return { state, update, importLegacy, legacyState, userId, storageError };
+  function resolveSyncConflict(choice: "local" | "remote") {
+    if (!syncConflict || !userId || !identityReady.current) return false;
+    if (choice === "remote") {
+      const saved = writeState(syncConflict.remote, userId);
+      if (!saved.ok) { setStorageError(saved.error ?? "Не удалось сохранить серверную копию"); return false; }
+      syncBlockedRef.current = false;
+      revisionRef.current = syncConflict.remoteRevision;
+      stateRef.current = syncConflict.remote;
+      setState(syncConflict.remote);
+      setSyncConflict(undefined);
+      setStorageError(undefined);
+      return true;
+    }
+    syncBlockedRef.current = false;
+    revisionRef.current = syncConflict.remoteRevision;
+    setSyncConflict(undefined);
+    return update((current) => current);
+  }
+  return { state, update, importLegacy, resolveSyncConflict, syncConflict, legacyState, userId, storageError };
 }
 
 export function TrackerProvider({ children }: { children: React.ReactNode }) {

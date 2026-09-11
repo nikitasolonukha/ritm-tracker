@@ -25,7 +25,7 @@
 - Supabase migration `20260911130000_telegram_delivery_fencing` применена и проверена SQL-запросом: `notification_jobs.lease_token`, resumable `telegram_updates`, RPC claim/finish доступны только `service_role`; устаревшая unfenced перегрузка finish удалена миграцией `20260911131000`.
 - Owner-only endpoint `/api/telegram/test-job` и миграция `20260911132000_telegram_diagnostic_job` создают идемпотентную pending job на 60 секунд только по явному нажатию владельца; SQL-функция доступна только `service_role` и требует подтверждённую Telegram-привязку.
 - Добавлен тест изоляции ack между пользователями и сохранения ack после reload.
-- GitHub Actions CI для HEAD `19d3339` завершился успешно: install, test, lint, typecheck и production build.
+- GitHub Actions CI для кодового commit `9a84131` (run `34608817772`) завершился успешно: install, test, lint, typecheck и production build.
 - В Supabase структурно подтверждены composite FK `workout_sets(session_id,user_id) -> workout_sessions(id,user_id)` и права служебных RPC: claim/finish/diagnostic доступны только `service_role`, пользовательские workout RPC доступны `authenticated`, `anon` закрыт.
 - User-scoped storage больше не подхватывает глобальную legacy-запись автоматически; добавлен регрессионный тест. Старые данные сохраняются и предлагаются для явного переноса в авторизованных настройках.
 

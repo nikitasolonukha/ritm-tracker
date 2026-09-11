@@ -5,6 +5,7 @@ import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { backupSyncConflict, readOutboxAcks, readStateSafely, writeOutboxAck, writeState, type TrackerState } from "@/lib/storage";
 import { stableStringify } from "@/lib/tracker";
 import { decideLostPutResponse, prepareSyncPayload } from "@/lib/sync";
+import { setServiceWorkerAccount } from "@/lib/pwa";
 
 type SyncConflict = { local: TrackerState; remote: TrackerState; remoteRevision: number };
 export type SyncStatus = "idle" | "loading" | "dirty" | "syncing" | "offline" | "conflict" | "error";
@@ -92,6 +93,7 @@ function useTrackerStateInternal(): TrackerStore {
       }
       setUserId(data.user?.id);
       userIdRef.current = data.user?.id;
+      setServiceWorkerAccount(data.user?.id);
       sentOutboxRef.current = readOutboxAcks(data.user?.id);
       if (!data.user && isSupabaseConfigured) { setSyncStatus("error"); setStorageError("Войдите, чтобы открыть личный трекер"); return; }
       const local = readStateSafely(data.user?.id);

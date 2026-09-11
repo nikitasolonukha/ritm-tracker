@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { setServiceWorkerAccount } from "@/lib/pwa";
 import {
   applyHabitCompletion,
   completeWorkoutSet,
@@ -548,7 +549,7 @@ export default function Home() {
           <article className="panel wide">
             <div className="panelTitle"><h2>Сеанс</h2><LogOut size={20} /></div>
             <p className="muted">Выход завершит текущую сессию, сохранив локальную историю и очередь несинхронизированных действий.</p>
-            <button className="secondary" onClick={() => { void createClient().auth.signOut().finally(() => { window.location.assign("/login"); }); }}><LogOut size={16} /> Выйти</button>
+            <button className="secondary" onClick={() => { setServiceWorkerAccount(); void createClient().auth.signOut().finally(() => { window.location.assign("/login"); }); }}><LogOut size={16} /> Выйти</button>
           </article>
         </section>
       )}

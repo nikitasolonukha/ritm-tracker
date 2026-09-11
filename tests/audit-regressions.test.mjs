@@ -115,7 +115,7 @@ test("A14 decimal input accepts comma and rejects negative", () => {
   assert.equal(tracker.normalizeDecimalInput("-1"), null);
 });
 
-test("A15 offline JS never receives HTML fallback", async () => {
+test("A15 offline assets never receive an HTML login fallback", async () => {
   const handlers = {};
   const context = { Response, self: { addEventListener: (name, handler) => { handlers[name] = handler; }, skipWaiting() {}, clients: { claim() {} } }, fetch: async () => { throw new Error("offline"); }, caches: { match: async (request) => request === "/" ? { headers: new Map([["Content-Type", "text/html"]]) } : undefined, open: async () => ({ put() {}, addAll() {} }), keys: async () => [] } };
   vm.runInNewContext(fs.readFileSync(new URL("../public/sw.js", import.meta.url), "utf8"), context);
@@ -123,6 +123,28 @@ test("A15 offline JS never receives HTML fallback", async () => {
   handlers.fetch({ request: { method: "GET", mode: "same-origin", url: "https://app.test/_next/static/chunks/app.js", destination: "script" }, respondWith: (promise) => { responsePromise = promise; } });
   const response = await responsePromise;
   assert.equal(response.status, 503);
+});
+
+test("A15b offline navigation never falls back to the public login shell", async () => {
+  const handlers = {};
+  const context = {
+    Response,
+    URL,
+    self: { addEventListener: (name, handler) => { handlers[name] = handler; }, skipWaiting() {}, clients: { claim() {} } },
+    fetch: async () => { throw new Error("offline"); },
+    caches: {
+      match: async () => undefined,
+      open: async () => ({ match: async () => undefined, put() {}, addAll() {} }),
+      keys: async () => ["ritm-public-v2"],
+      delete: async () => true,
+    },
+  };
+  vm.runInNewContext(fs.readFileSync(new URL("../public/sw.js", import.meta.url), "utf8"), context);
+  let responsePromise;
+  handlers.fetch({ request: { method: "GET", mode: "navigate", url: "https://app.test/today", destination: "document" }, waitUntil() {}, respondWith: (promise) => { responsePromise = promise; } });
+  const response = await responsePromise;
+  assert.equal(response.status, 503);
+  assert.match(await response.text(), /Нет связи/);
 });
 
 test("A16 whitespace-normalized import has a stable identity", () => {

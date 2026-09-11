@@ -2,12 +2,13 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `366f5af` (`fix: acknowledge sync-only habit commands`).
+Кодовый commit: `0508125` (`fix: use optimized photo component`).
 
 ## Локально проверено
 
 - Основной Node test suite: **51 passed, 0 failed**.
 - ESLint и TypeScript: passed.
+- ESLint: passed без предупреждений; приватная галерея использует `next/image` с data URL и `unoptimized`.
 - `next build`: passed; в сборке присутствуют middleware и `/api/workout/timer`.
 - HTTP smoke production: anonymous `/` -> `200` с оболочкой входа, webhook/worker без секрета `401`, manifest и service worker `200`; отдельная fail-closed проверка без `RITM_OWNER_USER_ID` дала `307` на `/login?reason=not-configured`.
 - Production `/` визуально открыт во встроенном браузере: показана публичная оболочка входа без приватного журнала. Обновлена Playwright-конфигурация на прямой Next dev server и порт `3002`; локальный e2e WebKit подтвердил оба API-теста, а UI-тест не стартовал из-за Windows `spawn EPERM` при запуске Playwright WebKit.
@@ -31,13 +32,14 @@
 ## Production и Telegram
 
 - Production URL: `https://ritm-tracker.vercel.app/`.
-- Подтверждённый production deployment для `366f5af`: `dpl_79fEryKe4mPQXZZAmGrTFpMdPD1Q` (READY), alias `https://ritm-tracker.vercel.app/`.
+- Подтверждённый production deployment для `0508125`: `dpl_6gazvwbWfyueaYwdgj5SJbjgJb5J` (READY), alias `https://ritm-tracker.vercel.app/`.
 - Production smoke после deployment: `/` -> `200` с оболочкой входа, `/manifest.webmanifest` -> `200`, `/sw.js` -> `200`, webhook GET -> `405` (маршрут доступен и принимает только POST).
 - После `dpl_BB8YNyXgpWgfuqxX1wC4kG8Qmw9U` повторно проверены login shell, manifest и service worker; Vercel runtime errors за 15 минут после публикации: отсутствуют.
 - После `dpl_9eQgMM4RubyiGChrDxg8gwhvfXya` повторно проверены login shell и service worker; Vercel runtime errors за 15 минут после публикации: отсутствуют.
 - После `dpl_Aqh4oYZJW7Db9fMSabgQLxUaG97f` повторно проверены login shell и service worker; Vercel runtime errors за последний час: отсутствуют.
 - После `dpl_HK8Gyrd7gCE7V6r7fKozFZpfDGnQ` проверен закрытый `/today`: `200` с login shell; Vercel runtime errors за 30 минут: отсутствуют.
 - После `dpl_79fEryKe4mPQXZZAmGrTFpMdPD1Q` проверены `/` и `/sw.js`: `200`, login shell и service worker; Vercel runtime errors за 20 минут: отсутствуют.
+- После `dpl_6gazvwbWfyueaYwdgj5SJbjgJb5J` повторно проверены `/` и `/sw.js`: `200`; Vercel runtime errors за 10 минут: отсутствуют. GitHub Actions для `0508125`: success.
 - Повторная генерация link проверена кодовым путём: подтверждённое `telegram_user_id/connected_at` сохраняется до нового `/start`, а consumed token больше не принимается повторно.
 - Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.
 - Supabase project `wlaojddckdebbeqafbbg`: миграции `persistent_telegram_links` и `workout_timer_commands` применены; timer RPC доступен `authenticated`, недоступен `anon`, прямые INSERT в служебные `commands` и `notification_jobs` для `authenticated` запрещены.

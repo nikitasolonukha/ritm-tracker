@@ -255,6 +255,27 @@ select {
   align-items: end;
 }
 
+.setEditors {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 8px;
+}
+
+.setPart {
+  display: grid;
+  grid-template-columns: 20px repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-items: end;
+  margin-top: 8px;
+}
+
+.setPart .muted {
+  padding-bottom: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
 .segmentEditor strong {
   color: var(--muted);
   font-size: 13px;
@@ -300,7 +321,8 @@ select {
   .settingRow,
   .habitSettingRow,
   .settingExercise,
-  .segmentEditor {
+  .segmentEditor,
+  .setPart {
     grid-template-columns: 1fr;
   }
 }

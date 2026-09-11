@@ -41,6 +41,7 @@
 - Потерянный PUT response обрабатывается через GET/reconcile: одинаковый серверный payload принимается, прежняя ревизия повторяется, другая версия переводит UI в conflict; acceptance на двух устройствах ещё не запускался.
 - Outbox acknowledgement сохраняется отдельным user-scoped durable индексом; сетевой сбой не записывается как успех, повтор использует стабильный command key, а UI показывает `sending/failed`.
 - Два устройства, два аккаунта и реальная job -> Telegram отправка с pending job остаются непроверенными; scheduler transport уже подтверждён. UI разрешения revision-конфликта написан, но two-device acceptance ещё не запускался.
+- Composite FK владельца workout set структурно подтверждён в production Supabase; rollback-проверка на двух Auth-пользователях отложена, поскольку в проекте есть только одна учётка и тестовые аккаунты не создавались.
 - Production deployment после owner-only diagnostic job: `dpl_Aqh4oYZJW7Db9fMSabgQLxUaG97f` READY; реальный job/callback по-прежнему требует отдельного owner-approved теста.
 - Автоматический fallback user-scoped storage на глобальную legacy-запись удалён; явный перенос старых данных доступен из авторизованных настроек.
 - Приватная локальная галерея фото, базовая дневная отметка, сон и JSON-экспорт реализованы. Отдельное удалённое хранилище фото, check-in/postpone и расширенная аналитика остаются незавершенными.

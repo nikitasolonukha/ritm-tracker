@@ -22,6 +22,8 @@
 - Supabase migration `20260911130000_telegram_delivery_fencing` применена и проверена SQL-запросом: `notification_jobs.lease_token`, resumable `telegram_updates`, RPC claim/finish доступны только `service_role`; устаревшая unfenced перегрузка finish удалена миграцией `20260911131000`.
 - Owner-only endpoint `/api/telegram/test-job` и миграция `20260911132000_telegram_diagnostic_job` создают идемпотентную pending job на 60 секунд только по явному нажатию владельца; SQL-функция доступна только `service_role` и требует подтверждённую Telegram-привязку.
 - Добавлен тест изоляции ack между пользователями и сохранения ack после reload.
+- GitHub Actions CI для HEAD `19d3339` завершился успешно: install, test, lint, typecheck и production build.
+- В Supabase структурно подтверждены composite FK `workout_sets(session_id,user_id) -> workout_sessions(id,user_id)` и права служебных RPC: claim/finish/diagnostic доступны только `service_role`, пользовательские workout RPC доступны `authenticated`, `anon` закрыт.
 - User-scoped storage больше не подхватывает глобальную legacy-запись автоматически; добавлен регрессионный тест. Старые данные сохраняются и предлагаются для явного переноса в авторизованных настройках.
 
 ## Production и Telegram
@@ -59,6 +61,7 @@
 - Production `+30` с заменой dueAt и production cancel — **НЕ ПРОВЕРЕНО**.
 - `pg_cron`, `pg_net` и `supabase_vault` включены; job `ritm-telegram-worker-every-10-seconds` активен. После последнего redeploy вызовы worker получили HTTP `200` и `processed: 0`; активная Telegram-привязка существует, pending jobs нет.
 - Два устройства/два аккаунта и полноценное conflict resolution — **НЕ ПРОВЕРЕНО**.
+- Изолированный rollback-тест composite FK на двух реальных Auth-пользователях не выполнен: в текущем Supabase проекте обнаружена только одна Auth-учётка; новые тестовые учётки намеренно не создавались.
 - Явный перенос legacy storage реализован, но на production не подтверждался на реальном аккаунте, чтобы не менять личный журнал.
 - Bundled Chromium/WebKit Playwright в Windows остаются ограничены `spawn EPERM`; установленный Chrome через `PLAYWRIGHT_CHANNEL=chrome` прошёл полный access smoke 3/3.
 - Полный iPhone offline/background/lock-screen сценарий — **НЕ ПРОВЕРЕНО**.

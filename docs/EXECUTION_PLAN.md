@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `0228236` (`fix: queue habit completion changes`).
+Проверяемый кодовый commit: `366f5af` (`fix: acknowledge sync-only habit commands`).
 
 ## Закрыто в этом проходе
 
@@ -25,6 +25,7 @@
 - Повторная генерация Telegram-ссылки больше не обнуляет подтверждённую связь; подтверждение новой ссылки атомарно поглощает token и сохраняет постоянное подключение.
 - Добавлен owner-only диагностический job через `/settings`: серверная RPC-функция создаёт идемпотентную pending job на 60 секунд только для владельца и только при подтверждённой Telegram-привязке.
 - Отметки и отмены привычек переведены на стабильные outbox-команды с устойчивой идентичностью и версией.
+- Sync-only habit-команды подтверждаются только после успешной записи server snapshot и не попадают в workout RPC.
 
 ## Уже было закрыто
 
@@ -43,6 +44,6 @@
 - Outbox acknowledgement сохраняется отдельным user-scoped durable индексом; сетевой сбой не записывается как успех, повтор использует стабильный command key, а UI показывает `sending/failed`.
 - Два устройства, два аккаунта и реальная job -> Telegram отправка с pending job остаются непроверенными; scheduler transport уже подтверждён. UI разрешения revision-конфликта написан, но two-device acceptance ещё не запускался.
 - Composite FK владельца workout set структурно подтверждён в production Supabase; rollback-проверка на двух Auth-пользователях отложена, поскольку в проекте есть только одна учётка и тестовые аккаунты не создавались.
-- Production deployment после очереди привычек: `dpl_HK8Gyrd7gCE7V6r7fKozFZpfDGnQ` READY; реальный Telegram job/callback по-прежнему требует отдельного owner-approved теста.
+- Production deployment после исправления sync-only outbox: `dpl_79fEryKe4mPQXZZAmGrTFpMdPD1Q` READY; реальный Telegram job/callback по-прежнему требует отдельного owner-approved теста.
 - Автоматический fallback user-scoped storage на глобальную legacy-запись удалён; явный перенос старых данных доступен из авторизованных настроек.
 - Приватная локальная галерея фото, базовая дневная отметка, сон и JSON-экспорт реализованы. Отдельное удалённое хранилище фото, check-in/postpone и расширенная аналитика остаются незавершенными.

@@ -7,6 +7,7 @@ import {
   calculateExerciseVolume,
   commitDraftValue,
   getLocalDate,
+  getHabitCommandIdentity,
   normalizeDecimalInput,
   parseWorkoutNotes,
   stableStringify,
@@ -30,6 +31,11 @@ test("draft commit distinguishes untouched, empty, valid, and invalid input", ()
   assert.deepEqual(commitDraftValue("", "weight"), { status: "empty", value: null });
   assert.deepEqual(commitDraftValue("12,5", "weight"), { status: "valid", value: 12.5 });
   assert.deepEqual(commitDraftValue("12x", "reps"), { status: "invalid" });
+});
+
+test("habit completion and cancellation use stable per-action identities", () => {
+  assert.deepEqual(getHabitCommandIdentity("chia", "2026-09-10", "completed", 1), { id: "habit-completed-chia-2026-09-10-1", entityId: "habit:chia:2026-09-10" });
+  assert.deepEqual(getHabitCommandIdentity("chia", "2026-09-10", "cancelled", 2), { id: "habit-cancelled-chia-2026-09-10-2", entityId: "habit:chia:2026-09-10" });
 });
 
 test("stable JSON ignores object key order but preserves array order", () => {

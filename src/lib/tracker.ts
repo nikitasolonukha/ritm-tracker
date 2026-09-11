@@ -214,6 +214,13 @@ export function applyHabitCompletion(
   return [...completions, next].sort((a, b) => a.completedAt.localeCompare(b.completedAt));
 }
 
+export function getHabitCommandIdentity(habitId: string, localDate: string, action: "completed" | "cancelled", version: number) {
+  return {
+    id: `habit-${action}-${habitId}-${localDate}-${version}`,
+    entityId: `habit:${habitId}:${localDate}`,
+  };
+}
+
 export function getMilestoneState(
   completions: HabitCompletion[],
   habitId: string,

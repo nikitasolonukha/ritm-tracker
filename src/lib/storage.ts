@@ -32,7 +32,7 @@ export type TrackerState = {
   }>;
   outbox: Array<{
     id: string;
-    type: "habit.completed" | "workout.saved" | "timer.started" | "workout.set.completed" | "timer.rescheduled" | "timer.cancelled";
+    type: "habit.completed" | "habit.cancelled" | "workout.saved" | "timer.started" | "workout.set.completed" | "timer.rescheduled" | "timer.cancelled";
     createdAt: string;
     status: "pending" | "sending" | "accepted" | "sent" | "failed" | "cancelled";
     entityId?: string;

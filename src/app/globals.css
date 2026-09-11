@@ -85,80 +85,6 @@ select {
   }
 }
 
-/* Final route layer: kept last so legacy screens cannot override the current shell. */
-.shell { max-width: 1180px; padding: 32px 40px 120px; }
-.pageHeader h1 { font-size: clamp(30px, 3vw, 42px); font-weight: 600; }
-.eyebrow { color: var(--muted); font-size: 13px; font-weight: 600; text-transform: none; }
-.primary { min-height: 58px; padding: 0 22px; border-radius: 999px; background: var(--accent); color: #14200d; }
-.iconButton, .secondary, input, textarea, select { border-radius: 18px; }
-.resumeBanner, .programCard, .panel, .todayHero, .goalCard, .historyCard, .templateExercise, .summaryHero { border-radius: 28px; border-color: var(--line); background: var(--surface); }
-.bottomNav { grid-template-columns: repeat(4, 1fr); right: 20px; bottom: max(12px, env(safe-area-inset-bottom)); left: 20px; width: auto; padding: 8px; border-radius: 28px; background: rgba(27,31,25,.98); }
-.bottomNav a { min-height: 64px; border-radius: 20px; color: var(--muted); font-size: 12px; }
-.bottomNav a.active { color: var(--text); background: transparent; }
-.navIcon { display: grid; width: 36px; height: 30px; place-items: center; border-radius: 999px; }
-.bottomNav a.active .navIcon { color: #14200d; background: var(--accent); }
-.todayPage { max-width: 760px; }
-.weekStrip { gap: 8px; overflow-x: auto; margin: 0 0 24px; padding: 2px 0 6px; scrollbar-width: none; }
-.dayCapsule { display: grid; min-width: 70px; min-height: 84px; place-items: center; gap: 4px; padding: 10px 8px; border-radius: 999px; background: var(--surface); color: var(--muted); }
-.dayCapsule span { font-size: 12px; text-transform: capitalize; }
-.dayCapsule strong { color: var(--text); font-size: 22px; font-weight: 600; }
-.dayCapsule.today { background: var(--accent); color: #14200d; }
-.dayCapsule.today strong { color: #14200d; }
-.dayCapsule i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-.todayHero { display: grid; gap: 10px; margin: 20px 0; padding: 24px; border: 0; }
-.todayHero h2 { font-size: 26px; font-weight: 600; }
-.todayHero .primary { width: fit-content; margin-top: 8px; }
-.heroDone { display: inline-flex; align-items: center; gap: 8px; color: var(--accent); font-weight: 600; }
-.actionSection { margin-top: 28px; }
-.actionCard { display: flex; width: 100%; min-height: 64px; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; border: 1px solid transparent; border-radius: 20px; color: var(--text); text-align: left; background: var(--surface); }
-.actionCard span:first-child { display: grid; gap: 3px; }
-.actionCard strong { font-size: 16px; font-weight: 500; }
-.actionCard small, .goalCard p { color: var(--muted); }
-.checkMark { display: grid; width: 30px; height: 30px; place-items: center; border: 1px solid var(--line); border-radius: 50%; }
-.actionCard.done { opacity: .62; }
-.actionCard.done .checkMark { border-color: var(--accent); color: #14200d; background: var(--accent); }
-.goalCard { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 28px; padding: 20px 24px; }
-.goalCard h2 { font-size: 18px; font-weight: 500; }
-.goalCard h2 strong { font-size: 30px; font-weight: 600; }
-.goalSegments { display: flex; gap: 6px; min-width: 112px; }
-.goalSegments span { height: 8px; flex: 1; border-radius: 999px; background: var(--surface-2); }
-.goalSegments .filled { background: var(--accent); }
-.workoutMode { display: grid; align-content: start; min-height: 100dvh; padding: 20px; background: var(--bg); }
-.workoutTop, .workoutProgress, .activeExercise { width: min(560px, 100%); }
-.activeExercise { margin: 0 auto; padding: 24px; border: 0; border-radius: 28px; background: var(--surface); }
-.activeExercise h1 { margin: 8px 0; font-size: clamp(28px, 7vw, 38px); font-weight: 600; line-height: 1.08; }
-.setSegments { display: flex; gap: 8px; margin: 22px 0 18px; }
-.setSegments span { height: 6px; flex: 1; border-radius: 999px; background: var(--surface-2); font-size: 0; }
-.setSegments span.done, .setSegments span.current { background: var(--accent); }
-.workWeight strong { font-size: 26px; font-weight: 600; }
-.repsField { gap: 10px !important; font-size: 13px; }
-.repsControl { display: grid; grid-template-columns: 52px 1fr 52px; gap: 10px; align-items: center; }
-.repsControl button { width: 52px; height: 52px; border: 0; border-radius: 50%; color: var(--text); background: var(--surface-2); font-size: 28px; }
-.repsControl input { min-height: 82px; border: 0; background: transparent; text-align: center; font-size: 80px; font-weight: 600; }
-.restState strong { font-size: clamp(72px, 20vw, 88px); font-weight: 600; }
-.restBar { width: 100%; height: 4px; margin: 8px 0 10px; overflow: hidden; border-radius: 999px; background: var(--surface-2); }
-.restBar span { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
-.restActions { display: flex; flex-wrap: wrap; gap: 8px; }
-.templateExercise, .historyCard { padding: 20px; }
-.templateExercise h2, .historyCard h2 { font-weight: 600; }
-
-@media (min-width: 900px) {
-  .shell { margin-left: 260px; width: min(calc(100% - 300px), 1180px); }
-  .bottomNav { position: fixed; top: 32px; right: auto; bottom: 32px; left: 24px; display: flex; width: 208px; height: calc(100vh - 64px); flex-direction: column; align-items: stretch; padding: 14px; }
-  .bottomNav a { grid-template-columns: 36px 1fr; min-height: 56px; place-items: center start; gap: 12px; padding: 0 10px; font-size: 14px; }
-  .bottomNav a.active { background: var(--surface-2); }
-  .workoutMode { place-items: start center; padding-top: 28px; }
-}
-@media (max-width: 520px) {
-  .shell { padding: 20px 20px 116px; }
-  .dayCapsule { min-width: 43px; min-height: 76px; }
-  .dayCapsule span { font-size: 11px; }
-  .dayCapsule strong { font-size: 19px; }
-  .goalCard { align-items: flex-start; flex-direction: column; }
-  .goalSegments { width: 100%; }
-  .activeExercise { padding: 22px 18px; }
-}
-
 /* Premium graphite UI layer. Route markup stays backed by the existing store. */
 .shell { max-width: 1180px; padding: 32px 40px 120px; }
 .appPage { min-height: 100dvh; }
@@ -1051,41 +977,41 @@ textarea {
   }
 }
 
-/* Keep the premium route layer after the legacy stylesheet rules. */
-.shell { max-width: 1180px !important; padding: 32px 40px 120px !important; }
-.primary { min-height: 58px !important; border-radius: 999px !important; background: var(--accent) !important; color: #14200d !important; }
-.iconButton, .secondary, input, textarea, select { border-radius: 18px !important; }
-.resumeBanner, .programCard, .panel, .todayHero, .goalCard, .historyCard, .templateExercise, .summaryHero { border-radius: 28px !important; background: var(--surface) !important; }
-.bottomNav { grid-template-columns: repeat(4, 1fr) !important; right: 20px !important; bottom: max(12px, env(safe-area-inset-bottom)) !important; left: 20px !important; width: auto !important; padding: 8px !important; border-radius: 28px !important; background: rgba(27,31,25,.98) !important; }
-.bottomNav a { min-height: 64px !important; border-radius: 20px !important; color: var(--muted) !important; font-size: 12px !important; }
-.bottomNav a.active { color: var(--text) !important; background: transparent !important; }
-.navIcon { display: grid !important; width: 36px !important; height: 30px !important; place-items: center !important; border-radius: 999px !important; }
-.bottomNav a.active .navIcon { color: #14200d !important; background: var(--accent) !important; }
-.todayPage { max-width: 760px !important; }
-.weekStrip { gap: 8px !important; overflow-x: auto !important; margin: 0 0 24px !important; padding: 2px 0 6px !important; }
-.dayCapsule { display: grid !important; min-width: 70px !important; min-height: 84px !important; place-items: center !important; gap: 4px !important; border-radius: 999px !important; background: var(--surface) !important; }
-.dayCapsule.today { background: var(--accent) !important; color: #14200d !important; }
-.dayCapsule.today strong { color: #14200d !important; }
-.todayHero { display: grid !important; gap: 10px !important; margin: 20px 0 !important; padding: 24px !important; border: 0 !important; }
-.actionCard { display: flex !important; width: 100% !important; min-height: 64px !important; align-items: center !important; justify-content: space-between !important; padding: 12px 16px !important; border-radius: 20px !important; background: var(--surface) !important; }
-.goalCard { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 24px !important; margin-top: 28px !important; padding: 20px 24px !important; }
-.goalSegments { display: flex !important; gap: 6px !important; min-width: 112px !important; }
-.goalSegments span { height: 8px !important; flex: 1 !important; border-radius: 999px !important; background: var(--surface-2) !important; }
-.goalSegments .filled { background: var(--accent) !important; }
-.workoutMode { display: grid !important; align-content: start !important; min-height: 100dvh !important; padding: 20px !important; background: var(--bg) !important; }
-.activeExercise { width: min(560px, 100%) !important; margin: 0 auto !important; padding: 24px !important; border: 0 !important; border-radius: 28px !important; background: var(--surface) !important; }
-.setSegments { display: flex !important; gap: 8px !important; margin: 22px 0 18px !important; }
-.setSegments span { height: 6px !important; flex: 1 !important; border-radius: 999px !important; background: var(--surface-2) !important; font-size: 0 !important; }
-.setSegments span.done, .setSegments span.current { background: var(--accent) !important; }
-.repsControl { display: grid !important; grid-template-columns: 52px 1fr 52px !important; gap: 10px !important; align-items: center !important; }
-.repsControl button { width: 52px !important; height: 52px !important; border: 0 !important; border-radius: 50% !important; background: var(--surface-2) !important; font-size: 28px !important; }
-.repsControl input { min-height: 82px !important; border: 0 !important; background: transparent !important; text-align: center !important; font-size: 80px !important; font-weight: 600 !important; }
-.restState strong { font-size: clamp(72px, 20vw, 88px) !important; font-weight: 600 !important; }
-.restBar { width: 100% !important; height: 4px !important; margin: 8px 0 10px !important; overflow: hidden !important; border-radius: 999px !important; background: var(--surface-2) !important; }
-.restBar span { display: block !important; height: 100% !important; border-radius: inherit !important; background: var(--accent) !important; }
-.weightEditButton { min-height: 40px !important; margin-left: auto !important; padding: 0 12px !important; }
+/* Current route layer. Legacy rules above remain isolated to /legacy markup. */
+.shell { max-width: 1180px; padding: 32px 40px 120px; }
+.primary { min-height: 58px; border-radius: 999px; background: var(--accent); color: #14200d; }
+.iconButton, .secondary, input, textarea, select { border-radius: 18px; }
+.resumeBanner, .programCard, .panel, .todayHero, .goalCard, .historyCard, .templateExercise, .summaryHero { border-radius: 28px; background: var(--surface); }
+.bottomNav { grid-template-columns: repeat(4, 1fr); right: 20px; bottom: max(12px, env(safe-area-inset-bottom)); left: 20px; width: auto; padding: 8px; border-radius: 28px; background: rgba(27,31,25,.98); }
+.bottomNav a { min-height: 64px; border-radius: 20px; color: var(--muted); font-size: 12px; }
+.bottomNav a.active { color: var(--text); background: transparent; }
+.navIcon { display: grid; width: 36px; height: 30px; place-items: center; border-radius: 999px; }
+.bottomNav a.active .navIcon { color: #14200d; background: var(--accent); }
+.todayPage { max-width: 760px; }
+.weekStrip { gap: 8px; overflow-x: auto; margin: 0 0 24px; padding: 2px 0 6px; }
+.dayCapsule { display: grid; min-width: 70px; min-height: 84px; place-items: center; gap: 4px; border-radius: 999px; background: var(--surface); }
+.dayCapsule.today { background: var(--accent); color: #14200d; }
+.dayCapsule.today strong { color: #14200d; }
+.todayHero { display: grid; gap: 10px; margin: 20px 0; padding: 24px; border: 0; }
+.actionCard { display: flex; width: 100%; min-height: 64px; align-items: center; justify-content: space-between; padding: 12px 16px; border-radius: 20px; background: var(--surface); }
+.goalCard { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 28px; padding: 20px 24px; }
+.goalSegments { display: flex; gap: 6px; min-width: 112px; }
+.goalSegments span { height: 8px; flex: 1; border-radius: 999px; background: var(--surface-2); }
+.goalSegments .filled { background: var(--accent); }
+.workoutMode { display: grid; align-content: start; min-height: 100dvh; padding: 20px; background: var(--bg); }
+.activeExercise { width: min(560px, 100%); margin: 0 auto; padding: 24px; border: 0; border-radius: 28px; background: var(--surface); }
+.setSegments { display: flex; gap: 8px; margin: 22px 0 18px; }
+.setSegments span { height: 6px; flex: 1; border-radius: 999px; background: var(--surface-2); font-size: 0; }
+.setSegments span.done, .setSegments span.current { background: var(--accent); }
+.repsControl { display: grid; grid-template-columns: 52px 1fr 52px; gap: 10px; align-items: center; }
+.repsControl button { width: 52px; height: 52px; border: 0; border-radius: 50%; background: var(--surface-2); font-size: 28px; }
+.repsControl input { min-height: 82px; border: 0; background: transparent; text-align: center; font-size: 80px; font-weight: 600; }
+.restState strong { font-size: clamp(72px, 20vw, 88px); font-weight: 600; }
+.restBar { width: 100%; height: 4px; margin: 8px 0 10px; overflow: hidden; border-radius: 999px; background: var(--surface-2); }
+.restBar span { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+.weightEditButton { min-height: 40px; margin-left: auto; padding: 0 12px; }
 .weightEditor { display: grid; gap: 12px; margin: -12px 0 20px; padding: 16px; border-radius: 20px; background: var(--surface-2); }
-.summaryHero { display: grid; gap: 8px; padding: 24px !important; }
+.summaryHero { display: grid; gap: 8px; padding: 24px; }
 .summaryHero h1 { margin: 0; font-size: 28px; font-weight: 600; }
 .summaryMetrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 16px 0 20px; }
 .summaryMetrics div { display: grid; gap: 5px; padding: 16px; border-radius: 20px; background: var(--surface); }
@@ -1099,19 +1025,19 @@ textarea {
 .weightScope legend { margin-bottom: 4px; color: var(--text); font-weight: 600; }
 .weightScope label { display: flex; grid-template-columns: auto 1fr; align-items: center; gap: 8px; }
 .weightScope input { width: 18px; min-height: 18px; accent-color: var(--accent); }
-.checkLabel { display: flex !important; grid-template-columns: auto 1fr; align-items: center; gap: 8px !important; }
+.checkLabel { display: flex; grid-template-columns: auto 1fr; align-items: center; gap: 8px; }
 .checkLabel input { width: 20px; min-height: 20px; accent-color: var(--accent); }
 @media (min-width: 900px) {
-  .shell { margin-left: 260px !important; width: min(calc(100% - 300px), 1180px) !important; }
-  .bottomNav { position: fixed !important; top: 32px !important; right: auto !important; bottom: 32px !important; left: 24px !important; display: flex !important; width: 208px !important; height: calc(100vh - 64px) !important; flex-direction: column !important; padding: 14px !important; }
-  .bottomNav a { grid-template-columns: 36px 1fr !important; min-height: 56px !important; place-items: center start !important; gap: 12px !important; padding: 0 10px !important; font-size: 14px !important; }
-  .bottomNav a.active { background: var(--surface-2) !important; }
+  .shell { margin-left: 260px; width: min(calc(100% - 300px), 1180px); }
+  .bottomNav { position: fixed; top: 32px; right: auto; bottom: 32px; left: 24px; display: flex; width: 208px; height: calc(100vh - 64px); flex-direction: column; padding: 14px; }
+  .bottomNav a { grid-template-columns: 36px 1fr; min-height: 56px; place-items: center start; gap: 12px; padding: 0 10px; font-size: 14px; }
+  .bottomNav a.active { background: var(--surface-2); }
 }
 @media (max-width: 520px) {
-  .shell { padding: 20px 20px 116px !important; }
-  .dayCapsule { min-width: 43px !important; min-height: 76px !important; }
-  .goalCard { align-items: flex-start !important; flex-direction: column !important; }
-  .goalSegments { width: 100% !important; }
-  .activeExercise { padding: 22px 18px !important; }
+  .shell { padding: 20px 20px 116px; }
+  .dayCapsule { min-width: 43px; min-height: 76px; }
+  .goalCard { align-items: flex-start; flex-direction: column; }
+  .goalSegments { width: 100%; }
+  .activeExercise { padding: 22px 18px; }
   .weightEditor { position: fixed; z-index: 20; right: 0; bottom: 0; left: 0; margin: 0; padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); border-radius: 32px 32px 0 0; box-shadow: 0 -18px 60px rgba(0,0,0,.45); }
 }

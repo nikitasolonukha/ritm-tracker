@@ -22,6 +22,8 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
   const [weightScope, setWeightScope] = useState<"current" | "remaining">("current");
   const [routeSessionId, setRouteSessionId] = useState<string>();
   const draftKeyRef = useRef<string | undefined>(undefined);
+  const draftStorageKeyRef = useRef<string | undefined>(undefined);
+  const weightDialogRef = useRef<HTMLDivElement>(null);
   useEffect(() => { void params.then(({ sessionId }) => setRouteSessionId(sessionId)); }, [params]);
   useEffect(() => { const id = window.setInterval(() => setNow(new Date().toISOString()), 1000); return () => window.clearInterval(id); }, []);
   useEffect(() => {
@@ -30,14 +32,29 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
     const workout = session && state.workouts.find((item) => item.id === session.workoutId);
     const exercise = workout && workout.exercises[session?.activeExerciseIndex ?? 0];
     const set = exercise?.sets.find((item) => !item.completed);
-    const draftKey = `${routeSessionId}:${set?.id ?? "complete"}`;
+    const draftKey = `${routeSessionId}:${exercise?.id ?? "none"}:${set?.id ?? "complete"}`;
     if (draftKeyRef.current === draftKey) return;
     draftKeyRef.current = draftKey;
-    setReps(set?.repsDraft ?? (set?.reps == null ? "" : String(set.reps)));
+    const storageKey = `ritm-workout-draft:${draftKey}`;
+    draftStorageKeyRef.current = storageKey;
+    let storedDraft: string | null = null;
+    try { storedDraft = window.localStorage.getItem(storageKey); } catch { /* private mode can deny storage */ }
+    setReps(storedDraft ?? set?.repsDraft ?? (set?.reps == null ? "" : String(set.reps)));
     setRepsTouched(false);
     setWeightDraft(set?.weightKg == null ? "" : String(set.weightKg));
     setWeightEditorOpen(false);
   }, [state, routeSessionId]);
+  useEffect(() => {
+    if (!repsTouched || !draftStorageKeyRef.current) return;
+    try { window.localStorage.setItem(draftStorageKeyRef.current, reps); } catch { /* local state remains the fallback */ }
+  }, [reps, repsTouched]);
+  useEffect(() => {
+    if (!weightEditorOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setWeightEditorOpen(false); };
+    window.addEventListener("keydown", closeOnEscape);
+    window.setTimeout(() => weightDialogRef.current?.querySelector<HTMLInputElement>("input")?.focus(), 0);
+    return () => { window.removeEventListener("keydown", closeOnEscape); };
+  }, [weightEditorOpen]);
   if (!state) return <main className="workoutMode"><p className="muted">Восстанавливаю тренировку…</p></main>;
   const sessionState = state as SessionTrackerState;
   const session = sessionState.workoutSessions?.find((item) => item.id === routeSessionId);
@@ -69,7 +86,10 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
       const alreadyQueued = next.outbox.some((item) => item.id === outboxId);
       return { ...next, workouts: next.workouts.map((item) => item.id === workout.id ? result.workout : item), workoutCommands: result.commands, activeTimer: result.activeTimer, outbox: alreadyQueued ? next.outbox : [...next.outbox, { id: outboxId, entityId: `${workout.id}:${exercise.id}:${currentSet.id}`, type: "workout.set.completed", createdAt: new Date().toISOString(), status: "pending", version: 1, payload: { sessionId: session.id, dueAt: result.activeTimer?.endsAt, expiresAt: result.activeTimer?.endsAt ? new Date(new Date(result.activeTimer.endsAt).getTime() + 600000).toISOString() : undefined, message: `Ритм: отдых завершен после ${exercise.name}. Открой тренировку для следующего шага.` } }] };
     });
-    if (saved) { setReps(""); setRepsTouched(false); } else setError("Не удалось сохранить подход. Черновик оставлен, повтори действие.");
+    if (saved) {
+      if (draftStorageKeyRef.current) { try { window.localStorage.removeItem(draftStorageKeyRef.current); } catch { /* ignore storage cleanup errors */ } }
+      setReps(""); setRepsTouched(false);
+    } else setError("Не удалось сохранить подход. Черновик оставлен, повтори действие.");
   };
   const nextExercise = () => update((previous) => ({ ...(previous as SessionTrackerState), workoutSessions: ((previous as SessionTrackerState).workoutSessions ?? []).map((item) => item.id === session.id ? { ...item, activeExerciseIndex: Math.min(item.activeExerciseIndex + 1, workout.exercises.length - 1) } : item) }));
   const finish = () => { if (!confirmFinish) { setConfirmFinish(true); return; } const saved = update((previous) => finishWorkoutSession(previous as SessionTrackerState, session.id)); if (saved) router.push(`/workout/${session.id}/summary`); };
@@ -91,7 +111,7 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
     <div className="workoutProgress"><span>Упражнение {session.activeExerciseIndex + 1} из {workout.exercises.length}</span><span>{completeExercise ? "Готово" : `Подход ${Math.max(1, setIndex + 1)} из ${exercise.sets.length}`}</span></div>
     <section className="activeExercise"><p className="eyebrow">Текущее упражнение</p><h1>{exercise.name}</h1><p className="muted">{exercise.settings ?? "Рабочий подход"}</p>
       {rest && !rest.expired && <div className="restState"><span>Отдых</span><strong>{formatTime(rest.remainingSec)}</strong><small>Записано: {restSet?.weightKg ?? "—"} × {restSet?.reps ?? "—"}</small><small>{completeExercise ? (session.activeExerciseIndex < workout.exercises.length - 1 ? "Следующее упражнение готово" : "Программа почти завершена") : `Далее — подход ${Math.min(setIndex + 1, exercise.sets.length)} из ${exercise.sets.length}`}</small><div className="restBar"><span style={{ width: `${Math.max(0, Math.min(100, (rest.remainingSec / (sessionState.activeTimer?.durationSec || 1)) * 100))}%` }} /></div><div className="restActions"><button className="secondary" onClick={() => update((previous) => ({ ...previous, activeTimer: previous.activeTimer ? { ...previous.activeTimer, endsAt: new Date(new Date(previous.activeTimer.endsAt ?? new Date().toISOString()).getTime() + 30000).toISOString(), durationSec: previous.activeTimer.durationSec + 30 } : null }))}>+30 секунд</button><button className="secondary" onClick={() => update((previous) => ({ ...previous, activeTimer: null }))}><Play size={16} /> Пропустить отдых</button></div></div>}
-      {(!rest || rest.expired) && !completeExercise && <div className="setState"><p className="eyebrow">Подход {Math.max(1, setIndex + 1)} из {exercise.sets.length}</p><div className="setSegments" aria-label="Подходы">{exercise.sets.map((item, index) => <span className={item.completed ? "done" : item.id === currentSet?.id ? "current" : ""} key={item.id}>{index + 1}</span>)}</div><div className="workWeight"><strong>{currentSet?.weightKg ?? "—"}</strong><span>{currentSet?.weightMode === "per-hand" ? "кг на сторону" : currentSet?.weightMode === "total" ? "кг общий вес" : "кг · уточнить"}</span><button className="secondary weightEditButton" onClick={() => setWeightEditorOpen((value) => !value)}>Изменить</button></div>{weightEditorOpen && <div className="weightEditor" role="dialog" aria-modal="true" aria-label="Изменить рабочий вес"><h2>Рабочий вес</h2><label>Вес<input inputMode="decimal" value={weightDraft} onChange={(event) => setWeightDraft(event.target.value)} /></label><fieldset className="weightScope"><legend>Применить</legend><label><input type="radio" checked={weightScope === "current"} onChange={() => setWeightScope("current")} /> Только этот подход</label><label><input type="radio" checked={weightScope === "remaining"} onChange={() => setWeightScope("remaining")} /> Этот и оставшиеся</label></fieldset><label className="checkLabel"><input type="checkbox" checked={rememberWeight} onChange={(event) => setRememberWeight(event.target.checked)} /> Запомнить для следующих тренировок</label><div className="weightEditorActions"><button className="secondary" onClick={() => setWeightEditorOpen(false)}>Отмена</button><button className="primary" onClick={saveWeight}>Сохранить</button></div></div>}<label className="repsField">Фактические повторения<div className="repsControl"><button type="button" aria-label="Уменьшить" onClick={() => { setRepsTouched(true); setReps(String(Math.max(0, Number(reps || 0) - 1))); }}>−</button><input autoComplete="off" inputMode="numeric" value={reps} onChange={(event) => { setRepsTouched(true); setReps(event.target.value); }} placeholder={`${currentSet?.reps ?? "—"}`} /><button type="button" aria-label="Увеличить" onClick={() => { setRepsTouched(true); setReps(String(Math.min(100, Number(reps || 0) + 1))); }}>+</button></div><small>План: {currentSet?.reps ?? "не задан"}. Это только подсказка.</small></label>{error && <p className="fieldError" role="alert">{error}</p>}<button className="primary recordButton" onClick={record}><Check size={20} /> Записать {reps || "повторения"}</button></div>}
+      {(!rest || rest.expired) && !completeExercise && <div className="setState"><p className="eyebrow">Подход {Math.max(1, setIndex + 1)} из {exercise.sets.length}</p><div className="setSegments" aria-label="Подходы">{exercise.sets.map((item, index) => <span className={item.completed ? "done" : item.id === currentSet?.id ? "current" : ""} key={item.id}>{index + 1}</span>)}</div><div className="workWeight"><strong>{currentSet?.weightKg ?? "—"}</strong><span>{currentSet?.weightMode === "per-hand" ? "кг на сторону" : currentSet?.weightMode === "total" ? "кг общий вес" : "кг · уточнить"}</span><button className="secondary weightEditButton" onClick={() => setWeightEditorOpen((value) => !value)}>Изменить</button></div>{weightEditorOpen && <div ref={weightDialogRef} className="weightEditor" role="dialog" aria-modal="true" aria-label="Изменить рабочий вес"><h2>Рабочий вес</h2><label>Вес<input inputMode="decimal" value={weightDraft} onChange={(event) => setWeightDraft(event.target.value)} /></label><fieldset className="weightScope"><legend>Применить</legend><label><input type="radio" checked={weightScope === "current"} onChange={() => setWeightScope("current")} /> Только этот подход</label><label><input type="radio" checked={weightScope === "remaining"} onChange={() => setWeightScope("remaining")} /> Этот и оставшиеся</label></fieldset><label className="checkLabel"><input type="checkbox" checked={rememberWeight} onChange={(event) => setRememberWeight(event.target.checked)} /> Запомнить для следующих тренировок</label><div className="weightEditorActions"><button className="secondary" onClick={() => setWeightEditorOpen(false)}>Отмена</button><button className="primary" onClick={saveWeight}>Сохранить</button></div></div>}<label className="repsField">Фактические повторения<div className="repsControl"><button type="button" aria-label="Уменьшить" onClick={() => { setRepsTouched(true); setReps(String(Math.max(0, Number(reps || 0) - 1))); }}>−</button><input autoComplete="off" inputMode="numeric" value={reps} onChange={(event) => { setRepsTouched(true); setReps(event.target.value); }} placeholder={`${currentSet?.reps ?? "—"}`} /><button type="button" aria-label="Увеличить" onClick={() => { setRepsTouched(true); setReps(String(Math.min(100, Number(reps || 0) + 1))); }}>+</button></div><small>План: {currentSet?.reps ?? "не задан"}. Это только подсказка.</small></label>{error && <p className="fieldError" role="alert">{error}</p>}<button className="primary recordButton" onClick={record}><Check size={20} /> Записать {reps || "повторения"}</button></div>}
       {completeExercise && <div className="completeState"><Check size={28} /><h2>Упражнение завершено</h2>{session.activeExerciseIndex < workout.exercises.length - 1 ? <button className="primary" onClick={nextExercise}>Следующее упражнение <ChevronRight size={20} /></button> : <button className="primary" onClick={finish}>{confirmFinish ? "Подтвердить завершение" : "Завершить тренировку"}</button>}</div>}
     </section></main>;
 }

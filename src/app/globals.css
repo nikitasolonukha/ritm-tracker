@@ -798,6 +798,19 @@ textarea:focus-visible {
 .syncConflict p { margin: 6px 0 12px; color: var(--muted); }
 .syncConflict div { display: flex; flex-wrap: wrap; gap: 8px; }
 
+.outboxStatus {
+  position: fixed;
+  right: 20px;
+  bottom: 92px;
+  z-index: 19;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: var(--surface);
+}
+
 .wide,
 .workoutPanel,
 .importer {

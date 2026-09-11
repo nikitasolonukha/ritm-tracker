@@ -41,6 +41,16 @@ function useTrackerStateInternal(): TrackerStore {
   const actionSeqRef = useRef(0);
   const syncBlockedRef = useRef(false);
   const sentOutboxRef = useRef(new Set<string>());
+  function persistOutboxStatus(id: string, status: TrackerState["outbox"][number]["status"]) {
+    const current = stateRef.current;
+    if (!current || !current.outbox.some((item) => item.id === id && item.status !== status)) return true;
+    const next = { ...current, outbox: current.outbox.map((item) => item.id === id ? { ...item, status } : item) };
+    const saved = writeState(next, userId);
+    if (!saved.ok) { setStorageError(saved.error ?? "Не удалось обновить очередь синхронизации"); return false; }
+    stateRef.current = next;
+    setState(next);
+    return true;
+  }
   useEffect(() => {
     let active = true;
     let request: ReturnType<typeof createClient>;
@@ -153,10 +163,12 @@ function useTrackerStateInternal(): TrackerStore {
           if (item.type === "workout.set.completed" && (!details?.dueAt || !details.expiresAt)) continue;
           if (item.type !== "workout.set.completed" && item.type !== "timer.rescheduled" && item.type !== "timer.cancelled") continue;
           const isTimerCommand = item.type !== "workout.set.completed";
+          if (!persistOutboxStatus(item.id, "sending")) throw new Error("outbox status write failed");
           const commandResponse = await fetchWithRetry(isTimerCommand ? "/api/workout/timer" : "/api/workout/command", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(isTimerCommand ? { commandKey: item.id, sourceEntityId: item.entityId, payload: { ...details, itemId: item.id }, sourceVersion: item.version ?? 1, action: item.type === "timer.cancelled" ? "cancel" : "reschedule", dueAt: details?.dueAt, expiresAt: details?.expiresAt, message: details?.message } : { commandKey: item.id, sourceEntityId: item.entityId, payload: { ...details, itemId: item.id }, sourceVersion: item.version ?? 1, dueAt: details?.dueAt, expiresAt: details?.expiresAt, message: details?.message ?? "Ритм: отдых завершен. Открой тренировку для следующего подхода." }) });
-          if (!commandResponse.ok) throw new Error("workout command failed");
+          if (!commandResponse.ok) { persistOutboxStatus(item.id, "failed"); throw new Error("workout command failed"); }
           const acknowledgement = writeOutboxAck(item.id, userId);
-          if (!acknowledgement.ok) throw new Error(acknowledgement.error ?? "outbox acknowledgement write failed");
+          if (!acknowledgement.ok) { persistOutboxStatus(item.id, "failed"); throw new Error(acknowledgement.error ?? "outbox acknowledgement write failed"); }
+          if (!persistOutboxStatus(item.id, "accepted")) throw new Error("outbox status write failed");
           sentOutboxRef.current.add(item.id);
         }
       }).catch(() => setStorageError("Нет связи с сервером; изменение осталось локально"));

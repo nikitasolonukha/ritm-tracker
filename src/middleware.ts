@@ -6,7 +6,8 @@ export async function middleware(request: NextRequest) {
   const isServerEndpoint = ["/api/telegram/webhook", "/api/telegram/worker"].includes(request.nextUrl.pathname);
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  const configured = Boolean(supabaseUrl && supabaseKey);
+  const ownerId = process.env.RITM_OWNER_USER_ID;
+  const configured = Boolean(supabaseUrl && supabaseKey && ownerId);
   const demoMode = process.env.NODE_ENV !== "production" && process.env.RITM_DEMO_MODE === "1";
   if (isServerEndpoint || demoMode) return NextResponse.next();
   if (!configured) return isLogin ? NextResponse.next() : NextResponse.redirect(new URL("/login?reason=not-configured", request.url));
@@ -24,8 +25,7 @@ export async function middleware(request: NextRequest) {
     },
   });
   const { data: { user } } = await supabase.auth.getUser();
-  const ownerId = process.env.RITM_OWNER_USER_ID;
-  if (user && ownerId && user.id !== ownerId) return NextResponse.redirect(new URL("/login?reason=forbidden", request.url));
+  if (user && user.id !== ownerId) return NextResponse.redirect(new URL("/login?reason=forbidden", request.url));
   if (!user && !isLogin) return NextResponse.redirect(new URL("/login", request.url));
   if (user && isLogin) return NextResponse.redirect(new URL("/", request.url));
   return response;

@@ -152,13 +152,9 @@ function useTrackerStateInternal(): TrackerStore {
   }
   function importLegacy() {
     if (!identityReady.current || !stateRef.current || !userId || !legacyState) return false;
-    const saved = writeState(legacyState, userId);
-    if (!saved.ok) { setStorageError(saved.error ?? "Не удалось перенести старые данные"); return false; }
-    stateRef.current = legacyState;
-    setState(legacyState);
-    setLegacyState(undefined);
-    setStorageError(undefined);
-    return true;
+    const imported = update(() => legacyState);
+    if (imported) setLegacyState(undefined);
+    return imported;
   }
   return { state, update, importLegacy, legacyState, userId, storageError };
 }

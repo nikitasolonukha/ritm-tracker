@@ -2,7 +2,7 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `c213e55` (`fix: keep starter workout out of history`).
+Кодовый commit: `1c5bb63` (`feat: add private habit schedule settings`).
 
 ## Локально проверено
 
@@ -21,7 +21,7 @@
 ## Production и Telegram
 
 - Production URL: `https://ritm-tracker.vercel.app/`.
-- Текущий подтвержденный production deployment: `dpl_C1GrjaHTj4eykgY29PNih5mG1187` (READY), alias `https://ritm-tracker.vercel.app/`.
+- Текущий подтвержденный production deployment: `dpl_J9n1oi4pQizAovGJ77xw6fzxTUHX` (READY), alias `https://ritm-tracker.vercel.app/`.
 - Production smoke после deployment: `/` -> `200` с оболочкой входа, `/manifest.webmanifest` -> `200`, `/sw.js` -> `200`, webhook GET -> `405` (маршрут доступен и принимает только POST).
 - Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.
 - Supabase project `wlaojddckdebbeqafbbg`: миграции `persistent_telegram_links` и `workout_timer_commands` применены; timer RPC доступен `authenticated`, недоступен `anon`, прямые INSERT в служебные `commands` и `notification_jobs` для `authenticated` запрещены.
@@ -39,6 +39,7 @@
 - Раздел прогресса сохраняет приватные дневные наблюдения (сон, энергия, самочувствие, заметка) и поддерживает JSON-экспорт user-scoped состояния.
 - Раздел прогресса также поддерживает user-scoped галерею фото до 5 МБ на файл с удалением и включением в JSON-экспорт; это приватное состояние приложения, не отдельное Supabase Storage.
 - Новый аккаунт получает только шаблон программы: фактическая тренировка появляется в истории после явного старта сессии; добавлен регрессионный тест этого разделения.
+- В приватных настройках владелец может менять название каждого события, расписание и собственное название; `/settings` production проверен как закрытый маршрут.
 
 ## Не проверено и не объявляется готовым
 

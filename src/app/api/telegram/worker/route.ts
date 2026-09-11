@@ -35,7 +35,16 @@ export async function POST(request: NextRequest) {
       response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ chat_id: job.telegram_user_id, text: job.message }),
+        body: JSON.stringify({
+          chat_id: job.telegram_user_id,
+          text: job.message,
+          reply_markup: {
+            inline_keyboard: [[
+              { text: "+30 сек", callback_data: `rest_add30:${job.source_entity_id}:${job.source_version}` },
+              { text: "Пропустить", callback_data: `rest_skip:${job.source_entity_id}:${job.source_version}` },
+            ]],
+          },
+        }),
       });
     } catch (error) {
       const finish = await admin.rpc("finish_notification_job", {

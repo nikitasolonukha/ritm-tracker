@@ -4,6 +4,16 @@ import { hashTelegramLinkToken, validateTelegramUpdate, verifyTelegramSecret } f
 
 export const runtime = "nodejs";
 
+async function answerCallbackQuery(botToken: string, callbackId: string, text: string) {
+  const response = await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ callback_query_id: callbackId, text, show_alert: false }),
+  });
+  const payload = await response.json().catch(() => ({})) as { ok?: boolean };
+  return response.ok && payload.ok === true;
+}
+
 export async function POST(request: NextRequest) {
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
   if (!verifyTelegramSecret(request.headers.get("x-telegram-bot-api-secret-token"), secret)) {
@@ -32,6 +42,31 @@ export async function POST(request: NextRequest) {
   const { error: insertError } = await admin.from("telegram_updates").insert({ update_id: update.update_id, payload: update });
   if (insertError && insertError.code !== "23505") {
     return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+  }
+  if (existing && !update.callback_query) return NextResponse.json({ accepted: true, updateId: update.update_id, duplicate: true });
+  if (update.callback_query) {
+    const callback = update.callback_query;
+    const telegramUserId = callback.from?.id;
+    const chatId = callback.message?.chat?.id;
+    const match = callback.data?.match(/^rest_(skip|add30):([A-Za-z0-9_-]{1,64}):(\d+)$/);
+    if (!telegramUserId || (chatId != null && chatId !== telegramUserId) || !match) {
+      const acknowledged = process.env.TELEGRAM_BOT_TOKEN ? await answerCallbackQuery(process.env.TELEGRAM_BOT_TOKEN, callback.id, "Действие устарело") : false;
+      return NextResponse.json({ accepted: true, updateId: update.update_id, callback: "invalid", acknowledgement: acknowledged ? "sent" : "unknown" }, { status: acknowledged ? 200 : 202 });
+    }
+    const action = match[1] === "skip" ? "cancel" : "reschedule";
+    const sourceEntityId = match[2];
+    const sourceVersion = Number(match[3]);
+    const { data: command, error: commandError } = await admin.rpc("accept_telegram_timer_command", {
+      p_telegram_user_id: telegramUserId,
+      p_command_key: `telegram-callback-${update.update_id}`,
+      p_entity_id: sourceEntityId,
+      p_payload: { source: "telegram", callbackId: callback.id, action },
+      p_source_version: sourceVersion,
+      p_action: action,
+    });
+    if (commandError) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+    const acknowledged = await answerCallbackQuery(process.env.TELEGRAM_BOT_TOKEN!, callback.id, action === "cancel" ? "Отдых пропущен" : "Отдых продлен на 30 секунд").catch(() => false);
+    return NextResponse.json({ accepted: true, updateId: update.update_id, callback: command?.status ?? "accepted", acknowledgement: acknowledged ? "sent" : "unknown" }, { status: acknowledged ? 200 : 202 });
   }
   if (update.message?.text?.startsWith("/start ") && update.message.chat?.id != null) {
     const rawToken = update.message.text.slice(7).trim();

@@ -30,6 +30,7 @@
 - Worker записывает сетевую неопределённость Telegram как `unknown`, проверяет результат финализации job и не объявляет очередь обработанной при ошибке записи.
 - Telegram rest callbacks (`+30 секунд` / `Пропустить`) реализованы через server-side RPC `accept_telegram_timer_command`; RPC применена в Supabase, доступна только `service_role`, `anon` не имеет execute.
 - Supabase migrations `telegram_timer_callbacks` (`20260911111446`) и `telegram_timer_callback_versions` (`20260911112710`) применены; последовательные `+30 секунд` получают новые source versions. Cron job `ritm-telegram-worker-every-10-seconds` активен с интервалом 10 секунд, последние вызовы worker: HTTP `200`, `processed: 0`.
+- Миграция `harden_function_search_paths` (`20260911114942`) применена; `public.set_updated_at` и `public.match_documents` теперь имеют фиксированный `search_path`. Повторный security advisor больше не показывает `function_search_path_mutable`.
 - Webhook fail-closed проверяет наличие `TELEGRAM_BOT_TOKEN` до обработки update и callback.
 - На собранном Next с Supabase URL/key, но без `RITM_OWNER_USER_ID`, приватный `/` проверен через HTTP: `307` на `/login?reason=not-configured`.
 - При обнаружении revision-конфликта UI предлагает оставить локальную или серверную копию; обе версии сначала сохраняются в user-scoped резервные записи, а выбор локальной копии выполняет повторный owner-scoped PUT с актуальной revision. Фактический сценарий на двух устройствах пока не запускался.
@@ -47,7 +48,7 @@
 - Chromium Playwright остаётся ограничен Windows `spawn EPERM`; WebKit smoke пройден отдельно.
 - Полный iPhone offline/background/lock-screen сценарий — **НЕ ПРОВЕРЕНО**.
 - RLS для посторонней таблицы `public.RAGformyAIagent` не менялся; её назначение и корректные политики не подтверждены.
-- Supabase security advisors также сообщают о mutable `search_path` у старых `set_updated_at`/`match_documents` и отключённой leaked-password protection; эти настройки требуют отдельного решения владельца проекта.
+- Supabase security advisor всё ещё сообщает об отключённой leaked-password protection, RLS/GraphQL exposure для посторонней `public.RAGformyAIagent` и public `vector` extension; эти настройки требуют отдельного решения владельца проекта и намеренно не менялись автоматически.
 
 ## Ограничения теста
 

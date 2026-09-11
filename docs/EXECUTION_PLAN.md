@@ -12,6 +12,7 @@
 - В `package.json` закреплен `packageManager: pnpm@9.15.0`.
 - Добавлены unit-проверки версионированного reschedule/cancel таймера.
 - Добавлены приватные user-scoped фото прогресса до 5 МБ на файл, удаление и JSON-экспорт.
+- Для серверных функций `set_updated_at` и `match_documents` зафиксирован `search_path`; миграция применена в Supabase.
 
 ## Уже было закрыто
 
@@ -25,6 +26,7 @@
 - Миграции `persistent_telegram_links` и `workout_timer_commands` применены в Supabase project `wlaojddckdebbeqafbbg`; наличие RPC, права `authenticated` и запрет `anon` проверены SQL-запросом.
 - В Supabase остаётся отдельная посторонняя таблица `public.RAGformyAIagent` без RLS; автоматически включать RLS нельзя без понимания её владельца и политик.
 - Supabase `pg_cron`/`pg_net`/Vault scheduler включён: job `ritm-telegram-worker-every-10-seconds` активен, worker отвечает `200`.
+- Security advisor больше не показывает mutable `search_path`; остаются внешние настройки Supabase для `RAGformyAIagent`, public `vector` и leaked-password protection.
 - Потерянный PUT response и полноценные sync-состояния требуют отдельной state-machine и UI разрешения конфликта.
 - Outbox acknowledgement теперь сохраняется отдельным user-scoped durable индексом; сетевой сбой не записывается как успех, а повтор использует стабильный command key. Явный UI для `sending/failed` остаётся отдельной задачей.
 - Два устройства, два аккаунта и реальная job -> Telegram отправка с pending job остаются непроверенными; scheduler transport уже подтверждён. UI разрешения revision-конфликта написан, но two-device acceptance ещё не запускался.

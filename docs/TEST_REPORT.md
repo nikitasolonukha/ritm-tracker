@@ -2,11 +2,11 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `9ac188c` (`security: isolate demo mode from Vercel`).
+Кодовый commit: `67e39a3` (`fix: persist invalid telegram callbacks`).
 
 ## Локально проверено
 
-- Основной Node test suite: **52 passed, 0 failed**.
+- Основной Node test suite: **53 passed, 0 failed**.
 - ESLint и TypeScript: passed.
 - ESLint: passed без предупреждений; приватная галерея использует `next/image` с data URL и `unoptimized`.
 - `next build`: passed; в сборке присутствуют middleware и `/api/workout/timer`.
@@ -28,8 +28,10 @@
 - Owner-only endpoint `/api/telegram/test-job` и миграция `20260911132000_telegram_diagnostic_job` создают идемпотентную pending job на 60 секунд только по явному нажатию владельца; SQL-функция доступна только `service_role` и требует подтверждённую Telegram-привязку.
 - Добавлен тест изоляции ack между пользователями и сохранения ack после reload.
 - GitHub Actions CI для текущего кодового commit `4d575c5` (run `34610455510`) завершился успешно: install, test, lint, typecheck и production build.
+- GitHub Actions CI для текущего кодового commit `67e39a3` (run `34614496023`) завершился успешно: install, test, lint, typecheck и production build.
 - В Supabase структурно подтверждены composite FK `workout_sets(session_id,user_id) -> workout_sessions(id,user_id)` и права служебных RPC: claim/finish/diagnostic доступны только `service_role`, пользовательские workout RPC доступны `authenticated`, `anon` закрыт.
 - Demo-режим middleware дополнительно требует явный флаг и отключён при `VERCEL=1`; production-конфигурация не может случайно открыть приватные маршруты через demo-флаг.
+- Invalid Telegram callback сохраняет update даже при сетевой ошибке `answerCallbackQuery`; обработчик возвращает контролируемый `202` вместо необработанного исключения.
 - User-scoped storage больше не подхватывает глобальную legacy-запись автоматически; добавлен регрессионный тест. Старые данные сохраняются и предлагаются для явного переноса в авторизованных настройках.
 
 ## Production и Telegram
@@ -47,6 +49,7 @@
 - После `dpl_5ATG5qfCeXUFhPE2h5qeDqvT5v41` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
 - После `dpl_mtPbaSRWRUc5KWfeqqXubJo5NkdR` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
 - После `dpl_7iP34k4R5oBLvyyVfZBStUxVNuaT` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
+- После `dpl_HXZoFXx1cZErs52DFmpyCZSxQNcx` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
 - Повторная генерация link проверена кодовым путём: подтверждённое `telegram_user_id/connected_at` сохраняется до нового `/start`, а consumed token больше не принимается повторно.
 - Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.
 - Supabase project `wlaojddckdebbeqafbbg`: миграции `persistent_telegram_links` и `workout_timer_commands` применены; timer RPC доступен `authenticated`, недоступен `anon`, прямые INSERT в служебные `commands` и `notification_jobs` для `authenticated` запрещены.

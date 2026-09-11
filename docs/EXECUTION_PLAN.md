@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `590b171` (`fix: preserve both sync conflict versions`).
+Проверяемый кодовый commit: `9325476` (`test: cover Telegram rest callback parsing`).
 
 ## Закрыто в этом проходе
 

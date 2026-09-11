@@ -2,7 +2,7 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `b5ec85e` (`feat: configure private exercise equipment`).
+Кодовый commit: `bc409ca` (`feat: configure compound exercise segments`).
 
 ## Локально проверено
 
@@ -33,6 +33,7 @@
 - Demo-режим middleware дополнительно требует явный флаг и отключён при `VERCEL=1`; production-конфигурация не может случайно открыть приватные маршруты через demo-флаг.
 - Invalid Telegram callback сохраняет update даже при сетевой ошибке `answerCallbackQuery`; обработчик возвращает контролируемый `202` вместо необработанного исключения.
 - Настройки упражнения теперь имеют приватные поля группы мышц, оборудования и положения оборудования; template preview показывает их перед стартом.
+- Для составных упражнений настройки веса, режима и повторов редактируются отдельно для сегментов A/B; общий отдых остаётся на уровне завершённой пары.
 - User-scoped storage больше не подхватывает глобальную legacy-запись автоматически; добавлен регрессионный тест. Старые данные сохраняются и предлагаются для явного переноса в авторизованных настройках.
 
 ## Production и Telegram
@@ -52,6 +53,8 @@
 - После `dpl_7iP34k4R5oBLvyyVfZBStUxVNuaT` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
 - После `dpl_HXZoFXx1cZErs52DFmpyCZSxQNcx` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
 - После `dpl_EnMnX1c3wCVJCUxuwZwN1cCKDKNn` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
+- После `dpl_24teXCJiswwEk1jQXLeK8MWCUgHs` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
+- GitHub Actions CI для commit `bc409ca` (run `34616241105`) завершился успешно.
 - Повторная генерация link проверена кодовым путём: подтверждённое `telegram_user_id/connected_at` сохраняется до нового `/start`, а consumed token больше не принимается повторно.
 - Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.
 - Supabase project `wlaojddckdebbeqafbbg`: миграции `persistent_telegram_links` и `workout_timer_commands` применены; timer RPC доступен `authenticated`, недоступен `anon`, прямые INSERT в служебные `commands` и `notification_jobs` для `authenticated` запрещены.

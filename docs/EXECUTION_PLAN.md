@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `b5ec85e` (`feat: configure private exercise equipment`).
+Проверяемый кодовый commit: `bc409ca` (`feat: configure compound exercise segments`).
 
 ## Закрыто в этом проходе
 
@@ -33,6 +33,7 @@
 - Demo bypass теперь дополнительно блокируется на Vercel даже при ошибочно выставленном `RITM_DEMO_MODE`; локальный smoke остаётся только явным demo-режимом.
 - Некорректный Telegram callback теперь не теряет durable update при недоступном `answerCallbackQuery`; обработка завершается контролируемым `202`.
 - Приватные настройки упражнений дополнены группой мышц, оборудованием и положением оборудования; эти значения видны в preview программы до старта.
+- Составные упражнения получили отдельные настройки сегментов A/B без изменения правила единого отдыха после пары.
 
 ## Уже было закрыто
 
@@ -51,6 +52,6 @@
 - Outbox acknowledgement сохраняется отдельным user-scoped durable индексом; сетевой сбой не записывается как успех, повтор использует стабильный command key, а UI показывает `sending/failed`.
 - Два устройства, два аккаунта и реальная job -> Telegram отправка с pending job остаются непроверенными; scheduler transport уже подтверждён. UI разрешения revision-конфликта написан, но two-device acceptance ещё не запускался.
 - Composite FK владельца workout set структурно подтверждён в production Supabase; rollback-проверка на двух Auth-пользователях отложена, поскольку в проекте есть только одна учётка и тестовые аккаунты не создавались.
-- Production deployment текущего commit: `dpl_EnMnX1c3wCVJCUxuwZwN1cCKDKNn` READY; реальный Telegram job/callback по-прежнему требует отдельного owner-approved теста.
+- Production deployment текущего commit: `dpl_24teXCJiswwEk1jQXLeK8MWCUgHs` READY; реальный Telegram job/callback по-прежнему требует отдельного owner-approved теста.
 - Автоматический fallback user-scoped storage на глобальную legacy-запись удалён; явный перенос старых данных доступен из авторизованных настроек.
 - Приватная локальная галерея фото, базовая дневная отметка, сон и JSON-экспорт реализованы. Отдельное удалённое хранилище фото, check-in/postpone и расширенная аналитика остаются незавершенными.

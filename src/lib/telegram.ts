@@ -22,3 +22,12 @@ export function validateTelegramUpdate(update: unknown): update is TelegramUpdat
 export function hashTelegramLinkToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
+
+export function parseTelegramRestCallback(data: unknown): { action: "cancel" | "reschedule"; sourceEntityId: string; sourceVersion: number } | null {
+  if (typeof data !== "string") return null;
+  const match = data.match(/^rest_(skip|add30):([A-Za-z0-9_-]{1,64}):(\d+)$/);
+  if (!match) return null;
+  const sourceVersion = Number(match[3]);
+  if (!Number.isSafeInteger(sourceVersion) || sourceVersion < 1) return null;
+  return { action: match[1] === "skip" ? "cancel" : "reschedule", sourceEntityId: match[2], sourceVersion };
+}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { hashTelegramLinkToken, validateTelegramUpdate, verifyTelegramSecret } from "@/lib/telegram";
+import { hashTelegramLinkToken, parseTelegramRestCallback, validateTelegramUpdate, verifyTelegramSecret } from "@/lib/telegram";
 
 export const runtime = "nodejs";
 
@@ -48,14 +48,12 @@ export async function POST(request: NextRequest) {
     const callback = update.callback_query;
     const telegramUserId = callback.from?.id;
     const chatId = callback.message?.chat?.id;
-    const match = callback.data?.match(/^rest_(skip|add30):([A-Za-z0-9_-]{1,64}):(\d+)$/);
-    if (!telegramUserId || (chatId != null && chatId !== telegramUserId) || !match) {
+    const parsed = parseTelegramRestCallback(callback.data);
+    if (!telegramUserId || (chatId != null && chatId !== telegramUserId) || !parsed) {
       const acknowledged = process.env.TELEGRAM_BOT_TOKEN ? await answerCallbackQuery(process.env.TELEGRAM_BOT_TOKEN, callback.id, "Действие устарело") : false;
       return NextResponse.json({ accepted: true, updateId: update.update_id, callback: "invalid", acknowledgement: acknowledged ? "sent" : "unknown" }, { status: acknowledged ? 200 : 202 });
     }
-    const action = match[1] === "skip" ? "cancel" : "reschedule";
-    const sourceEntityId = match[2];
-    const sourceVersion = Number(match[3]);
+    const { action, sourceEntityId, sourceVersion } = parsed;
     const { data: command, error: commandError } = await admin.rpc("accept_telegram_timer_command", {
       p_telegram_user_id: telegramUserId,
       p_command_key: `telegram-callback-${update.update_id}`,

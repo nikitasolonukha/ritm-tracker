@@ -128,6 +128,25 @@ export default function SettingsPage() {
     };
   });
 
+  const makeCompound = (exerciseId: string) => update((previous) => {
+    const next = previous as SessionTrackerState;
+    return {
+      ...next,
+      workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id !== template.id ? item : {
+        ...item,
+        exercises: item.exercises.map((exercise) => exercise.id !== exerciseId ? exercise : {
+          ...exercise,
+          sets: exercise.sets.map((set, index) => ({
+            ...set,
+            component: index % 2 === 0 ? "compound-a" as const : "compound-b" as const,
+            segmentId: `pair-${Math.floor(index / 2) + 1}`,
+            completed: false,
+          })),
+        }),
+      }),
+    };
+  });
+
   const saveTitle = () => update((previous) => {
     const next = previous as SessionTrackerState;
     return { ...next, workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id === template.id ? { ...item, title: title || item.title } : item) };
@@ -207,7 +226,7 @@ export default function SettingsPage() {
           <label>Оборудование<input value={exercise.equipment ?? ""} placeholder="Например, тренажёр" onChange={(event) => editExercise(exercise.id, "equipment", event.target.value)} /></label>
           <label>Положение оборудования<input value={exercise.equipmentPosition ?? ""} placeholder="Необязательно" onChange={(event) => editExercise(exercise.id, "equipmentPosition", event.target.value)} /></label>
           <div className="setEditors">{logicalSets.map((logicalSet) => <div className="segmentEditor" key={logicalSet.key}><strong>{logicalSet.label}</strong>{logicalSet.sets.map((set) => <div className="setPart" key={set.id}><span className="muted">{set.component === "compound-a" ? "A" : set.component === "compound-b" ? "B" : ""}</span><label>Вес<input type="number" min="0" step="0.5" value={set.weightKg ?? ""} onChange={(event) => editSet(exercise.id, set.id, "weightKg", event.target.value)} /></label><label>Режим<select value={set.weightMode ?? ""} onChange={(event) => editSet(exercise.id, set.id, "weightMode", event.target.value)}><option value="">Уточнить</option><option value="total">Общий вес</option><option value="per-hand">На сторону / гантель</option></select></label><label>Повторы<input type="number" min="1" max="100" value={set.reps ?? ""} onChange={(event) => editSet(exercise.id, set.id, "reps", event.target.value)} /></label></div>)}</div>)}</div>
-          <div className="setEditorActions"><span>{logicalSetCount} логич. подход{logicalSetCount === 1 ? "" : logicalSetCount < 5 ? "а" : "ов"}</span><button className="secondary" onClick={() => addSet(exercise.id)}>Добавить подход</button><button className="iconButton" onClick={() => removeSet(exercise.id)} disabled={logicalSetCount <= 1} aria-label={`Удалить последний подход ${exercise.name}`}><Trash2 size={17} /></button></div>
+          <div className="setEditorActions"><span>{logicalSetCount} логич. подход{logicalSetCount === 1 ? "" : logicalSetCount < 5 ? "а" : "ов"}</span><button className="secondary" onClick={() => addSet(exercise.id)}>Добавить подход</button>{!exercise.sets.some((set) => set.component) && exercise.sets.length >= 2 && <button className="secondary" onClick={() => makeCompound(exercise.id)}>Сделать парами A/B</button>}<button className="iconButton" onClick={() => removeSet(exercise.id)} disabled={logicalSetCount <= 1} aria-label={`Удалить последний подход ${exercise.name}`}><Trash2 size={17} /></button></div>
           <label>Отдых<select value={exercise.restSec ?? 180} onChange={(event) => editExercise(exercise.id, "restSec", event.target.value)}><option value="180">180 сек</option><option value="240">240 сек</option></select></label>
           <button className="iconButton" onClick={() => removeExercise(exercise.id)} aria-label={`Удалить ${exercise.name}`}><Trash2 size={17} /></button>
         </article>;

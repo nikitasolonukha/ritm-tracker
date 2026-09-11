@@ -260,6 +260,19 @@ select {
   font-size: 13px;
 }
 
+.setEditorActions {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.setEditorActions span {
+  margin-right: auto;
+}
+
 @media (max-width: 760px) {
   .settingRow,
   .habitSettingRow,

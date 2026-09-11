@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
   const isLogin = request.nextUrl.pathname === "/login";
+  const isPasswordRecovery = request.nextUrl.pathname === "/update-password";
   const isServerEndpoint = ["/api/telegram/webhook", "/api/telegram/worker"].includes(request.nextUrl.pathname);
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -26,7 +27,7 @@ export async function middleware(request: NextRequest) {
   });
   const { data: { user } } = await supabase.auth.getUser();
   if (user && user.id !== ownerId) return NextResponse.redirect(new URL("/login?reason=forbidden", request.url));
-  if (!user && !isLogin) return NextResponse.redirect(new URL("/login", request.url));
+  if (!user && !isLogin && !isPasswordRecovery) return NextResponse.redirect(new URL("/login", request.url));
   if (user && isLogin) return NextResponse.redirect(new URL("/", request.url));
   return response;
 }

@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
   if (!validateTelegramUpdate(update)) return NextResponse.json({ error: "invalid_update" }, { status: 400 });
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceRoleKey) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!url || !serviceRoleKey || !botToken) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
   const admin = createClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
   const { data: existing, error: lookupError } = await admin
     .from("telegram_updates")
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
     const chatId = callback.message?.chat?.id;
     const parsed = parseTelegramRestCallback(callback.data);
     if (!telegramUserId || (chatId != null && chatId !== telegramUserId) || !parsed) {
-      const acknowledged = process.env.TELEGRAM_BOT_TOKEN ? await answerCallbackQuery(process.env.TELEGRAM_BOT_TOKEN, callback.id, "Действие устарело") : false;
+      const acknowledged = await answerCallbackQuery(botToken, callback.id, "Действие устарело");
       return NextResponse.json({ accepted: true, updateId: update.update_id, callback: "invalid", acknowledgement: acknowledged ? "sent" : "unknown" }, { status: acknowledged ? 200 : 202 });
     }
     const { action, sourceEntityId, sourceVersion } = parsed;
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
       p_action: action,
     });
     if (commandError) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
-    const acknowledged = await answerCallbackQuery(process.env.TELEGRAM_BOT_TOKEN!, callback.id, action === "cancel" ? "Отдых пропущен" : "Отдых продлен на 30 секунд").catch(() => false);
+    const acknowledged = await answerCallbackQuery(botToken, callback.id, action === "cancel" ? "Отдых пропущен" : "Отдых продлен на 30 секунд").catch(() => false);
     return NextResponse.json({ accepted: true, updateId: update.update_id, callback: command?.status ?? "accepted", acknowledgement: acknowledged ? "sent" : "unknown" }, { status: acknowledged ? 200 : 202 });
   }
   if (update.message?.text?.startsWith("/start ") && update.message.chat?.id != null) {

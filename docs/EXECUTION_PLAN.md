@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `1c5bb63` (`feat: add private habit schedule settings`).
+Проверяемый кодовый commit: `9190dce` (`fix: expose durable outbox status`).
 
 ## Закрыто в этом проходе
 
@@ -15,6 +15,7 @@
 - Для серверных функций `set_updated_at` и `match_documents` зафиксирован `search_path`; миграция применена в Supabase.
 - Стартовый шаблон отделён от фактической истории: новая сессия появляется только после явного действия владельца.
 - Добавлена приватная настройка названий и расписаний событий дня.
+- Outbox получил явные статусы отправки/успеха/ошибки и видимый индикатор в навигации.
 
 ## Уже было закрыто
 
@@ -30,7 +31,7 @@
 - Supabase `pg_cron`/`pg_net`/Vault scheduler включён: job `ritm-telegram-worker-every-10-seconds` активен, worker отвечает `200`.
 - Security advisor больше не показывает mutable `search_path`; остаются внешние настройки Supabase для `RAGformyAIagent`, public `vector` и leaked-password protection.
 - Потерянный PUT response обрабатывается как локально сохранённое, но неподтверждённое изменение; state-machine и UI разрешения revision-конфликта реализованы, acceptance на двух устройствах ещё не запускался.
-- Outbox acknowledgement теперь сохраняется отдельным user-scoped durable индексом; сетевой сбой не записывается как успех, а повтор использует стабильный command key. Явный UI для `sending/failed` остаётся отдельной задачей.
+- Outbox acknowledgement сохраняется отдельным user-scoped durable индексом; сетевой сбой не записывается как успех, повтор использует стабильный command key, а UI показывает `sending/failed`.
 - Два устройства, два аккаунта и реальная job -> Telegram отправка с pending job остаются непроверенными; scheduler transport уже подтверждён. UI разрешения revision-конфликта написан, но two-device acceptance ещё не запускался.
 - Автоматический fallback user-scoped storage на глобальную legacy-запись удалён; явный перенос старых данных доступен из авторизованных настроек.
 - Приватная локальная галерея фото, базовая дневная отметка, сон и JSON-экспорт реализованы. Отдельное удалённое хранилище фото, check-in/postpone и расширенная аналитика остаются незавершенными.

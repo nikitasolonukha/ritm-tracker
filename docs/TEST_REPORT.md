@@ -2,11 +2,11 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `9a84131` (`feat: expose Telegram connection controls`).
+Кодовый commit: `4d575c5` (`feat: surface permanent Telegram delivery errors`).
 
 ## Локально проверено
 
-- Основной Node test suite: **51 passed, 0 failed**.
+- Основной Node test suite: **52 passed, 0 failed**.
 - ESLint и TypeScript: passed.
 - ESLint: passed без предупреждений; приватная галерея использует `next/image` с data URL и `unoptimized`.
 - `next build`: passed; в сборке присутствуют middleware и `/api/workout/timer`.
@@ -23,16 +23,17 @@
 - Отметки и отмены привычек на странице «Сегодня» теперь проходят через стабильные user-scoped outbox-команды с payload и версией; добавлен регрессионный тест идентичности команд.
 - Sync-only habit-команды не отправляются в workout RPC: после успешного сохранения snapshot они получают `accepted` в отправляемом payload и локально, с durable ack.
 - Supabase migration `20260911130000_telegram_delivery_fencing` применена и проверена SQL-запросом: `notification_jobs.lease_token`, resumable `telegram_updates`, RPC claim/finish доступны только `service_role`; устаревшая unfenced перегрузка finish удалена миграцией `20260911131000`.
+- Миграция `20260911140000_telegram_link_delivery_status` применена в production Supabase; `telegram_links.delivery_status` и поля последней ошибки существуют, constraint ограничивает значения `connected/error`, служебные RPC-права не изменились.
 - Owner-only endpoint `/api/telegram/test-job` и миграция `20260911132000_telegram_diagnostic_job` создают идемпотентную pending job на 60 секунд только по явному нажатию владельца; SQL-функция доступна только `service_role` и требует подтверждённую Telegram-привязку.
 - Добавлен тест изоляции ack между пользователями и сохранения ack после reload.
-- GitHub Actions CI для кодового commit `9a84131` (run `34608817772`) завершился успешно: install, test, lint, typecheck и production build.
+- GitHub Actions CI для текущего кодового commit `4d575c5` (run `34610455510`) завершился успешно: install, test, lint, typecheck и production build.
 - В Supabase структурно подтверждены composite FK `workout_sets(session_id,user_id) -> workout_sessions(id,user_id)` и права служебных RPC: claim/finish/diagnostic доступны только `service_role`, пользовательские workout RPC доступны `authenticated`, `anon` закрыт.
 - User-scoped storage больше не подхватывает глобальную legacy-запись автоматически; добавлен регрессионный тест. Старые данные сохраняются и предлагаются для явного переноса в авторизованных настройках.
 
 ## Production и Telegram
 
 - Production URL: `https://ritm-tracker.vercel.app/`.
-- Подтверждённый production deployment для `9a84131`: `dpl_FyJXCpBR3bEFSAB6rx8fmjxycYAf` (READY), alias `https://ritm-tracker.vercel.app/`.
+- Подтверждённый production deployment для `4d575c5`: `dpl_5ATG5qfCeXUFhPE2h5qeDqvT5v41` (READY), alias `https://ritm-tracker.vercel.app/`.
 - Production smoke после deployment: `/` -> `200` с оболочкой входа, `/manifest.webmanifest` -> `200`, `/sw.js` -> `200`, webhook GET -> `405` (маршрут доступен и принимает только POST).
 - После `dpl_BB8YNyXgpWgfuqxX1wC4kG8Qmw9U` повторно проверены login shell, manifest и service worker; Vercel runtime errors за 15 минут после публикации: отсутствуют.
 - После `dpl_9eQgMM4RubyiGChrDxg8gwhvfXya` повторно проверены login shell и service worker; Vercel runtime errors за 15 минут после публикации: отсутствуют.
@@ -41,6 +42,7 @@
 - После `dpl_79fEryKe4mPQXZZAmGrTFpMdPD1Q` проверены `/` и `/sw.js`: `200`, login shell и service worker; Vercel runtime errors за 20 минут: отсутствуют.
 - После `dpl_6gazvwbWfyueaYwdgj5SJbjgJb5J` повторно проверены `/` и `/sw.js`: `200`; Vercel runtime errors за 10 минут: отсутствуют. GitHub Actions для `0508125`: success.
 - После `dpl_FyJXCpBR3bEFSAB6rx8fmjxycYAf` проверены `/login` и `/sw.js`: `200`; закрытые server endpoints не перенаправляются на login при GET (`405`), Vercel runtime errors за последний час: отсутствуют.
+- После `dpl_5ATG5qfCeXUFhPE2h5qeDqvT5v41` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
 - Повторная генерация link проверена кодовым путём: подтверждённое `telegram_user_id/connected_at` сохраняется до нового `/start`, а consumed token больше не принимается повторно.
 - Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.
 - Supabase project `wlaojddckdebbeqafbbg`: миграции `persistent_telegram_links` и `workout_timer_commands` применены; timer RPC доступен `authenticated`, недоступен `anon`, прямые INSERT в служебные `commands` и `notification_jobs` для `authenticated` запрещены.

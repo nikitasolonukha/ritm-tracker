@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `dc4109a` (`fix: upload local state when remote is empty`).
+Проверяемый кодовый commit: `430b6cb` (`fix: fence telegram delivery and resume updates`).
 
 ## Закрыто в этом проходе
 
@@ -21,6 +21,7 @@
 - Потерянный ответ PUT теперь сначала сверяется GET с отправленным payload; повтор выполняется только при неизменной серверной ревизии, добавлен регрессионный тест.
 - Начальный sync сравнивает сервер с базовым снимком до локального действия, поэтому быстрый ввод во время GET не превращается в ложный conflict.
 - При пустом серверном snapshot загруженный локальный журнал теперь отправляется автоматически после получения server revision.
+- Telegram worker получил lease fencing через `lease_token`; webhook updates получили resumable claim/finish с processing lease и защитой от гонки повторных update_id.
 
 ## Уже было закрыто
 
@@ -38,5 +39,6 @@
 - Потерянный PUT response обрабатывается через GET/reconcile: одинаковый серверный payload принимается, прежняя ревизия повторяется, другая версия переводит UI в conflict; acceptance на двух устройствах ещё не запускался.
 - Outbox acknowledgement сохраняется отдельным user-scoped durable индексом; сетевой сбой не записывается как успех, повтор использует стабильный command key, а UI показывает `sending/failed`.
 - Два устройства, два аккаунта и реальная job -> Telegram отправка с pending job остаются непроверенными; scheduler transport уже подтверждён. UI разрешения revision-конфликта написан, но two-device acceptance ещё не запускался.
+- Production deployment после lease/update fencing: `dpl_9eQgMM4RubyiGChrDxg8gwhvfXya` READY; реальные job/callback по-прежнему требуют отдельного owner-approved теста.
 - Автоматический fallback user-scoped storage на глобальную legacy-запись удалён; явный перенос старых данных доступен из авторизованных настроек.
 - Приватная локальная галерея фото, базовая дневная отметка, сон и JSON-экспорт реализованы. Отдельное удалённое хранилище фото, check-in/postpone и расширенная аналитика остаются незавершенными.

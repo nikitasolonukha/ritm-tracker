@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 import { hashTelegramLinkToken, parseTelegramRestCallback, validateTelegramUpdate, verifyTelegramSecret } from "../src/lib/telegram.ts";
 
@@ -24,4 +25,12 @@ test("Telegram rest callbacks accept only bounded, versioned actions", () => {
   assert.deepEqual(parseTelegramRestCallback("rest_skip:exercise-set-1:2"), { action: "cancel", sourceEntityId: "exercise-set-1", sourceVersion: 2 });
   assert.equal(parseTelegramRestCallback("rest_add30:exercise-set-1:0"), null);
   assert.equal(parseTelegramRestCallback("rest_add30:exercise-set-1:not-a-version"), null);
+});
+
+test("Telegram delivery SQL fences stale workers and resumes failed updates", () => {
+  const migration = fs.readFileSync(new URL("../supabase/migrations/20260911130000_telegram_delivery_fencing.sql", import.meta.url), "utf8");
+  assert.match(migration, /lease_token uuid/);
+  assert.match(migration, /lease_token = p_lease_token/);
+  assert.match(migration, /claim_telegram_update/);
+  assert.match(migration, /status in \('received', 'processing', 'processed', 'failed'\)/);
 });

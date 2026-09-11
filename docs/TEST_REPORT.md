@@ -2,7 +2,7 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `4a15613` (`fix: isolate offline PWA cache by account`).
+Кодовый commit: `635d972` (`fix: expose account logout in settings`).
 
 ## Локально проверено
 
@@ -39,6 +39,7 @@
 - User-scoped storage больше не подхватывает глобальную legacy-запись автоматически; добавлен регрессионный тест. Старые данные сохраняются и предлагаются для явного переноса в авторизованных настройках.
 - История завершённой тренировки позволяет изменить фактические вес и повторения отдельного подхода; значения валидируются и сохраняются user-scoped командой без изменения шаблона будущих занятий.
 - Service worker больше не кеширует `/` как общий fallback: публичный cache содержит только login/manifest/assets, страницы аккаунта кешируются отдельно по user-scoped ключу, выход очищает активный account cache, а неизвестная offline-навигация отдаёт отдельное состояние «Нет связи», не форму входа. Добавлен регрессионный тест A15b.
+- Кнопка выхода добавлена в основной production-раздел настроек; перед signOut очищается account-scoped PWA cache, user-scoped локальная история и outbox не удаляются.
 
 ## Production и Telegram
 
@@ -62,6 +63,7 @@
 - После `dpl_9uebkQGbVjWNdyKwhqAhbUU4bmtt` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
 - После `dpl_4QRjjZpq3MnhWpsCVgUp769mgu4n` проверены `/login` и `/sw.js`: `200`; Vercel runtime errors и error-level logs за 30 минут: отсутствуют.
 - После `dpl_CLyRwYPrnX4CdzxCai8vazF9cnub` проверены `/login` и обновлённый `/sw.js`: `200`; новый service worker содержит account-scoped cache и offline-состояние без login fallback; Vercel runtime errors за 15 минут: отсутствуют.
+- После `dpl_DZsStexAwsfttJVBNu2NnXLjvube` production `/settings` открыт в уже авторизованной Chrome-сессии: видны «Выйти», настройки упражнений и Telegram status; данные не изменялись. `/login` и `/sw.js`: `200`, runtime errors после публикации: отсутствуют.
 - GitHub Actions CI для commit `8d0288d` (run `34618337577`) завершился успешно.
 - GitHub Actions CI для текущего дерева `3e649b5` (run `34619541769`) завершился успешно; предыдущий run на `4a15613` был отменён при следующем push.
 - GitHub Actions CI для commit `fec3a27` (run `34617068037`) завершился успешно.

@@ -273,6 +273,29 @@ select {
   margin-right: auto;
 }
 
+.historySet {
+  display: grid;
+  grid-template-columns: auto minmax(90px, 1fr) minmax(90px, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.historySet label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 560px) {
+  .historySet {
+    grid-template-columns: auto 1fr 1fr auto;
+  }
+}
+
 @media (max-width: 760px) {
   .settingRow,
   .habitSettingRow,

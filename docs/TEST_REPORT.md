@@ -2,11 +2,11 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `a08f5ec` (`feat: add owner telegram diagnostic job`).
+Кодовый commit: `0228236` (`fix: queue habit completion changes`).
 
 ## Локально проверено
 
-- Основной Node test suite: **49 passed, 0 failed**.
+- Основной Node test suite: **50 passed, 0 failed**.
 - ESLint и TypeScript: passed.
 - `next build`: passed; в сборке присутствуют middleware и `/api/workout/timer`.
 - HTTP smoke production: anonymous `/` -> `200` с оболочкой входа, webhook/worker без секрета `401`, manifest и service worker `200`; отдельная fail-closed проверка без `RITM_OWNER_USER_ID` дала `307` на `/login?reason=not-configured`.
@@ -19,6 +19,7 @@
 - Sync recovery: тестовое решение lost PUT response покрывает `accepted` при совпавшем payload и новой ревизии, `retry` при прежней ревизии и `conflict` при чужой новой версии; UI показывает offline/error и даёт ручной retry.
 - Начальный sync сохраняет базовый локальный снимок до GET и не объявляет локальное действие, сделанное во время GET, конфликтом, если сервер всё ещё содержит этот базовый снимок.
 - При пустом remote payload локальное состояние со статусом `loaded` отправляется после получения server revision.
+- Отметки и отмены привычек на странице «Сегодня» теперь проходят через стабильные user-scoped outbox-команды с payload и версией; добавлен регрессионный тест идентичности команд.
 - Supabase migration `20260911130000_telegram_delivery_fencing` применена и проверена SQL-запросом: `notification_jobs.lease_token`, resumable `telegram_updates`, RPC claim/finish доступны только `service_role`; устаревшая unfenced перегрузка finish удалена миграцией `20260911131000`.
 - Owner-only endpoint `/api/telegram/test-job` и миграция `20260911132000_telegram_diagnostic_job` создают идемпотентную pending job на 60 секунд только по явному нажатию владельца; SQL-функция доступна только `service_role` и требует подтверждённую Telegram-привязку.
 - Добавлен тест изоляции ack между пользователями и сохранения ack после reload.
@@ -29,11 +30,12 @@
 ## Production и Telegram
 
 - Production URL: `https://ritm-tracker.vercel.app/`.
-- Подтверждённый production deployment для `a08f5ec`: `dpl_Aqh4oYZJW7Db9fMSabgQLxUaG97f` (READY), alias `https://ritm-tracker.vercel.app/`.
+- Подтверждённый production deployment для `0228236`: `dpl_HK8Gyrd7gCE7V6r7fKozFZpfDGnQ` (READY), alias `https://ritm-tracker.vercel.app/`.
 - Production smoke после deployment: `/` -> `200` с оболочкой входа, `/manifest.webmanifest` -> `200`, `/sw.js` -> `200`, webhook GET -> `405` (маршрут доступен и принимает только POST).
 - После `dpl_BB8YNyXgpWgfuqxX1wC4kG8Qmw9U` повторно проверены login shell, manifest и service worker; Vercel runtime errors за 15 минут после публикации: отсутствуют.
 - После `dpl_9eQgMM4RubyiGChrDxg8gwhvfXya` повторно проверены login shell и service worker; Vercel runtime errors за 15 минут после публикации: отсутствуют.
 - После `dpl_Aqh4oYZJW7Db9fMSabgQLxUaG97f` повторно проверены login shell и service worker; Vercel runtime errors за последний час: отсутствуют.
+- После `dpl_HK8Gyrd7gCE7V6r7fKozFZpfDGnQ` проверен закрытый `/today`: `200` с login shell; Vercel runtime errors за 30 минут: отсутствуют.
 - Повторная генерация link проверена кодовым путём: подтверждённое `telegram_user_id/connected_at` сохраняется до нового `/start`, а consumed token больше не принимается повторно.
 - Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.
 - Supabase project `wlaojddckdebbeqafbbg`: миграции `persistent_telegram_links` и `workout_timer_commands` применены; timer RPC доступен `authenticated`, недоступен `anon`, прямые INSERT в служебные `commands` и `notification_jobs` для `authenticated` запрещены.

@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `a08f5ec` (`feat: add owner telegram diagnostic job`).
+Проверяемый кодовый commit: `0228236` (`fix: queue habit completion changes`).
 
 ## Закрыто в этом проходе
 
@@ -24,6 +24,7 @@
 - Telegram worker получил lease fencing через `lease_token`; webhook updates получили resumable claim/finish с processing lease и защитой от гонки повторных update_id.
 - Повторная генерация Telegram-ссылки больше не обнуляет подтверждённую связь; подтверждение новой ссылки атомарно поглощает token и сохраняет постоянное подключение.
 - Добавлен owner-only диагностический job через `/settings`: серверная RPC-функция создаёт идемпотентную pending job на 60 секунд только для владельца и только при подтверждённой Telegram-привязке.
+- Отметки и отмены привычек переведены на стабильные outbox-команды с устойчивой идентичностью и версией.
 
 ## Уже было закрыто
 
@@ -42,6 +43,6 @@
 - Outbox acknowledgement сохраняется отдельным user-scoped durable индексом; сетевой сбой не записывается как успех, повтор использует стабильный command key, а UI показывает `sending/failed`.
 - Два устройства, два аккаунта и реальная job -> Telegram отправка с pending job остаются непроверенными; scheduler transport уже подтверждён. UI разрешения revision-конфликта написан, но two-device acceptance ещё не запускался.
 - Composite FK владельца workout set структурно подтверждён в production Supabase; rollback-проверка на двух Auth-пользователях отложена, поскольку в проекте есть только одна учётка и тестовые аккаунты не создавались.
-- Production deployment после owner-only diagnostic job: `dpl_Aqh4oYZJW7Db9fMSabgQLxUaG97f` READY; реальный job/callback по-прежнему требует отдельного owner-approved теста.
+- Production deployment после очереди привычек: `dpl_HK8Gyrd7gCE7V6r7fKozFZpfDGnQ` READY; реальный Telegram job/callback по-прежнему требует отдельного owner-approved теста.
 - Автоматический fallback user-scoped storage на глобальную legacy-запись удалён; явный перенос старых данных доступен из авторизованных настроек.
 - Приватная локальная галерея фото, базовая дневная отметка, сон и JSON-экспорт реализованы. Отдельное удалённое хранилище фото, check-in/postpone и расширенная аналитика остаются незавершенными.

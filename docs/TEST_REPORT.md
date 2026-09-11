@@ -2,7 +2,7 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `cf50342` (`feat: add private progress photos`).
+Кодовый commit: `12ceae9` (`fix: harden function search paths`).
 
 ## Локально проверено
 

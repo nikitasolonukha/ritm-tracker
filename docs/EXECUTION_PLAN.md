@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `cf50342` (`feat: add private progress photos`).
+Проверяемый кодовый commit: `12ceae9` (`fix: harden function search paths`).
 
 ## Закрыто в этом проходе
 

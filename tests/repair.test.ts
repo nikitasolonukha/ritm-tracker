@@ -15,6 +15,7 @@ import {
   type Workout,
 } from "../src/lib/tracker.ts";
 import { decideLostPutResponse } from "../src/lib/sync.ts";
+import { prepareSyncPayload } from "../src/lib/sync.ts";
 
 test("Moscow local date is independent from UTC date", () => {
   assert.equal(getLocalDate(new Date("2026-09-09T21:30:00.000Z"), "Europe/Moscow"), "2026-09-10");
@@ -36,6 +37,18 @@ test("draft commit distinguishes untouched, empty, valid, and invalid input", ()
 test("habit completion and cancellation use stable per-action identities", () => {
   assert.deepEqual(getHabitCommandIdentity("chia", "2026-09-10", "completed", 1), { id: "habit-completed-chia-2026-09-10-1", entityId: "habit:chia:2026-09-10" });
   assert.deepEqual(getHabitCommandIdentity("chia", "2026-09-10", "cancelled", 2), { id: "habit-cancelled-chia-2026-09-10-2", entityId: "habit:chia:2026-09-10" });
+});
+
+test("habit outbox commands are acknowledged only in the persisted sync payload", () => {
+  const state = { outbox: [
+    { id: "habit-1", type: "habit.completed", status: "pending" },
+    { id: "workout-1", type: "workout.set.completed", status: "pending" },
+  ] };
+  assert.deepEqual(prepareSyncPayload(state).outbox, [
+    { id: "habit-1", type: "habit.completed", status: "accepted" },
+    { id: "workout-1", type: "workout.set.completed", status: "pending" },
+  ]);
+  assert.equal(state.outbox[0].status, "pending");
 });
 
 test("stable JSON ignores object key order but preserves array order", () => {

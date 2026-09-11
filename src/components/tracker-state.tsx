@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { backupSyncConflict, readOutboxAcks, readStateSafely, writeOutboxAck, writeState, type TrackerState } from "@/lib/storage";
 import { stableStringify } from "@/lib/tracker";
-import { decideLostPutResponse } from "@/lib/sync";
+import { decideLostPutResponse, prepareSyncPayload } from "@/lib/sync";
 
 type SyncConflict = { local: TrackerState; remote: TrackerState; remoteRevision: number };
 export type SyncStatus = "idle" | "loading" | "dirty" | "syncing" | "offline" | "conflict" | "error";
@@ -167,7 +167,7 @@ function useTrackerStateInternal(): TrackerStore {
         revisionRef.current = remote.version ?? 0;
       }
       const expectedRevision = revisionRef.current;
-      const payload = JSON.parse(stableStringify(snapshot)) as TrackerState;
+      const payload = prepareSyncPayload(JSON.parse(stableStringify(snapshot)) as TrackerState);
       let response: Response;
       try {
         response = await fetchOnce("/api/sync", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ payload, expectedRevision }) });
@@ -202,6 +202,13 @@ function useTrackerStateInternal(): TrackerStore {
       if (!response.ok) throw new Error("sync write failed");
       const saved = await response.json() as { revision?: number };
       revisionRef.current = saved.revision ?? expectedRevision + 1;
+      const syncOnly = snapshot.outbox.filter((item) => ["habit.completed", "habit.cancelled"].includes(item.type) && ["pending", "sending", "failed"].includes(item.status) && !sentOutboxRef.current.has(item.id));
+      for (const item of syncOnly) {
+        if (!persistOutboxStatus(item.id, "accepted")) throw new Error("outbox status write failed");
+        const acknowledgement = writeOutboxAck(item.id, userIdRef.current);
+        if (!acknowledgement.ok) throw new Error(acknowledgement.error ?? "outbox acknowledgement write failed");
+        sentOutboxRef.current.add(item.id);
+      }
       const pending = snapshot.outbox.filter((item) => ["workout.set.completed", "timer.rescheduled", "timer.cancelled"].includes(item.type) && ["pending", "failed", "sending"].includes(item.status) && !sentOutboxRef.current.has(item.id));
       for (const item of pending) {
         const details = item.payload as { dueAt?: string; expiresAt?: string; message?: string } | undefined;

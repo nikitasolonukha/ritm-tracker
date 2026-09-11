@@ -133,3 +133,13 @@ test("A17 corrupt local state is backed up instead of overwritten", () => {
   assert.ok(result.backupKey && records.get(result.backupKey) === "{bad json");
   delete globalThis.window;
 });
+
+test("user-scoped reads never fall back to another account's legacy journal", () => {
+  const records = new Map([[storageKey, JSON.stringify(createInitialState("2026-09-09"))]]);
+  globalThis.window = { localStorage: { getItem: (key) => records.get(key) ?? null, setItem: (key, value) => records.set(key, value), removeItem: (key) => records.delete(key) } };
+  const result = readStateSafely("different-user");
+  assert.equal(result.status, "empty");
+  assert.equal(result.state.workouts.length, 1);
+  assert.equal(records.get(storageKey), JSON.stringify(createInitialState("2026-09-09")));
+  delete globalThis.window;
+});

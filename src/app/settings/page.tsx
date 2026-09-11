@@ -7,7 +7,7 @@ import { useTrackerState } from "@/components/tracker-state";
 import type { SessionTrackerState } from "@/lib/workout-session";
 
 export default function SettingsPage() {
-  const { state, update, storageError } = useTrackerState();
+  const { state, update, importLegacy, legacyState, storageError } = useTrackerState();
   const sessionState = state as SessionTrackerState | null;
   const template = sessionState?.workoutTemplates?.[0];
   const [title, setTitle] = useState("");
@@ -70,6 +70,7 @@ export default function SettingsPage() {
     <Link className="backLink" href="/today"><ArrowLeft size={18} /> Сегодня</Link>
     <header className="pageHeader"><div><p className="eyebrow">Аккаунт</p><h1>Настройки</h1></div></header>
     {storageError && <p className="storageMessage" role="alert">{storageError}</p>}
+    {legacyState && <section className="panel migrationNotice"><p className="eyebrow">Старые данные</p><h2>Найдена локальная история</h2><p>Она хранится отдельно и не открывается автоматически другому аккаунту. Перенести её в этот аккаунт?</p><button className="primary" onClick={importLegacy}>Перенести историю</button></section>}
     <section className="panel settingsEditor">
       <label>Название программы<input value={title || template.title} onChange={(event) => setTitle(event.target.value)} /></label>
       <button className="primary" onClick={saveTitle}><Save size={18} /> Сохранить программу</button>

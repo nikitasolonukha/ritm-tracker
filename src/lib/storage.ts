@@ -130,7 +130,6 @@ export function readStateSafely(userId?: string): StateReadResult {
   let raw: string | null;
   try {
     raw = window.localStorage.getItem(getStorageKey(userId));
-    if (!raw && userId) raw = window.localStorage.getItem(storageKey);
   } catch (error) {
     return { state: createInitialState(), status: "unavailable", error: error instanceof Error ? error.message : "storage read failed" };
   }

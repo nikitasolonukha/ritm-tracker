@@ -2,11 +2,11 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `b36e352`.
+Кодовый commit: `pending` (этот отчёт обновляется вместе с изменением изоляции legacy storage).
 
 ## Локально проверено
 
-- Основной Node test suite: **43 passed, 0 failed**.
+- Основной Node test suite: **44 passed, 0 failed**.
 - ESLint и TypeScript: passed.
 - `next build`: passed; в сборке присутствуют middleware и `/api/workout/timer`.
 - WebKit smoke на production build: anonymous `/` -> `/login?reason=not-configured`, webhook/worker без секрета `401`, manifest и service worker `200`.
@@ -14,6 +14,7 @@
 - Timer helper: version 1 -> reschedule version 2 (+30) -> cancel version 3.
 - Outbox acknowledgement после успешного command request сохраняется в отдельном user-scoped localStorage ключе; основной sync payload не изменяется.
 - Добавлен тест изоляции ack между пользователями и сохранения ack после reload.
+- User-scoped storage больше не подхватывает глобальную legacy-запись автоматически; добавлен регрессионный тест. Старые данные сохраняются и предлагаются для явного переноса в авторизованных настройках.
 
 ## Production и Telegram
 
@@ -32,6 +33,7 @@
 - Production `+30` с заменой dueAt и production cancel — **НЕ ПРОВЕРЕНО**.
 - `pg_cron`, `pg_net` и `supabase_vault` включены; job `ritm-telegram-worker-every-10-seconds` активен. После redeploy последние вызовы worker получили HTTP `200` и `processed: 0`; активная Telegram-привязка существует, pending jobs нет.
 - Два устройства/два аккаунта и полноценное conflict resolution — **НЕ ПРОВЕРЕНО**.
+- Явный перенос legacy storage реализован, но на production не подтверждался на реальном аккаунте, чтобы не менять личный журнал.
 - Chromium Playwright остаётся ограничен Windows `spawn EPERM`; WebKit smoke пройден отдельно.
 - Полный iPhone offline/background/lock-screen сценарий — **НЕ ПРОВЕРЕНО**.
 - RLS для посторонней таблицы `public.RAGformyAIagent` не менялся; её назначение и корректные политики не подтверждены.

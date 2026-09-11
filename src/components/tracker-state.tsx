@@ -5,7 +5,7 @@ import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { readOutboxAcks, readStateSafely, writeOutboxAck, writeState, type TrackerState } from "@/lib/storage";
 import { stableStringify } from "@/lib/tracker";
 
-type TrackerStore = { state: TrackerState | null; update: (mutator: (state: TrackerState) => TrackerState) => boolean; userId?: string; storageError?: string };
+type TrackerStore = { state: TrackerState | null; update: (mutator: (state: TrackerState) => TrackerState) => boolean; importLegacy: () => boolean; legacyState?: TrackerState; userId?: string; storageError?: string };
 const TrackerContext = createContext<TrackerStore | null>(null);
 
 async function fetchWithRetry(input: RequestInfo | URL, init: RequestInit = {}, attempts = 3): Promise<Response> {
@@ -31,6 +31,7 @@ function useTrackerStateInternal(): TrackerStore {
   const [state, setState] = useState<TrackerState | null>(null);
   const [userId, setUserId] = useState<string>();
   const [storageError, setStorageError] = useState<string>();
+  const [legacyState, setLegacyState] = useState<TrackerState>();
   const stateRef = useRef<TrackerState | null>(null);
   const identityReady = useRef(false);
   const revisionRef = useRef<number | null>(null);
@@ -65,6 +66,10 @@ function useTrackerStateInternal(): TrackerStore {
       sentOutboxRef.current = readOutboxAcks(data.user?.id);
       if (!data.user && isSupabaseConfigured) { setStorageError("Войдите, чтобы открыть личный трекер"); return; }
       const local = readStateSafely(data.user?.id);
+      if (data.user?.id && local.status === "empty") {
+        const legacy = readStateSafely();
+        if (legacy.status === "loaded") setLegacyState(legacy.state);
+      }
       identityReady.current = true;
       if (local.status === "corrupt" || local.status === "unsupported" || local.status === "unavailable") setStorageError(local.error ?? "Локальные данные недоступны");
       stateRef.current = local.state;
@@ -75,6 +80,7 @@ function useTrackerStateInternal(): TrackerStore {
           if (!response.ok) throw new Error("sync read failed");
           const remote = await response.json() as { payload?: TrackerState | null; version?: number };
           if (local.status === "empty" && remote.payload) {
+            setLegacyState(undefined);
             const saved = writeState(remote.payload, data.user.id);
             if (saved.ok && actionSeqRef.current === actionSeqAtFetch) { revisionRef.current = remote.version ?? 0; stateRef.current = remote.payload; setState(remote.payload); }
             else if (stableStringify(remote.payload) === stableStringify(stateRef.current)) revisionRef.current = remote.version ?? 0;
@@ -144,7 +150,17 @@ function useTrackerStateInternal(): TrackerStore {
     if (!syncBlockedRef.current) setStorageError(undefined);
     return true;
   }
-  return { state, update, userId, storageError };
+  function importLegacy() {
+    if (!identityReady.current || !stateRef.current || !userId || !legacyState) return false;
+    const saved = writeState(legacyState, userId);
+    if (!saved.ok) { setStorageError(saved.error ?? "Не удалось перенести старые данные"); return false; }
+    stateRef.current = legacyState;
+    setState(legacyState);
+    setLegacyState(undefined);
+    setStorageError(undefined);
+    return true;
+  }
+  return { state, update, importLegacy, legacyState, userId, storageError };
 }
 
 export function TrackerProvider({ children }: { children: React.ReactNode }) {

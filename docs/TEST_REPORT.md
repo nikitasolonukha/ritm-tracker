@@ -66,6 +66,8 @@
 - После `dpl_DZsStexAwsfttJVBNu2NnXLjvube` production `/settings` открыт в уже авторизованной Chrome-сессии: видны «Выйти», настройки упражнений и Telegram status; данные не изменялись. `/login` и `/sw.js`: `200`, runtime errors после публикации: отсутствуют.
 - GitHub Actions CI для commit `8d0288d` (run `34618337577`) завершился успешно.
 - GitHub Actions CI для текущего дерева `3e649b5` (run `34619541769`) завершился успешно; предыдущий run на `4a15613` был отменён при следующем push.
+- GitHub Actions CI для предыдущего дерева `3e649b5` (run `34619541769`) завершился успешно; отдельный code run на `4a15613` был отменён при следующем push.
+- GitHub Actions CI для текущего HEAD `bb791d0` (run `34620504501`) завершился успешно.
 - GitHub Actions CI для commit `fec3a27` (run `34617068037`) завершился успешно.
 - GitHub Actions CI для commit `bc409ca` (run `34616241105`) завершился успешно.
 - Повторная генерация link проверена кодовым путём: подтверждённое `telegram_user_id/connected_at` сохраняется до нового `/start`, а consumed token больше не принимается повторно.

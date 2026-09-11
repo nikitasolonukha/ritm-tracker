@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `bc409ca` (`feat: configure compound exercise segments`).
+Проверяемый кодовый commit: `fec3a27` (`fix: show compound workout pairs`).
 
 ## Закрыто в этом проходе
 
@@ -34,6 +34,7 @@
 - Некорректный Telegram callback теперь не теряет durable update при недоступном `answerCallbackQuery`; обработка завершается контролируемым `202`.
 - Приватные настройки упражнений дополнены группой мышц, оборудованием и положением оборудования; эти значения видны в preview программы до старта.
 - Составные упражнения получили отдельные настройки сегментов A/B без изменения правила единого отдыха после пары.
+- Active workout теперь показывает логические пары составного упражнения, а не считает каждый сегмент отдельным подходом.
 
 ## Уже было закрыто
 
@@ -52,6 +53,6 @@
 - Outbox acknowledgement сохраняется отдельным user-scoped durable индексом; сетевой сбой не записывается как успех, повтор использует стабильный command key, а UI показывает `sending/failed`.
 - Два устройства, два аккаунта и реальная job -> Telegram отправка с pending job остаются непроверенными; scheduler transport уже подтверждён. UI разрешения revision-конфликта написан, но two-device acceptance ещё не запускался.
 - Composite FK владельца workout set структурно подтверждён в production Supabase; rollback-проверка на двух Auth-пользователях отложена, поскольку в проекте есть только одна учётка и тестовые аккаунты не создавались.
-- Production deployment текущего commit: `dpl_24teXCJiswwEk1jQXLeK8MWCUgHs` READY; реальный Telegram job/callback по-прежнему требует отдельного owner-approved теста.
+- Production deployment текущего commit: `dpl_C2st8r7VyWipAj8nBm6gZUjrirW5` READY; реальный Telegram job/callback по-прежнему требует отдельного owner-approved теста.
 - Автоматический fallback user-scoped storage на глобальную legacy-запись удалён; явный перенос старых данных доступен из авторизованных настроек.
 - Приватная локальная галерея фото, базовая дневная отметка, сон и JSON-экспорт реализованы. Отдельное удалённое хранилище фото, check-in/postpone и расширенная аналитика остаются незавершенными.

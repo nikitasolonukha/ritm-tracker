@@ -2,7 +2,7 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `bc409ca` (`feat: configure compound exercise segments`).
+Кодовый commit: `fec3a27` (`fix: show compound workout pairs`).
 
 ## Локально проверено
 
@@ -34,6 +34,7 @@
 - Invalid Telegram callback сохраняет update даже при сетевой ошибке `answerCallbackQuery`; обработчик возвращает контролируемый `202` вместо необработанного исключения.
 - Настройки упражнения теперь имеют приватные поля группы мышц, оборудования и положения оборудования; template preview показывает их перед стартом.
 - Для составных упражнений настройки веса, режима и повторов редактируются отдельно для сегментов A/B; общий отдых остаётся на уровне завершённой пары.
+- Active workout показывает составные плечи как `Подход 1 из 2` и `Подход 2 из 2`; E2E smoke дошёл до итогового экрана и сохранил снимки, но Windows runner зависает при остановке локального Next server.
 - User-scoped storage больше не подхватывает глобальную legacy-запись автоматически; добавлен регрессионный тест. Старые данные сохраняются и предлагаются для явного переноса в авторизованных настройках.
 
 ## Production и Telegram
@@ -54,6 +55,8 @@
 - После `dpl_HXZoFXx1cZErs52DFmpyCZSxQNcx` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
 - После `dpl_EnMnX1c3wCVJCUxuwZwN1cCKDKNn` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
 - После `dpl_24teXCJiswwEk1jQXLeK8MWCUgHs` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
+- После `dpl_C2st8r7VyWipAj8nBm6gZUjrirW5` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
+- GitHub Actions CI для commit `fec3a27` (run `34617068037`) завершился успешно.
 - GitHub Actions CI для commit `bc409ca` (run `34616241105`) завершился успешно.
 - Повторная генерация link проверена кодовым путём: подтверждённое `telegram_user_id/connected_at` сохраняется до нового `/start`, а consumed token больше не принимается повторно.
 - Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.

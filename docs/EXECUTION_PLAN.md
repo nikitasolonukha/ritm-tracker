@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `926f755` (`fix: bound Telegram callback payloads`).
+Проверяемый кодовый commit: `d1c6abf` (`feat: add password recovery flow`).
 
 ## Закрыто в этом проходе
 
@@ -40,6 +40,7 @@
 - Service worker больше не использует приватный маршрут как общий offline fallback: публичная оболочка и приватный account-scoped cache разделены, выход очищает активный account cache, а неизвестная offline-навигация получает отдельное состояние «Нет связи».
 - Рабочий выход добавлен в основной `/settings`; он не удаляет локальную историю/outbox и очищает только приватный PWA cache перед signOut.
 - Telegram callback payload ограничен UUID notification job: worker больше не формирует кнопки с длинным entity id, а webhook server-side разрешает job id в исходную сущность. Добавлен регрессионный тест и production deployment.
+- Добавлен публичный recovery flow Supabase Auth: запрос письма на `/login`, установка нового пароля на `/update-password`, middleware пропускает только recovery-маршрут.
 
 ## Уже было закрыто
 
@@ -58,6 +59,6 @@
 - Outbox acknowledgement сохраняется отдельным user-scoped durable индексом; сетевой сбой не записывается как успех, повтор использует стабильный command key, а UI показывает `sending/failed`.
 - Два устройства, два аккаунта и callback после нажатия остаются непроверенными; scheduler transport и реальная отправка `td:pc2` подтверждены, но после последнего сообщения callback update ещё не поступил. UI разрешения revision-конфликта написан, но two-device acceptance ещё не запускался.
 - Composite FK владельца workout set структурно подтверждён в production Supabase; rollback-проверка на двух Auth-пользователях отложена, поскольку в проекте есть только одна учётка и тестовые аккаунты не создавались.
-- Production deployment текущего commit: `dpl_694QwLAqwDLbC3zDk8tzBND9TJHY` READY, alias `https://ritm-tracker.vercel.app/`; сборка с bounded Telegram callback payload прошла production build. Реальный `td:pc2` job отправлен, callback ещё ожидает нажатия владельца.
+- Production deployment текущего commit: `dpl_3qFYgWC3QjXbJV6XVJ9P7eXyhqiR` READY, alias `https://ritm-tracker.vercel.app/`; сборка с password recovery flow прошла production build. Реальный `td:pc2` job отправлен, callback ещё ожидает нажатия владельца.
 - Автоматический fallback user-scoped storage на глобальную legacy-запись удалён; явный перенос старых данных доступен из авторизованных настроек.
 - Приватная локальная галерея фото, базовая дневная отметка, сон и JSON-экспорт реализованы. Отдельное удалённое хранилище фото, check-in/postpone и расширенная аналитика остаются незавершенными.

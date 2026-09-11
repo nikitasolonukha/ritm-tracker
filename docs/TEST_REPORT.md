@@ -2,7 +2,7 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `926f755` (`fix: bound Telegram callback payloads`).
+Кодовый commit: `d1c6abf` (`feat: add password recovery flow`).
 
 ## Локально проверено
 
@@ -41,6 +41,7 @@
 - Service worker больше не кеширует `/` как общий fallback: публичный cache содержит только login/manifest/assets, страницы аккаунта кешируются отдельно по user-scoped ключу, выход очищает активный account cache, а неизвестная offline-навигация отдаёт отдельное состояние «Нет связи», не форму входа. Добавлен регрессионный тест A15b.
 - Кнопка выхода добавлена в основной production-раздел настроек; перед signOut очищается account-scoped PWA cache, user-scoped локальная история и outbox не удаляются.
 - Telegram callback parser принимает составные entity id с двоеточиями; worker передаёт в кнопке UUID notification job, чтобы не превышать лимит Telegram `callback_data`, а webhook разрешает UUID обратно в server-side source entity.
+- Страница входа содержит восстановление пароля через `resetPasswordForEmail`, а публичная `/update-password` принимает новый пароль только из recovery-сессии Supabase.
 
 ## Production и Telegram
 
@@ -66,6 +67,7 @@
 - После `dpl_CLyRwYPrnX4CdzxCai8vazF9cnub` проверены `/login` и обновлённый `/sw.js`: `200`; новый service worker содержит account-scoped cache и offline-состояние без login fallback; Vercel runtime errors за 15 минут: отсутствуют.
 - После `dpl_DZsStexAwsfttJVBNu2NnXLjvube` production `/settings` открыт в уже авторизованной Chrome-сессии: видны «Выйти», настройки упражнений и Telegram status; данные не изменялись. `/login` и `/sw.js`: `200`, runtime errors после публикации: отсутствуют.
 - После `dpl_9MxB2UCN4Y6o9D5qMpgBTyQbRBjR` production сборка с callback parser fix прошла READY; после `dpl_694QwLAqwDLbC3zDk8tzBND9TJHY` production сборка с bounded callback payload прошла READY и получила alias `ritm-tracker.vercel.app`; Vercel build завершился успешно.
+- После `dpl_3qFYgWC3QjXbJV6XVJ9P7eXyhqiR` production-сборка с восстановлением пароля прошла READY и получила alias `ritm-tracker.vercel.app`; `/login` проверен через Vercel fetch, status `200`, кнопка присутствует.
 - GitHub Actions CI для commit `8d0288d` (run `34618337577`) завершился успешно.
 - GitHub Actions CI для проверенного code tree `bb791d0` (run `34620504501`) завершился успешно; отдельный run на `4a15613` был отменён при следующем push.
 - GitHub Actions CI для commit `fec3a27` (run `34617068037`) завершился успешно.

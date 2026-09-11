@@ -33,6 +33,7 @@
 - Chromium Playwright остаётся ограничен Windows `spawn EPERM`; WebKit smoke пройден отдельно.
 - Полный iPhone offline/background/lock-screen сценарий — **НЕ ПРОВЕРЕНО**.
 - RLS для посторонней таблицы `public.RAGformyAIagent` не менялся; её назначение и корректные политики не подтверждены.
+- Supabase security advisors также сообщают о mutable `search_path` у старых `set_updated_at`/`match_documents` и отключённой leaked-password protection; эти настройки требуют отдельного решения владельца проекта.
 
 ## Ограничения теста
 

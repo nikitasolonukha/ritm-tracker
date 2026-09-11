@@ -2,11 +2,11 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `9190dce` (`fix: expose durable outbox status`).
+Кодовый commit: `bb807ab` (`fix: recover sync after lost put responses`).
 
 ## Локально проверено
 
-- Основной Node test suite: **47 passed, 0 failed**.
+- Основной Node test suite: **48 passed, 0 failed**.
 - ESLint и TypeScript: passed.
 - `next build`: passed; в сборке присутствуют middleware и `/api/workout/timer`.
 - HTTP smoke production: anonymous `/` -> `200` с оболочкой входа, webhook/worker без секрета `401`, manifest и service worker `200`; отдельная fail-closed проверка без `RITM_OWNER_USER_ID` дала `307` на `/login?reason=not-configured`.
@@ -16,13 +16,15 @@
 - WebKit установлен и headless запуск подтвержден.
 - Timer helper: version 1 -> reschedule version 2 (+30) -> cancel version 3.
 - Outbox acknowledgement после успешного command request сохраняется в отдельном user-scoped localStorage ключе; основной sync payload не изменяется.
+- Sync recovery: тестовое решение lost PUT response покрывает `accepted` при совпавшем payload и новой ревизии, `retry` при прежней ревизии и `conflict` при чужой новой версии; UI показывает offline/error и даёт ручной retry.
+- Начальный sync сохраняет базовый локальный снимок до GET и не объявляет локальное действие, сделанное во время GET, конфликтом, если сервер всё ещё содержит этот базовый снимок.
 - Добавлен тест изоляции ack между пользователями и сохранения ack после reload.
 - User-scoped storage больше не подхватывает глобальную legacy-запись автоматически; добавлен регрессионный тест. Старые данные сохраняются и предлагаются для явного переноса в авторизованных настройках.
 
 ## Production и Telegram
 
 - Production URL: `https://ritm-tracker.vercel.app/`.
-- Текущий подтвержденный production deployment: `dpl_2HccpC2whw7YCeroxsvK2VFKUbx2` (READY), alias `https://ritm-tracker.vercel.app/`.
+- Последний подтверждённый production deployment до `bb807ab`: `dpl_2HccpC2whw7YCeroxsvK2VFKUbx2` (READY), alias `https://ritm-tracker.vercel.app/`. Новый commit требует отдельной публикации и последующего smoke.
 - Production smoke после deployment: `/` -> `200` с оболочкой входа, `/manifest.webmanifest` -> `200`, `/sw.js` -> `200`, webhook GET -> `405` (маршрут доступен и принимает только POST).
 - Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.
 - Supabase project `wlaojddckdebbeqafbbg`: миграции `persistent_telegram_links` и `workout_timer_commands` применены; timer RPC доступен `authenticated`, недоступен `anon`, прямые INSERT в служебные `commands` и `notification_jobs` для `authenticated` запрещены.

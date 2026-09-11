@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `9190dce` (`fix: expose durable outbox status`).
+Проверяемый кодовый commit: `bb807ab` (`fix: recover sync after lost put responses`).
 
 ## Закрыто в этом проходе
 
@@ -17,6 +17,9 @@
 - Добавлена приватная настройка названий и расписаний событий дня.
 - Outbox получил явные статусы отправки/успеха/ошибки и видимый индикатор в навигации.
 - Основной активный workout flow проверен в локальном Chrome demo на мобильном viewport, включая отдых и переход к следующему подходу.
+- Sync state machine получила состояния `loading/dirty/syncing/offline/conflict/error`, восстановление по `online/visibilitychange` и ручной retry.
+- Потерянный ответ PUT теперь сначала сверяется GET с отправленным payload; повтор выполняется только при неизменной серверной ревизии, добавлен регрессионный тест.
+- Начальный sync сравнивает сервер с базовым снимком до локального действия, поэтому быстрый ввод во время GET не превращается в ложный conflict.
 
 ## Уже было закрыто
 
@@ -31,7 +34,7 @@
 - В Supabase остаётся отдельная посторонняя таблица `public.RAGformyAIagent` без RLS; автоматически включать RLS нельзя без понимания её владельца и политик.
 - Supabase `pg_cron`/`pg_net`/Vault scheduler включён: job `ritm-telegram-worker-every-10-seconds` активен, worker отвечает `200`.
 - Security advisor больше не показывает mutable `search_path`; остаются внешние настройки Supabase для `RAGformyAIagent`, public `vector` и leaked-password protection.
-- Потерянный PUT response обрабатывается как локально сохранённое, но неподтверждённое изменение; state-machine и UI разрешения revision-конфликта реализованы, acceptance на двух устройствах ещё не запускался.
+- Потерянный PUT response обрабатывается через GET/reconcile: одинаковый серверный payload принимается, прежняя ревизия повторяется, другая версия переводит UI в conflict; acceptance на двух устройствах ещё не запускался.
 - Outbox acknowledgement сохраняется отдельным user-scoped durable индексом; сетевой сбой не записывается как успех, повтор использует стабильный command key, а UI показывает `sending/failed`.
 - Два устройства, два аккаунта и реальная job -> Telegram отправка с pending job остаются непроверенными; scheduler transport уже подтверждён. UI разрешения revision-конфликта написан, но two-device acceptance ещё не запускался.
 - Автоматический fallback user-scoped storage на глобальную legacy-запись удалён; явный перенос старых данных доступен из авторизованных настроек.

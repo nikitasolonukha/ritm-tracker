@@ -2,7 +2,7 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `2167d63` (`fix: isolate legacy local storage by account`).
+Кодовый commit: `c254b64` (`fix: sync explicit legacy imports`).
 
 ## Локально проверено
 
@@ -19,7 +19,7 @@
 ## Production и Telegram
 
 - Production URL: `https://ritm-tracker.vercel.app/`.
-- Текущий подтвержденный production deployment: `dpl_FzxUAB3t54KpYBXe8Gp3KL4EFtzg` (READY), alias `https://ritm-tracker.vercel.app/`.
+- Текущий подтвержденный production deployment: `dpl_HKsm7tNt4MQzArvYVoBfJWXWNZEx` (READY), alias `https://ritm-tracker.vercel.app/`.
 - Production smoke после deployment: `/` -> `200` с оболочкой входа, `/manifest.webmanifest` -> `200`, `/sw.js` -> `200`, webhook GET -> `405` (маршрут доступен и принимает только POST).
 - Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.
 - Supabase project `wlaojddckdebbeqafbbg`: миграции `persistent_telegram_links` и `workout_timer_commands` применены; timer RPC доступен `authenticated`, недоступен `anon`, прямые INSERT в служебные `commands` и `notification_jobs` для `authenticated` запрещены.

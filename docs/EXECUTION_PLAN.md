@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `2167d63` (`fix: isolate legacy local storage by account`).
+Проверяемый кодовый commit: `c254b64` (`fix: sync explicit legacy imports`).
 
 ## Закрыто в этом проходе
 

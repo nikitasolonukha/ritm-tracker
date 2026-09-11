@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowLeft, Plus, Save, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTrackerState } from "@/components/tracker-state";
 import type { SessionTrackerState } from "@/lib/workout-session";
 
@@ -12,6 +12,17 @@ export default function SettingsPage() {
   const template = sessionState?.workoutTemplates?.[0];
   const [title, setTitle] = useState("");
   const [telegramTest, setTelegramTest] = useState("");
+  const [telegramStatus, setTelegramStatus] = useState<"loading" | "connected" | "pending" | "expired" | "disconnected">("loading");
+  const [telegramLink, setTelegramLink] = useState("");
+  const [telegramMessage, setTelegramMessage] = useState("");
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/telegram/link", { cache: "no-store" }).then(async (response) => {
+      const body = await response.json().catch(() => ({})) as { status?: typeof telegramStatus };
+      if (active) setTelegramStatus(response.ok && body.status ? body.status : "expired");
+    }).catch(() => { if (active) setTelegramStatus("expired"); });
+    return () => { active = false; };
+  }, []);
   if (!state || !template) return <main className="shell appPage"><p className="muted">Загружаю настройки...</p></main>;
 
   const editExercise = (exerciseId: string, field: string, value: string) => update((previous) => {
@@ -77,6 +88,34 @@ export default function SettingsPage() {
     } catch { setTelegramTest("Нет связи с сервером."); }
   }
 
+  async function connectTelegram() {
+    setTelegramMessage("Создаю ссылку подключения…");
+    try {
+      const response = await fetch("/api/telegram/link", { method: "POST" });
+      const body = await response.json().catch(() => ({})) as { link?: string; error?: string };
+      if (!response.ok || !body.link) { setTelegramMessage(body.error === "telegram_unavailable" ? "Telegram временно недоступен." : "Не удалось создать ссылку."); return; }
+      setTelegramLink(body.link);
+      setTelegramStatus("pending");
+      setTelegramMessage("Открой ссылку в Telegram и отправь /start. После этого обнови статус.");
+    } catch { setTelegramMessage("Нет связи с сервером."); }
+  }
+
+  async function disconnectTelegram() {
+    setTelegramMessage("Отключаю Telegram…");
+    const response = await fetch("/api/telegram/link", { method: "DELETE" }).catch(() => null);
+    if (!response?.ok) { setTelegramMessage("Не удалось отключить Telegram."); return; }
+    setTelegramStatus("disconnected");
+    setTelegramLink("");
+    setTelegramMessage("Telegram отключён.");
+  }
+
+  async function refreshTelegramStatus() {
+    const response = await fetch("/api/telegram/link", { cache: "no-store" }).catch(() => null);
+    const body = await response?.json().catch(() => ({})) as { status?: typeof telegramStatus } | undefined;
+    if (response?.ok && body?.status) { setTelegramStatus(body.status); setTelegramMessage(body.status === "connected" ? "Telegram подключён." : "Подтверждение ещё не найдено."); }
+    else setTelegramMessage("Не удалось проверить статус Telegram.");
+  }
+
   const editHabit = (habitId: string, field: "title" | "schedule" | "privateTitle", value: string) => update((previous) => ({
     ...previous,
     habits: previous.habits.map((habit) => habit.id !== habitId ? habit : { ...habit, [field]: value }),
@@ -87,7 +126,7 @@ export default function SettingsPage() {
     <header className="pageHeader"><div><p className="eyebrow">Аккаунт</p><h1>Настройки</h1></div></header>
     {storageError && <p className="storageMessage" role="alert">{storageError}</p>}
     {legacyState && <section className="panel migrationNotice"><p className="eyebrow">Старые данные</p><h2>Найдена локальная история</h2><p>Она хранится отдельно и не открывается автоматически другому аккаунту. Перенести её в этот аккаунт?</p><button className="primary" onClick={importLegacy}>Перенести историю</button></section>}
-    <section className="panel settingsEditor"><div className="sectionHeading"><div><p className="eyebrow">Telegram</p><h2>Диагностика очереди</h2></div></div><p className="muted">Создаёт owner-only job на 60 секунд через notification_jobs и worker. Сообщение отправится только при нажатии.</p><button className="secondary" onClick={scheduleTelegramTest}>Тест через 60 секунд</button>{telegramTest && <p className="storageMessage" role="status">{telegramTest}</p>}</section>
+    <section className="panel settingsEditor"><div className="sectionHeading"><div><p className="eyebrow">Telegram</p><h2>Подключение</h2></div><span className="muted" role="status">{telegramStatus === "loading" ? "Проверяю…" : telegramStatus === "connected" ? "Подключён" : telegramStatus === "pending" ? "Ожидает подтверждения" : telegramStatus === "disconnected" ? "Не подключён" : "Ссылка истекла"}</span></div><div className="settingsActions"><button className="secondary" onClick={connectTelegram}>{telegramStatus === "connected" ? "Переподключить" : "Подключить"}</button>{telegramStatus === "connected" && <button className="secondary" onClick={disconnectTelegram}>Отключить</button>}<button className="secondary" onClick={refreshTelegramStatus}>Обновить статус</button></div>{telegramLink && <a className="telegramLink" href={telegramLink} target="_blank" rel="noreferrer">Открыть ссылку в Telegram</a>}{telegramMessage && <p className="storageMessage" role="status">{telegramMessage}</p>}<div className="sectionHeading"><div><p className="eyebrow">Очередь</p><h3>Диагностика доставки</h3></div></div><p className="muted">Создаёт owner-only job на 60 секунд через notification_jobs и worker. Реальное сообщение отправится только после явного нажатия.</p><button className="secondary" onClick={scheduleTelegramTest} disabled={telegramStatus !== "connected"}>Тест через 60 секунд</button>{telegramTest && <p className="storageMessage" role="status">{telegramTest}</p>}</section>
     <section className="panel settingsEditor"><div className="sectionHeading"><div><p className="eyebrow">Приватно</p><h2>Ритм дня</h2></div><span className="muted">Названия и расписание</span></div><div className="settingsList">{state.habits.map((habit) => <article className="settingRow habitSettingRow" key={habit.id}><label>Действие<input value={habit.title} onChange={(event) => editHabit(habit.id, "title", event.target.value)} /></label><label>Когда<input value={habit.schedule} placeholder="Например, после завтрака" onChange={(event) => editHabit(habit.id, "schedule", event.target.value)} /></label><label>Название владельца<input value={habit.privateTitle ?? ""} placeholder="Необязательно" onChange={(event) => editHabit(habit.id, "privateTitle", event.target.value)} /></label></article>)}</div></section>
     <section className="panel settingsEditor">
       <label>Название программы<input value={title || template.title} onChange={(event) => setTitle(event.target.value)} /></label>

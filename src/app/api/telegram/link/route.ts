@@ -6,6 +6,26 @@ import { hashTelegramLinkToken } from "@/lib/telegram";
 
 export const runtime = "nodejs";
 
+export async function GET() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const { data, error } = await supabase.from("telegram_links")
+    .select("telegram_user_id, confirmed_at, connected_at, revoked_at, token_expires_at")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (error) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+
+  const connected = Boolean(data?.telegram_user_id && data.confirmed_at && !data.revoked_at);
+  const pending = Boolean(!connected && data?.token_expires_at && new Date(data.token_expires_at).getTime() > Date.now());
+  return NextResponse.json({
+    status: connected ? "connected" : pending ? "pending" : data ? "expired" : "disconnected",
+    connectedAt: data?.connected_at ?? null,
+    tokenExpiresAt: data?.token_expires_at ?? null,
+  });
+}
+
 export async function POST() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -32,4 +52,26 @@ export async function POST() {
   if (error) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
 
   return NextResponse.json({ link: `https://t.me/${me.result.username}?start=${rawToken}`, expiresAt });
+}
+
+export async function DELETE() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceRoleKey) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+  const admin = createAdminClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
+  const { error } = await admin.from("telegram_links").update({
+    telegram_user_id: null,
+    confirmed_at: null,
+    connected_at: null,
+    revoked_at: new Date().toISOString(),
+    token_hash: hashTelegramLinkToken(randomBytes(32).toString("base64url")),
+    expires_at: new Date().toISOString(),
+    token_expires_at: new Date().toISOString(),
+  }).eq("user_id", user.id);
+  if (error) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+  return NextResponse.json({ status: "disconnected" });
 }

@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `367f19f` (`fix: record Telegram delivery uncertainty`).
+Проверяемый кодовый commit: `1922ceb` (`fix: fail closed without owner configuration`).
 
 ## Закрыто в этом проходе
 

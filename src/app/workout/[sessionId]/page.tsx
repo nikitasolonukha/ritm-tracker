@@ -6,7 +6,7 @@ import { ArrowLeft, Check, ChevronRight, Clock, Play } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTrackerState } from "@/components/tracker-state";
 import { completeWorkoutSet, createRestTimerCommand, restoreRestTimer } from "@/lib/tracker";
-import { finishWorkoutSession, type SessionTrackerState } from "@/lib/workout-session";
+import { cancelWorkoutSession, finishWorkoutSession, type SessionTrackerState } from "@/lib/workout-session";
 
 export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const router = useRouter();
@@ -123,6 +123,7 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
   });
   const nextExercise = () => update((previous) => ({ ...(previous as SessionTrackerState), workoutSessions: ((previous as SessionTrackerState).workoutSessions ?? []).map((item) => item.id === session.id ? { ...item, activeExerciseIndex: Math.min(item.activeExerciseIndex + 1, workout.exercises.length - 1) } : item) }));
   const finish = () => { if (!confirmFinish) { setConfirmFinish(true); return; } const saved = update((previous) => finishWorkoutSession(previous as SessionTrackerState, session.id)); if (saved) router.push(`/workout/${session.id}/summary`); };
+  const cancel = () => { const saved = update((previous) => cancelWorkoutSession(previous as SessionTrackerState, session.id)); if (saved) router.push("/workouts"); };
   const collapse = () => { const saved = repsTouched ? update((previous) => ({ ...previous, workouts: previous.workouts.map((item) => item.id !== workout.id ? item : { ...item, exercises: item.exercises.map((itemExercise) => itemExercise.id !== exercise.id ? itemExercise : { ...itemExercise, sets: itemExercise.sets.map((set) => set.id === currentSet?.id ? { ...set, repsDraft: reps } : set) }) }) })) : true; if (saved) router.push("/workouts"); };
   const saveWeight = () => {
     const rawWeight = weightDraft.trim();
@@ -137,7 +138,7 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
     });
     if (saved) { setError(""); setWeightEditorOpen(false); }
   };
-  return <main className="workoutMode"><header className="workoutTop"><button className="iconButton" aria-label="Свернуть" onClick={collapse}><ArrowLeft size={20} /></button><span className="workoutTimer"><Clock size={16} /> {formatTime(elapsed)}</span></header>
+  return <main className="workoutMode"><header className="workoutTop"><button className="iconButton" aria-label="Свернуть" onClick={collapse}><ArrowLeft size={20} /></button><span className="workoutTimer"><Clock size={16} /> {formatTime(elapsed)}</span><button className="secondary" onClick={cancel}>Отменить</button></header>
     <div className="workoutProgress"><span>Упражнение {session.activeExerciseIndex + 1} из {workout.exercises.length}</span><span>{completeExercise ? "Готово" : `Подход ${Math.max(1, currentLogicalIndex + 1)} из ${logicalSets.length}`}</span></div>
     <section className="activeExercise"><p className="eyebrow">Текущее упражнение</p><h1>{exercise.name}</h1><p className="muted">{exercise.settings ?? "Рабочий подход"}</p>
       {rest && !rest.expired && <div className="restState"><span>Отдых</span><strong>{formatTime(rest.remainingSec)}</strong><small>Записано: {restSet?.weightKg ?? "—"} × {restSet?.reps ?? "—"}</small><small>{completeExercise ? (session.activeExerciseIndex < workout.exercises.length - 1 ? "Следующее упражнение готово" : "Программа почти завершена") : `Далее — подход ${Math.min(currentLogicalIndex + 1, logicalSets.length)} из ${logicalSets.length}`}</small><div className="restBar"><span style={{ width: `${Math.max(0, Math.min(100, (rest.remainingSec / (sessionState.activeTimer?.durationSec || 1)) * 100))}%` }} /></div><div className="restActions"><button className="secondary" onClick={() => changeRestTimer("reschedule")}>+30 секунд</button><button className="secondary" onClick={() => changeRestTimer("cancel")}><Play size={16} /> Пропустить отдых</button></div></div>}

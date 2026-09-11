@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `1922ceb` (`fix: fail closed without owner configuration`).
+Проверяемый кодовый commit: `40f7a40` (`feat: resolve cross-device sync conflicts`).
 
 ## Закрыто в этом проходе
 
@@ -26,6 +26,6 @@
 - Supabase `pg_cron`/`pg_net`/Vault scheduler включён: job `ritm-telegram-worker-every-10-seconds` активен, worker отвечает `200`.
 - Потерянный PUT response и полноценные sync-состояния требуют отдельной state-machine и UI разрешения конфликта.
 - Outbox acknowledgement теперь сохраняется отдельным user-scoped durable индексом; сетевой сбой не записывается как успех, а повтор использует стабильный command key. Явный UI для `sending/failed` остаётся отдельной задачей.
-- Два устройства, два аккаунта и реальная job -> Telegram отправка с pending job остаются непроверенными; scheduler transport уже подтверждён.
+- Два устройства, два аккаунта и реальная job -> Telegram отправка с pending job остаются непроверенными; scheduler transport уже подтверждён. UI разрешения revision-конфликта написан, но two-device acceptance ещё не запускался.
 - Автоматический fallback user-scoped storage на глобальную legacy-запись удалён; явный перенос старых данных доступен из авторизованных настроек.
 - Полный SPEC по сну, фото, экспорту, check-in, postpone/skip и аналитике остаётся незавершенным.

@@ -2,7 +2,7 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `1922ceb` (`fix: fail closed without owner configuration`).
+Кодовый commit: `40f7a40` (`feat: resolve cross-device sync conflicts`).
 
 ## Локально проверено
 
@@ -19,7 +19,7 @@
 ## Production и Telegram
 
 - Production URL: `https://ritm-tracker.vercel.app/`.
-- Текущий подтвержденный production deployment: `dpl_6RDCGkW6pdxrqF5msn26QicVoWLi` (READY), alias `https://ritm-tracker.vercel.app/`.
+- Текущий подтвержденный production deployment: `dpl_8vw1Cj5xT3VhDMqX2YLgxSTNA5oM` (READY), alias `https://ritm-tracker.vercel.app/`.
 - Production smoke после deployment: `/` -> `200` с оболочкой входа, `/manifest.webmanifest` -> `200`, `/sw.js` -> `200`, webhook GET -> `405` (маршрут доступен и принимает только POST).
 - Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.
 - Supabase project `wlaojddckdebbeqafbbg`: миграции `persistent_telegram_links` и `workout_timer_commands` применены; timer RPC доступен `authenticated`, недоступен `anon`, прямые INSERT в служебные `commands` и `notification_jobs` для `authenticated` запрещены.
@@ -29,6 +29,7 @@
 - Повторная генерация ссылки теперь обновляет `token_expires_at`; webhook проверяет срок токена, а не срок постоянного подключения.
 - Worker записывает сетевую неопределённость Telegram как `unknown`, проверяет результат финализации job и не объявляет очередь обработанной при ошибке записи.
 - На собранном Next с Supabase URL/key, но без `RITM_OWNER_USER_ID`, приватный `/` проверен через HTTP: `307` на `/login?reason=not-configured`.
+- При обнаружении revision-конфликта UI предлагает оставить локальную или серверную копию; выбор локальной копии выполняет повторный owner-scoped PUT с актуальной revision. Фактический сценарий на двух устройствах пока не запускался.
 
 ## Не проверено и не объявляется готовым
 

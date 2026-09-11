@@ -12,6 +12,7 @@
 - HTTP smoke production: anonymous `/` -> `200` с оболочкой входа, webhook/worker без секрета `401`, manifest и service worker `200`; отдельная fail-closed проверка без `RITM_OWNER_USER_ID` дала `307` на `/login?reason=not-configured`.
 - Production `/` визуально открыт во встроенном браузере: показана публичная оболочка входа без приватного журнала. Обновлена Playwright-конфигурация на прямой Next dev server и порт `3002`; локальный e2e WebKit подтвердил оба API-теста, а UI-тест не стартовал из-за Windows `spawn EPERM` при запуске Playwright WebKit.
 - Тот же access smoke в установленном Chrome через `PLAYWRIGHT_CHANNEL=chrome`: **3 passed** (redirect на login, webhook без cookie и worker с серверным секретом).
+- Локальный Chrome demo smoke на viewport `390×844`: выбор шаблона → отдельная активная сессия → фактические `8` повторов → запись подхода → автоматический отдых → пропуск отдыха → следующий подход. Demo-данные не были production-аккаунтом и не синхронизировались.
 - WebKit установлен и headless запуск подтвержден.
 - Timer helper: version 1 -> reschedule version 2 (+30) -> cancel version 3.
 - Outbox acknowledgement после успешного command request сохраняется в отдельном user-scoped localStorage ключе; основной sync payload не изменяется.

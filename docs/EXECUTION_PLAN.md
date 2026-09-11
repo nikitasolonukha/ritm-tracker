@@ -1,44 +1,29 @@
-# План исполнения
+# Ритм: план и статус
 
-## Этап 0: сохранность
+Проверяемый кодовый commit: `b36e352` (`fix: make Telegram rest timers durable`).
 
-- [x] Зафиксировать требования и правила работы.
-- [x] Безопасно мигрировать `ritm-tracker-state-v1` с резервной копией поврежденной строки.
-- [x] Не записывать initial state до завершения чтения.
-- [x] Разделить durable local save и сетевую синхронизацию; конфликт не выключает локальные изменения.
-- [x] Добавить тесты ошибок чтения и квоты; StrictMode-путь закрыт гидрацией до persistence.
+## Закрыто в этом проходе
 
-## Этап 1: тренировка
+- Добавлена единая команда timer `reschedule/cancel` через owner-scoped API и Supabase RPC.
+- `+30 секунд` повышает `sourceVersion`, сохраняет локальное состояние и ставит серверную замену job.
+- «Пропустить отдых» сохраняет cancel-команду; старые jobs отменяются RPC.
+- Подтвержденная Telegram-привязка больше не зависит от истечения одноразовой ссылки; добавлены `token_expires_at`, `connected_at`, `revoked_at`.
+- Добавлен CI для `pnpm install --frozen-lockfile`, тестов, lint, typecheck и production build.
+- В `package.json` закреплен `packageManager: pnpm@9.15.0`.
+- Добавлены unit-проверки версионированного reschedule/cancel таймера.
 
-- [x] Разделить шаблон, активную сессию и историю.
-- [x] Реализовать четыре рабочих подхода и составные плечевые подходы; категории разминки/добивки есть в модели.
-- [x] Сделать `completeSet` идемпотентной командой с автотаймером.
-- [x] Сохранить редактирование веса/повторений и способы учета.
+## Уже было закрыто
 
-## Этап 2: сервер
+- Fail-closed middleware и user-scoped local storage.
+- Раздельные template/session/history, фактические подходы, составные плечи и идемпотентные команды.
+- Десятичная запятая, импорт исторических дат, резервирование поврежденного storage, stable JSON и revision sync basis.
+- PWA shell, service worker, mobile navigation, weight editor с focus trap и возвратом фокуса.
 
-- [x] Добавить миграцию Supabase, RLS, owner-scoped RPC и основу приватного контура.
-- [x] Добавить webhook Telegram и проверку secret/update_id; внешняя доставка не подключена.
-- [x] Добавить очередь due/lease/retry и worker без долгого HTTP-запроса; scheduler и реальная отправка остаются отдельной проверкой.
-- [x] Добавить server revision RPC для атомарного snapshot save и сохранения конфликтной версии.
-- [x] Сериализовать snapshot save на клиенте и сравнивать содержимое стабильным JSON-представлением.
-- [ ] Перенести клиентское состояние в IndexedDB после сохранения совместимости.
-- [x] Подключить новые маршруты к единому account-scoped TrackerProvider и последовательной revision sync очереди.
-- [x] Сохранять pending workout commands локально и принимать их owner-scoped RPC с идемпотентной notification job.
+## Открытые блокеры
 
-## Этапы 3–5
-
-- [x] Персональные дневные действия и отмена отметок дня в новом `/today`.
-- [x] Premium UI layer on existing routes: graphite/lime tokens, four-item mobile nav, desktop sidebar, Today week/action/goal composition, focused workout set/rest states, weight editor, summary and journal cards.
-- [x] Synthetic browser screenshots at 390 and 1440 px saved under `artifacts/ui-review/` and visually inspected.
-- [ ] События сна/еды и полный профиль расписаний.
-- [ ] Проверяемый импорт, история, аналитика, наблюдения, экспорт и фото.
-- [ ] Мобильная навигация, честные пустые состояния и корректный offline service worker.
-
-## Статус проверки
-
-Код, проверенный локально, проверенный с внешними сервисами и незавершенная работа должны указываться отдельно в `docs/TEST_REPORT.md`. Реальные Telegram, Supabase и iPhone без ключей/устройства не считаются проверенными.
-
-В текущей итерации автоматически проверены 40 unit/integration-style тестов, lint, TypeScript и production build. Браузерно проверены redirect `/` -> `/today`, отметка дня, редактирование веса и запуск сессии в demo-режиме. Реальный Telegram send и two-device conflict resolution не объявлены закрытыми.
-
-UI iteration notes: tokens follow the approved graphite/lime pack (`#10120F`, `#1B1F19`, `#252B22`, `#F3F5EE`, `#A5AE9D`, `#B7F36B`); screenshots are synthetic evidence only. GitHub push and Vercel production deployment remain separate operations; this iteration was not deployed to production.
+- Новые Supabase migrations не применены автоматически: нет доступного Supabase CLI/project ref или server credentials.
+- Реальный pg_cron/pg_net/Vault scheduler не подтвержден.
+- Потерянный PUT response и полноценные sync-состояния требуют отдельной state-machine и UI разрешения конфликта.
+- Outbox acknowledgement нужно довести до явных `pending/sending/accepted/failed/cancelled` переходов.
+- Два устройства, два аккаунта, реальная job -> worker -> Telegram доставка, reschedule и cancel в production не объявляются проверенными.
+- Полный SPEC по сну, фото, экспорту, check-in, postpone/skip и аналитике остаётся незавершенным.

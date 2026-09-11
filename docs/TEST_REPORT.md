@@ -2,7 +2,7 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `4d575c5` (`feat: surface permanent Telegram delivery errors`).
+Кодовый commit: `090a803` (`test: cover complete workout demo flow`).
 
 ## Локально проверено
 
@@ -14,6 +14,7 @@
 - Production `/` визуально открыт во встроенном браузере: показана публичная оболочка входа без приватного журнала. Обновлена Playwright-конфигурация на прямой Next dev server и порт `3002`; локальный e2e WebKit подтвердил оба API-теста, а UI-тест не стартовал из-за Windows `spawn EPERM` при запуске Playwright WebKit.
 - Тот же access smoke в установленном Chrome через `PLAYWRIGHT_CHANNEL=chrome`: **3 passed** (redirect на login, webhook без cookie и worker с серверным секретом).
 - Локальный Chrome demo smoke на viewport `390×844`: выбор шаблона → отдельная активная сессия → фактические `8` повторов → запись подхода → автоматический отдых → пропуск отдыха → следующий подход. Demo-данные не были production-аккаунтом и не синхронизировались.
+- Локальный Chrome demo E2E на `1440×1000` и `390×844`: сохранённый план `4×8` → отдельная активная сессия → 12 фактических подходов → явный переход между упражнениями → завершение → отдельная запись итогов. Снимки сохранены в `artifacts/ui-review-final/desktop-active.png`, `desktop-summary.png`, `iphone-active.png`, `iphone-summary.png`; demo-данные не были production-аккаунтом и не синхронизировались.
 - WebKit установлен и headless запуск подтвержден.
 - Timer helper: version 1 -> reschedule version 2 (+30) -> cancel version 3.
 - Outbox acknowledgement после успешного command request сохраняется в отдельном user-scoped localStorage ключе; основной sync payload не изменяется.
@@ -33,7 +34,7 @@
 ## Production и Telegram
 
 - Production URL: `https://ritm-tracker.vercel.app/`.
-- Подтверждённый production deployment для `4d575c5`: `dpl_5ATG5qfCeXUFhPE2h5qeDqvT5v41` (READY), alias `https://ritm-tracker.vercel.app/`.
+- Подтверждённый production deployment для `090a803`: `dpl_mtPbaSRWRUc5KWfeqqXubJo5NkdR` (READY), alias `https://ritm-tracker.vercel.app/`.
 - Production smoke после deployment: `/` -> `200` с оболочкой входа, `/manifest.webmanifest` -> `200`, `/sw.js` -> `200`, webhook GET -> `405` (маршрут доступен и принимает только POST).
 - После `dpl_BB8YNyXgpWgfuqxX1wC4kG8Qmw9U` повторно проверены login shell, manifest и service worker; Vercel runtime errors за 15 минут после публикации: отсутствуют.
 - После `dpl_9eQgMM4RubyiGChrDxg8gwhvfXya` повторно проверены login shell и service worker; Vercel runtime errors за 15 минут после публикации: отсутствуют.
@@ -43,6 +44,7 @@
 - После `dpl_6gazvwbWfyueaYwdgj5SJbjgJb5J` повторно проверены `/` и `/sw.js`: `200`; Vercel runtime errors за 10 минут: отсутствуют. GitHub Actions для `0508125`: success.
 - После `dpl_FyJXCpBR3bEFSAB6rx8fmjxycYAf` проверены `/login` и `/sw.js`: `200`; закрытые server endpoints не перенаправляются на login при GET (`405`), Vercel runtime errors за последний час: отсутствуют.
 - После `dpl_5ATG5qfCeXUFhPE2h5qeDqvT5v41` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
+- После `dpl_mtPbaSRWRUc5KWfeqqXubJo5NkdR` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
 - Повторная генерация link проверена кодовым путём: подтверждённое `telegram_user_id/connected_at` сохраняется до нового `/start`, а consumed token больше не принимается повторно.
 - Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.
 - Supabase project `wlaojddckdebbeqafbbg`: миграции `persistent_telegram_links` и `workout_timer_commands` применены; timer RPC доступен `authenticated`, недоступен `anon`, прямые INSERT в служебные `commands` и `notification_jobs` для `authenticated` запрещены.
@@ -74,6 +76,7 @@
 - Изолированный rollback-тест composite FK на двух реальных Auth-пользователях не выполнен: в текущем Supabase проекте обнаружена только одна Auth-учётка; новые тестовые учётки намеренно не создавались.
 - Явный перенос legacy storage реализован, но на production не подтверждался на реальном аккаунте, чтобы не менять личный журнал.
 - Bundled Chromium/WebKit Playwright в Windows остаются ограничены `spawn EPERM`; установленный Chrome через `PLAYWRIGHT_CHANNEL=chrome` прошёл полный access smoke 3/3.
+- Автоматическое завершение Playwright demo после двух viewport зависает на остановке локального Next dev server в Windows; сами действия обоих тестов дошли до итогового экрана, а четыре снимка визуально проверены. Это не объявляется стабильным CI E2E до устранения зависания runner.
 - Полный iPhone offline/background/lock-screen сценарий — **НЕ ПРОВЕРЕНО**.
 - RLS для посторонней таблицы `public.RAGformyAIagent` не менялся; её назначение и корректные политики не подтверждены.
 - Supabase security advisor всё ещё сообщает об отключённой leaked-password protection, RLS/GraphQL exposure для посторонней `public.RAGformyAIagent` и public `vector` extension; эти настройки требуют отдельного решения владельца проекта и намеренно не менялись автоматически.

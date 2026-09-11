@@ -763,6 +763,13 @@ textarea:focus-visible {
 .pageActions { display: flex; align-items: center; gap: 12px; }
 .observationEditor { display: grid; gap: 16px; }
 .formGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.photoEditor { display: grid; gap: 16px; }
+.photoUpload { position: relative; overflow: hidden; cursor: pointer; }
+.photoUpload input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.photoGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.photoGrid figure { margin: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+.photoGrid img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
+.photoGrid figcaption { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px; color: var(--muted); font-size: 12px; }
 
 @media (max-width: 620px) {
   .formGrid { grid-template-columns: 1fr; }

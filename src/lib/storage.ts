@@ -24,6 +24,12 @@ export type TrackerState = {
     skin: "better" | "same" | "worse" | "unknown";
     note: string;
   }>;
+  photos?: Array<{
+    id: string;
+    date: string;
+    name: string;
+    dataUrl: string;
+  }>;
   outbox: Array<{
     id: string;
     type: "habit.completed" | "workout.saved" | "timer.started" | "workout.set.completed" | "timer.rescheduled" | "timer.cancelled";
@@ -99,6 +105,7 @@ export function createInitialState(localDate = getLocalDate()): TrackerState {
     workoutCommands: [],
     activeTimer: null,
     observations: [],
+    photos: [],
     outbox: [],
   };
 }
@@ -182,5 +189,5 @@ export function writeState(state: TrackerState, userId?: string): { ok: boolean;
 
 function migrateState(state: TrackerState): TrackerState {
   const workoutTemplates = state.workoutTemplates?.length ? state.workoutTemplates : state.workouts.slice(0, 1);
-  return { ...state, workoutTemplates, activeWorkoutId: state.activeWorkoutId ?? state.workouts[0]?.id, workoutCommands: state.workoutCommands ?? [] };
+  return { ...state, workoutTemplates, activeWorkoutId: state.activeWorkoutId ?? state.workouts[0]?.id, workoutCommands: state.workoutCommands ?? [], photos: state.photos ?? [] };
 }

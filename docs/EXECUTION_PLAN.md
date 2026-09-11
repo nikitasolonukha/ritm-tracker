@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `afefcd6` (`fix: preserve confirmed telegram links on relink`).
+Проверяемый кодовый commit: `a08f5ec` (`feat: add owner telegram diagnostic job`).
 
 ## Закрыто в этом проходе
 
@@ -23,6 +23,7 @@
 - При пустом серверном snapshot загруженный локальный журнал теперь отправляется автоматически после получения server revision.
 - Telegram worker получил lease fencing через `lease_token`; webhook updates получили resumable claim/finish с processing lease и защитой от гонки повторных update_id.
 - Повторная генерация Telegram-ссылки больше не обнуляет подтверждённую связь; подтверждение новой ссылки атомарно поглощает token и сохраняет постоянное подключение.
+- Добавлен owner-only диагностический job через `/settings`: серверная RPC-функция создаёт идемпотентную pending job на 60 секунд только для владельца и только при подтверждённой Telegram-привязке.
 
 ## Уже было закрыто
 
@@ -40,6 +41,6 @@
 - Потерянный PUT response обрабатывается через GET/reconcile: одинаковый серверный payload принимается, прежняя ревизия повторяется, другая версия переводит UI в conflict; acceptance на двух устройствах ещё не запускался.
 - Outbox acknowledgement сохраняется отдельным user-scoped durable индексом; сетевой сбой не записывается как успех, повтор использует стабильный command key, а UI показывает `sending/failed`.
 - Два устройства, два аккаунта и реальная job -> Telegram отправка с pending job остаются непроверенными; scheduler transport уже подтверждён. UI разрешения revision-конфликта написан, но two-device acceptance ещё не запускался.
-- Production deployment после lease/update fencing: `dpl_9eQgMM4RubyiGChrDxg8gwhvfXya` READY; реальные job/callback по-прежнему требуют отдельного owner-approved теста.
+- Production deployment после owner-only diagnostic job: `dpl_Aqh4oYZJW7Db9fMSabgQLxUaG97f` READY; реальный job/callback по-прежнему требует отдельного owner-approved теста.
 - Автоматический fallback user-scoped storage на глобальную legacy-запись удалён; явный перенос старых данных доступен из авторизованных настроек.
 - Приватная локальная галерея фото, базовая дневная отметка, сон и JSON-экспорт реализованы. Отдельное удалённое хранилище фото, check-in/postpone и расширенная аналитика остаются незавершенными.

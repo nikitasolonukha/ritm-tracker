@@ -22,6 +22,7 @@ test("link tokens are stored as hashes, never raw tokens", () => {
 
 test("Telegram rest callbacks accept only bounded, versioned actions", () => {
   assert.deepEqual(parseTelegramRestCallback("rest_add30:exercise-set-1:2"), { action: "reschedule", sourceEntityId: "exercise-set-1", sourceVersion: 2 });
+  assert.deepEqual(parseTelegramRestCallback("rest_add30:workout-session:set-1:2"), { action: "reschedule", sourceEntityId: "workout-session:set-1", sourceVersion: 2 });
   assert.deepEqual(parseTelegramRestCallback("rest_skip:exercise-set-1:2"), { action: "cancel", sourceEntityId: "exercise-set-1", sourceVersion: 2 });
   assert.equal(parseTelegramRestCallback("rest_add30:exercise-set-1:0"), null);
   assert.equal(parseTelegramRestCallback("rest_add30:exercise-set-1:not-a-version"), null);
@@ -49,4 +50,9 @@ test("invalid Telegram callbacks keep their update durable when acknowledgement 
   const webhook = fs.readFileSync(new URL("../src/app/api/telegram/webhook/route.ts", import.meta.url), "utf8");
   assert.match(webhook, /answerCallbackQuery\(botToken, callback\.id, "Действие устарело"\)\.catch\(\(\) => false\)/);
   assert.match(webhook, /finishUpdate\("processed"\)/);
+});
+
+test("Telegram timer callback version checks ignore diagnostic commands", () => {
+  const migration = fs.readFileSync(new URL("../supabase/migrations/20260911150000_telegram_callback_version_scope.sql", import.meta.url), "utf8");
+  assert.match(migration, /command_type like 'workout\.%'/);
 });

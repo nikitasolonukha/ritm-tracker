@@ -2,7 +2,7 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `0508125` (`fix: use optimized photo component`).
+Кодовый commit: `9a84131` (`feat: expose Telegram connection controls`).
 
 ## Локально проверено
 
@@ -32,7 +32,7 @@
 ## Production и Telegram
 
 - Production URL: `https://ritm-tracker.vercel.app/`.
-- Подтверждённый production deployment для `0508125`: `dpl_6gazvwbWfyueaYwdgj5SJbjgJb5J` (READY), alias `https://ritm-tracker.vercel.app/`.
+- Подтверждённый production deployment для `9a84131`: `dpl_FyJXCpBR3bEFSAB6rx8fmjxycYAf` (READY), alias `https://ritm-tracker.vercel.app/`.
 - Production smoke после deployment: `/` -> `200` с оболочкой входа, `/manifest.webmanifest` -> `200`, `/sw.js` -> `200`, webhook GET -> `405` (маршрут доступен и принимает только POST).
 - После `dpl_BB8YNyXgpWgfuqxX1wC4kG8Qmw9U` повторно проверены login shell, manifest и service worker; Vercel runtime errors за 15 минут после публикации: отсутствуют.
 - После `dpl_9eQgMM4RubyiGChrDxg8gwhvfXya` повторно проверены login shell и service worker; Vercel runtime errors за 15 минут после публикации: отсутствуют.
@@ -40,6 +40,7 @@
 - После `dpl_HK8Gyrd7gCE7V6r7fKozFZpfDGnQ` проверен закрытый `/today`: `200` с login shell; Vercel runtime errors за 30 минут: отсутствуют.
 - После `dpl_79fEryKe4mPQXZZAmGrTFpMdPD1Q` проверены `/` и `/sw.js`: `200`, login shell и service worker; Vercel runtime errors за 20 минут: отсутствуют.
 - После `dpl_6gazvwbWfyueaYwdgj5SJbjgJb5J` повторно проверены `/` и `/sw.js`: `200`; Vercel runtime errors за 10 минут: отсутствуют. GitHub Actions для `0508125`: success.
+- После `dpl_FyJXCpBR3bEFSAB6rx8fmjxycYAf` проверены `/login` и `/sw.js`: `200`; закрытые server endpoints не перенаправляются на login при GET (`405`), Vercel runtime errors за последний час: отсутствуют.
 - Повторная генерация link проверена кодовым путём: подтверждённое `telegram_user_id/connected_at` сохраняется до нового `/start`, а consumed token больше не принимается повторно.
 - Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.
 - Supabase project `wlaojddckdebbeqafbbg`: миграции `persistent_telegram_links` и `workout_timer_commands` применены; timer RPC доступен `authenticated`, недоступен `anon`, прямые INSERT в служебные `commands` и `notification_jobs` для `authenticated` запрещены.
@@ -58,6 +59,7 @@
 - Раздел прогресса также поддерживает user-scoped галерею фото до 5 МБ на файл с удалением и включением в JSON-экспорт; это приватное состояние приложения, не отдельное Supabase Storage.
 - Новый аккаунт получает только шаблон программы: фактическая тренировка появляется в истории после явного старта сессии; добавлен регрессионный тест этого разделения.
 - В приватных настройках владелец может менять название каждого события, расписание и собственное название; `/settings` production проверен как закрытый маршрут.
+- В настройках Telegram показывает фактический статус постоянной привязки (`connected/pending/disconnected/expired`), поддерживает подключение, переподключение, отключение и ручное обновление статуса; диагностическая job недоступна без подтвержденной связи.
 - Outbox-команды имеют видимые статусы `sending`, `accepted` и `failed`; при ошибке запись остаётся локально и показывается пользователю для автоматического повтора.
 
 ## Не проверено и не объявляется готовым

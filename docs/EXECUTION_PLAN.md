@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `0508125` (`fix: use optimized photo component`).
+Проверяемый кодовый commit: `9a84131` (`feat: expose Telegram connection controls`).
 
 ## Закрыто в этом проходе
 
@@ -27,6 +27,7 @@
 - Отметки и отмены привычек переведены на стабильные outbox-команды с устойчивой идентичностью и версией.
 - Sync-only habit-команды подтверждаются только после успешной записи server snapshot и не попадают в workout RPC.
 - Линт-флаг приватной галереи устранён переходом на `next/image` для локальных data URL.
+- Settings получил фактический Telegram connection status и owner-scoped connect/reconnect/disconnect controls; diagnostic job остаётся доступной только после подтверждённой привязки.
 
 ## Уже было закрыто
 
@@ -45,6 +46,6 @@
 - Outbox acknowledgement сохраняется отдельным user-scoped durable индексом; сетевой сбой не записывается как успех, повтор использует стабильный command key, а UI показывает `sending/failed`.
 - Два устройства, два аккаунта и реальная job -> Telegram отправка с pending job остаются непроверенными; scheduler transport уже подтверждён. UI разрешения revision-конфликта написан, но two-device acceptance ещё не запускался.
 - Composite FK владельца workout set структурно подтверждён в production Supabase; rollback-проверка на двух Auth-пользователях отложена, поскольку в проекте есть только одна учётка и тестовые аккаунты не создавались.
-- Production deployment после lint-факса: `dpl_6gazvwbWfyueaYwdgj5SJbjgJb5J` READY; реальный Telegram job/callback по-прежнему требует отдельного owner-approved теста.
+- Production deployment текущего commit: `dpl_FyJXCpBR3bEFSAB6rx8fmjxycYAf` READY; реальный Telegram job/callback по-прежнему требует отдельного owner-approved теста.
 - Автоматический fallback user-scoped storage на глобальную legacy-запись удалён; явный перенос старых данных доступен из авторизованных настроек.
 - Приватная локальная галерея фото, базовая дневная отметка, сон и JSON-экспорт реализованы. Отдельное удалённое хранилище фото, check-in/postpone и расширенная аналитика остаются незавершенными.

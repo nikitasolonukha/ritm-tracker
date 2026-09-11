@@ -28,7 +28,7 @@
 
 - Production job через `notification_jobs -> scheduler -> worker -> Telegram` на 60 секунд — **НЕ ПРОВЕРЕНО**.
 - Production `+30` с заменой dueAt и production cancel — **НЕ ПРОВЕРЕНО**.
-- pg_cron/pg_net/Vault scheduler — **НЕ ПРОВЕРЕНО**.
+- `pg_cron`, `pg_net` и `supabase_vault` включены в Supabase; `cron.job` пока пуст. Постоянный scheduler не включён до отдельного подтверждения передачи server-to-server ключа worker в Vault.
 - Два устройства/два аккаунта и полноценное conflict resolution — **НЕ ПРОВЕРЕНО**.
 - Chromium Playwright остаётся ограничен Windows `spawn EPERM`; WebKit smoke пройден отдельно.
 - Полный iPhone offline/background/lock-screen сценарий — **НЕ ПРОВЕРЕНО**.

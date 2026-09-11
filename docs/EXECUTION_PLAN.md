@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `635d972` (`fix: expose account logout in settings`).
+Проверяемый кодовый commit: `926f755` (`fix: bound Telegram callback payloads`).
 
 ## Закрыто в этом проходе
 
@@ -39,6 +39,7 @@
 - В истории завершённой тренировки добавлено редактирование фактических веса и повторений отдельного подхода с user-scoped сохранением и валидацией.
 - Service worker больше не использует приватный маршрут как общий offline fallback: публичная оболочка и приватный account-scoped cache разделены, выход очищает активный account cache, а неизвестная offline-навигация получает отдельное состояние «Нет связи».
 - Рабочий выход добавлен в основной `/settings`; он не удаляет локальную историю/outbox и очищает только приватный PWA cache перед signOut.
+- Telegram callback payload ограничен UUID notification job: worker больше не формирует кнопки с длинным entity id, а webhook server-side разрешает job id в исходную сущность. Добавлен регрессионный тест и production deployment.
 
 ## Уже было закрыто
 
@@ -55,8 +56,8 @@
 - Security advisor больше не показывает mutable `search_path`; остаются внешние настройки Supabase для `RAGformyAIagent`, public `vector` и leaked-password protection.
 - Потерянный PUT response обрабатывается через GET/reconcile: одинаковый серверный payload принимается, прежняя ревизия повторяется, другая версия переводит UI в conflict; acceptance на двух устройствах ещё не запускался.
 - Outbox acknowledgement сохраняется отдельным user-scoped durable индексом; сетевой сбой не записывается как успех, повтор использует стабильный command key, а UI показывает `sending/failed`.
-- Два устройства, два аккаунта и реальная job -> Telegram отправка с pending job остаются непроверенными; scheduler transport уже подтверждён. UI разрешения revision-конфликта написан, но two-device acceptance ещё не запускался.
+- Два устройства, два аккаунта и callback после нажатия остаются непроверенными; scheduler transport и реальная отправка `td:pc2` подтверждены, но после последнего сообщения callback update ещё не поступил. UI разрешения revision-конфликта написан, но two-device acceptance ещё не запускался.
 - Composite FK владельца workout set структурно подтверждён в production Supabase; rollback-проверка на двух Auth-пользователях отложена, поскольку в проекте есть только одна учётка и тестовые аккаунты не создавались.
-- Production deployment текущего commit: `dpl_DZsStexAwsfttJVBNu2NnXLjvube` READY; `/settings`, `/login` и обновлённый `/sw.js` проверены, runtime-ошибок после публикации не обнаружено. Реальный Telegram job/callback по-прежнему требует отдельного owner-approved теста.
+- Production deployment текущего commit: `dpl_694QwLAqwDLbC3zDk8tzBND9TJHY` READY, alias `https://ritm-tracker.vercel.app/`; сборка с bounded Telegram callback payload прошла production build. Реальный `td:pc2` job отправлен, callback ещё ожидает нажатия владельца.
 - Автоматический fallback user-scoped storage на глобальную legacy-запись удалён; явный перенос старых данных доступен из авторизованных настроек.
 - Приватная локальная галерея фото, базовая дневная отметка, сон и JSON-экспорт реализованы. Отдельное удалённое хранилище фото, check-in/postpone и расширенная аналитика остаются незавершенными.

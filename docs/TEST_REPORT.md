@@ -2,7 +2,7 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `635d972` (`fix: expose account logout in settings`).
+Кодовый commit: `926f755` (`fix: bound Telegram callback payloads`).
 
 ## Локально проверено
 
@@ -40,6 +40,7 @@
 - История завершённой тренировки позволяет изменить фактические вес и повторения отдельного подхода; значения валидируются и сохраняются user-scoped командой без изменения шаблона будущих занятий.
 - Service worker больше не кеширует `/` как общий fallback: публичный cache содержит только login/manifest/assets, страницы аккаунта кешируются отдельно по user-scoped ключу, выход очищает активный account cache, а неизвестная offline-навигация отдаёт отдельное состояние «Нет связи», не форму входа. Добавлен регрессионный тест A15b.
 - Кнопка выхода добавлена в основной production-раздел настроек; перед signOut очищается account-scoped PWA cache, user-scoped локальная история и outbox не удаляются.
+- Telegram callback parser принимает составные entity id с двоеточиями; worker передаёт в кнопке UUID notification job, чтобы не превышать лимит Telegram `callback_data`, а webhook разрешает UUID обратно в server-side source entity.
 
 ## Production и Telegram
 
@@ -64,6 +65,7 @@
 - После `dpl_4QRjjZpq3MnhWpsCVgUp769mgu4n` проверены `/login` и `/sw.js`: `200`; Vercel runtime errors и error-level logs за 30 минут: отсутствуют.
 - После `dpl_CLyRwYPrnX4CdzxCai8vazF9cnub` проверены `/login` и обновлённый `/sw.js`: `200`; новый service worker содержит account-scoped cache и offline-состояние без login fallback; Vercel runtime errors за 15 минут: отсутствуют.
 - После `dpl_DZsStexAwsfttJVBNu2NnXLjvube` production `/settings` открыт в уже авторизованной Chrome-сессии: видны «Выйти», настройки упражнений и Telegram status; данные не изменялись. `/login` и `/sw.js`: `200`, runtime errors после публикации: отсутствуют.
+- После `dpl_9MxB2UCN4Y6o9D5qMpgBTyQbRBjR` production сборка с callback parser fix прошла READY; после `dpl_694QwLAqwDLbC3zDk8tzBND9TJHY` production сборка с bounded callback payload прошла READY и получила alias `ritm-tracker.vercel.app`; Vercel build завершился успешно.
 - GitHub Actions CI для commit `8d0288d` (run `34618337577`) завершился успешно.
 - GitHub Actions CI для проверенного code tree `bb791d0` (run `34620504501`) завершился успешно; отдельный run на `4a15613` был отменён при следующем push.
 - GitHub Actions CI для commit `fec3a27` (run `34617068037`) завершился успешно.
@@ -91,8 +93,8 @@
 
 ## Не проверено и не объявляется готовым
 
-- Реальная отправка production diagnostic job в Telegram — **ПРОВЕРЕНО**: по явному подтверждению владельца создана одна job; Supabase notification_jobs завершила её как sent, одна попытка, last_error=null.
-- Реальные callback update и answerCallbackQuery в Telegram — **ОЖИДАЕТ НАЖАТИЯ**: отправленное сообщение содержит +30 сек и Пропустить, но callback ещё не поступил в telegram_updates.
+- Реальная отправка production diagnostic job в Telegram — **ПРОВЕРЕНО**: по явному подтверждению владельца jobs `manual`, `recheck` и `td:pc2` были отправлены; последняя job завершилась как `sent`, одна попытка, `last_error=null`. Одна предыдущая длинная диагностическая сущность отдельно зафиксировала Telegram `BUTTON_DATA_INVALID`, после чего payload был исправлен на UUID job.
+- Реальный callback update и `answerCallbackQuery` — **НЕ ЗАВЕРШЕНО**: после последнего корректного сообщения `td:pc2` в `telegram_updates` пока нет callback update, поэтому production `+30` ещё не подтверждён фактическим нажатием.
 - Production `+30` с заменой dueAt и production cancel — **НЕ ПРОВЕРЕНО**.
 - `pg_cron`, `pg_net` и `supabase_vault` включены; job `ritm-telegram-worker-every-10-seconds` активен. После последнего redeploy вызовы worker получили HTTP `200` и `processed: 0`; активная Telegram-привязка существует, pending jobs нет.
 - Два устройства/два аккаунта и полноценное conflict resolution — **НЕ ПРОВЕРЕНО**.

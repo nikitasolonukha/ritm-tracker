@@ -44,12 +44,17 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
       if (link) {
         const connectedAt = new Date().toISOString();
-        await admin.from("telegram_links").update({ telegram_user_id: update.message.chat.id, confirmed_at: connectedAt, connected_at: connectedAt, revoked_at: null }).eq("user_id", link.user_id).eq("token_hash", hashTelegramLinkToken(rawToken));
-        await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ chat_id: update.message.chat.id, text: "Telegram подключен к Ритму." }),
-        });
+        const { error: linkUpdateError } = await admin.from("telegram_links").update({ telegram_user_id: update.message.chat.id, confirmed_at: connectedAt, connected_at: connectedAt, revoked_at: null }).eq("user_id", link.user_id).eq("token_hash", hashTelegramLinkToken(rawToken));
+        if (linkUpdateError) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+        try {
+          await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ chat_id: update.message.chat.id, text: "Telegram подключен к Ритму." }),
+          });
+        } catch {
+          return NextResponse.json({ accepted: true, updateId: update.update_id, linked: true, confirmation: "unknown" }, { status: 202 });
+        }
       }
     }
   }

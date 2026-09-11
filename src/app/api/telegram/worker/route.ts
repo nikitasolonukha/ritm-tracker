@@ -30,14 +30,28 @@ export async function POST(request: NextRequest) {
   const jobs = (data ?? []) as ClaimedJob[];
   const results: Array<{ id: string; status: string }> = [];
   for (const job of jobs) {
-    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: job.telegram_user_id, text: job.message }),
-    });
+    let response: Response;
+    try {
+      response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chat_id: job.telegram_user_id, text: job.message }),
+      });
+    } catch (error) {
+      const finish = await admin.rpc("finish_notification_job", {
+        p_job_id: job.id,
+        p_status: "unknown",
+        p_error: error instanceof Error ? error.message : "telegram_request_unknown",
+        p_next_attempt_at: new Date(Date.now() + 60_000).toISOString(),
+      });
+      if (finish.error) return NextResponse.json({ error: "queue_unavailable" }, { status: 503 });
+      results.push({ id: job.id, status: "unknown" });
+      continue;
+    }
     const payload = await response.json().catch(() => ({})) as { ok?: boolean; description?: string; parameters?: { retry_after?: number } };
     if (response.ok && payload.ok) {
-      await admin.rpc("finish_notification_job", { p_job_id: job.id, p_status: "sent" });
+      const finish = await admin.rpc("finish_notification_job", { p_job_id: job.id, p_status: "sent" });
+      if (finish.error) return NextResponse.json({ error: "queue_unavailable" }, { status: 503 });
       results.push({ id: job.id, status: "sent" });
       continue;
     }
@@ -45,12 +59,13 @@ export async function POST(request: NextRequest) {
     const retryAfter = payload.parameters?.retry_after;
     const nextAttemptAt = retryAfter ? new Date(Date.now() + retryAfter * 1000).toISOString() : null;
     const nextStatus = job.attempts >= 3 ? "unknown" : "failed";
-    await admin.rpc("finish_notification_job", {
+    const finish = await admin.rpc("finish_notification_job", {
       p_job_id: job.id,
       p_status: nextStatus,
       p_error: payload.description ?? `telegram_http_${response.status}`,
       p_next_attempt_at: nextAttemptAt,
     });
+    if (finish.error) return NextResponse.json({ error: "queue_unavailable" }, { status: 503 });
     results.push({ id: job.id, status: nextStatus });
   }
 

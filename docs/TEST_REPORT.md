@@ -2,7 +2,7 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `430b6cb` (`fix: fence telegram delivery and resume updates`).
+Кодовый commit: `afefcd6` (`fix: preserve confirmed telegram links on relink`).
 
 ## Локально проверено
 
@@ -26,10 +26,11 @@
 ## Production и Telegram
 
 - Production URL: `https://ritm-tracker.vercel.app/`.
-- Подтверждённый production deployment для `430b6cb`: `dpl_9eQgMM4RubyiGChrDxg8gwhvfXya` (READY), alias `https://ritm-tracker.vercel.app/`.
+- Подтверждённый production deployment для `afefcd6`: `dpl_EfZW31BoaFq2BohAmUWf5XfPXskY` (READY), alias `https://ritm-tracker.vercel.app/`.
 - Production smoke после deployment: `/` -> `200` с оболочкой входа, `/manifest.webmanifest` -> `200`, `/sw.js` -> `200`, webhook GET -> `405` (маршрут доступен и принимает только POST).
 - После `dpl_BB8YNyXgpWgfuqxX1wC4kG8Qmw9U` повторно проверены login shell, manifest и service worker; Vercel runtime errors за 15 минут после публикации: отсутствуют.
 - После `dpl_9eQgMM4RubyiGChrDxg8gwhvfXya` повторно проверены login shell и service worker; Vercel runtime errors за 15 минут после публикации: отсутствуют.
+- Повторная генерация link проверена кодовым путём: подтверждённое `telegram_user_id/connected_at` сохраняется до нового `/start`, а consumed token больше не принимается повторно.
 - Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.
 - Supabase project `wlaojddckdebbeqafbbg`: миграции `persistent_telegram_links` и `workout_timer_commands` применены; timer RPC доступен `authenticated`, недоступен `anon`, прямые INSERT в служебные `commands` и `notification_jobs` для `authenticated` запрещены.
 - Telegram `getMe` подтверждает `@solonflowai_treker_bot`.

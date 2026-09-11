@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `430b6cb` (`fix: fence telegram delivery and resume updates`).
+Проверяемый кодовый commit: `afefcd6` (`fix: preserve confirmed telegram links on relink`).
 
 ## Закрыто в этом проходе
 
@@ -22,6 +22,7 @@
 - Начальный sync сравнивает сервер с базовым снимком до локального действия, поэтому быстрый ввод во время GET не превращается в ложный conflict.
 - При пустом серверном snapshot загруженный локальный журнал теперь отправляется автоматически после получения server revision.
 - Telegram worker получил lease fencing через `lease_token`; webhook updates получили resumable claim/finish с processing lease и защитой от гонки повторных update_id.
+- Повторная генерация Telegram-ссылки больше не обнуляет подтверждённую связь; подтверждение новой ссылки атомарно поглощает token и сохраняет постоянное подключение.
 
 ## Уже было закрыто
 

@@ -34,6 +34,9 @@ export default function SettingsPage() {
         exercises: item.exercises.map((exercise) => {
           if (exercise.id !== exerciseId) return exercise;
           if (field === "name") return { ...exercise, name: value };
+          if (field === "muscleGroup") return { ...exercise, muscleGroup: value };
+          if (field === "equipment") return { ...exercise, equipment: value };
+          if (field === "equipmentPosition") return { ...exercise, equipmentPosition: value };
           if (field === "restSec") return { ...exercise, restSec: Number(value) as 180 | 240 };
           const component = exercise.sets[0]?.component;
           return {
@@ -136,6 +139,9 @@ export default function SettingsPage() {
         const first = exercise.sets[0];
         return <article className="settingExercise" key={exercise.id}>
           <label>Название<input value={exercise.name} onChange={(event) => editExercise(exercise.id, "name", event.target.value)} /></label>
+          <label>Группа мышц<input value={exercise.muscleGroup ?? ""} placeholder="Например, грудь" onChange={(event) => editExercise(exercise.id, "muscleGroup", event.target.value)} /></label>
+          <label>Оборудование<input value={exercise.equipment ?? ""} placeholder="Например, тренажёр" onChange={(event) => editExercise(exercise.id, "equipment", event.target.value)} /></label>
+          <label>Положение оборудования<input value={exercise.equipmentPosition ?? ""} placeholder="Необязательно" onChange={(event) => editExercise(exercise.id, "equipmentPosition", event.target.value)} /></label>
           <label>Вес<input type="number" min="0" step="0.5" value={first?.weightKg ?? ""} onChange={(event) => editExercise(exercise.id, "weightKg", event.target.value)} /></label>
           <label>Режим<select value={first?.weightMode ?? ""} onChange={(event) => editExercise(exercise.id, "weightMode", event.target.value)}><option value="">Уточнить</option><option value="total">Общий вес</option><option value="per-hand">На сторону / гантель</option></select></label>
           <label>Повторы<input type="number" min="1" max="100" value={first?.reps ?? ""} onChange={(event) => editExercise(exercise.id, "reps", event.target.value)} /></label>

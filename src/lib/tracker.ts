@@ -20,6 +20,9 @@ export type Exercise = {
   id: string;
   name: string;
   settings?: string;
+  muscleGroup?: string;
+  equipment?: string;
+  equipmentPosition?: string;
   category?: ExerciseCategory;
   restSec?: 180 | 240;
   weightFactor?: number;

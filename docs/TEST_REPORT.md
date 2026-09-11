@@ -91,8 +91,8 @@
 
 ## Не проверено и не объявляется готовым
 
-- Реальная отправка production job в Telegram — **НЕ ПРОВЕРЕНО**: owner-only кнопка готова, но pending job намеренно не создавался, чтобы не отправлять пользователю искусственное тестовое сообщение.
-- Реальные callback update и `answerCallbackQuery` в Telegram — **НЕ ПРОВЕРЕНО**: production job с кнопками намеренно не создавался.
+- Реальная отправка production diagnostic job в Telegram — **ПРОВЕРЕНО**: по явному подтверждению владельца создана одна job; Supabase notification_jobs завершила её как sent, одна попытка, last_error=null.
+- Реальные callback update и answerCallbackQuery в Telegram — **ОЖИДАЕТ НАЖАТИЯ**: отправленное сообщение содержит +30 сек и Пропустить, но callback ещё не поступил в telegram_updates.
 - Production `+30` с заменой dueAt и production cancel — **НЕ ПРОВЕРЕНО**.
 - `pg_cron`, `pg_net` и `supabase_vault` включены; job `ritm-telegram-worker-every-10-seconds` активен. После последнего redeploy вызовы worker получили HTTP `200` и `processed: 0`; активная Telegram-привязка существует, pending jobs нет.
 - Два устройства/два аккаунта и полноценное conflict resolution — **НЕ ПРОВЕРЕНО**.

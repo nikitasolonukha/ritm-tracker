@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `pending` (после проверки изоляции legacy storage).
+Проверяемый кодовый commit: `2167d63` (`fix: isolate legacy local storage by account`).
 
 ## Закрыто в этом проходе
 

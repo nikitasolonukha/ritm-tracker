@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `9325476` (`test: cover Telegram rest callback parsing`).
+Проверяемый кодовый commit: `46e81fd` (`fix: fail closed when Telegram bot token is missing`).
 
 ## Закрыто в этом проходе
 

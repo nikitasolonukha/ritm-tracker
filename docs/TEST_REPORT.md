@@ -2,7 +2,7 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `67e39a3` (`fix: persist invalid telegram callbacks`).
+Кодовый commit: `b5ec85e` (`feat: configure private exercise equipment`).
 
 ## Локально проверено
 
@@ -32,6 +32,7 @@
 - В Supabase структурно подтверждены composite FK `workout_sets(session_id,user_id) -> workout_sessions(id,user_id)` и права служебных RPC: claim/finish/diagnostic доступны только `service_role`, пользовательские workout RPC доступны `authenticated`, `anon` закрыт.
 - Demo-режим middleware дополнительно требует явный флаг и отключён при `VERCEL=1`; production-конфигурация не может случайно открыть приватные маршруты через demo-флаг.
 - Invalid Telegram callback сохраняет update даже при сетевой ошибке `answerCallbackQuery`; обработчик возвращает контролируемый `202` вместо необработанного исключения.
+- Настройки упражнения теперь имеют приватные поля группы мышц, оборудования и положения оборудования; template preview показывает их перед стартом.
 - User-scoped storage больше не подхватывает глобальную legacy-запись автоматически; добавлен регрессионный тест. Старые данные сохраняются и предлагаются для явного переноса в авторизованных настройках.
 
 ## Production и Telegram
@@ -50,6 +51,7 @@
 - После `dpl_mtPbaSRWRUc5KWfeqqXubJo5NkdR` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
 - После `dpl_7iP34k4R5oBLvyyVfZBStUxVNuaT` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
 - После `dpl_HXZoFXx1cZErs52DFmpyCZSxQNcx` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
+- После `dpl_EnMnX1c3wCVJCUxuwZwN1cCKDKNn` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
 - Повторная генерация link проверена кодовым путём: подтверждённое `telegram_user_id/connected_at` сохраняется до нового `/start`, а consumed token больше не принимается повторно.
 - Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.
 - Supabase project `wlaojddckdebbeqafbbg`: миграции `persistent_telegram_links` и `workout_timer_commands` применены; timer RPC доступен `authenticated`, недоступен `anon`, прямые INSERT в служебные `commands` и `notification_jobs` для `authenticated` запрещены.

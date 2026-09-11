@@ -50,7 +50,16 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
   }, [reps, repsTouched]);
   useEffect(() => {
     if (!weightEditorOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setWeightEditorOpen(false); };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { setWeightEditorOpen(false); return; }
+      if (event.key !== "Tab" || !weightDialogRef.current) return;
+      const focusable = Array.from(weightDialogRef.current.querySelectorAll<HTMLElement>("button, input, [tabindex]:not([tabindex='-1'])")).filter((item) => !item.hasAttribute("disabled"));
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
     window.addEventListener("keydown", closeOnEscape);
     window.setTimeout(() => weightDialogRef.current?.querySelector<HTMLInputElement>("input")?.focus(), 0);
     return () => { window.removeEventListener("keydown", closeOnEscape); };

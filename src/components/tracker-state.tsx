@@ -8,6 +8,25 @@ import { stableStringify } from "@/lib/tracker";
 type TrackerStore = { state: TrackerState | null; update: (mutator: (state: TrackerState) => TrackerState) => boolean; userId?: string; storageError?: string };
 const TrackerContext = createContext<TrackerStore | null>(null);
 
+async function fetchWithRetry(input: RequestInfo | URL, init: RequestInit = {}, attempts = 3): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8000);
+    try {
+      const response = await fetch(input, { ...init, signal: controller.signal });
+      window.clearTimeout(timeout);
+      if (response.status >= 500 && attempt + 1 < attempts) { await new Promise((resolve) => window.setTimeout(resolve, 400 * (attempt + 1))); continue; }
+      return response;
+    } catch (error) {
+      window.clearTimeout(timeout);
+      lastError = error;
+      if (attempt + 1 < attempts) await new Promise((resolve) => window.setTimeout(resolve, 400 * (attempt + 1)));
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("network request failed");
+}
+
 function useTrackerStateInternal(): TrackerStore {
   const [state, setState] = useState<TrackerState | null>(null);
   const [userId, setUserId] = useState<string>();
@@ -51,15 +70,16 @@ function useTrackerStateInternal(): TrackerStore {
       setState(local.state);
       if (data.user && isSupabaseConfigured) {
         const actionSeqAtFetch = actionSeqRef.current;
-        void fetch("/api/sync", { cache: "no-store" }).then(async (response) => {
+        void fetchWithRetry("/api/sync", { cache: "no-store" }).then(async (response) => {
           if (!response.ok) throw new Error("sync read failed");
           const remote = await response.json() as { payload?: TrackerState | null; version?: number };
-          if (actionSeqRef.current !== actionSeqAtFetch) return;
           if (local.status === "empty" && remote.payload) {
             const saved = writeState(remote.payload, data.user.id);
-            if (saved.ok) { revisionRef.current = remote.version ?? 0; stateRef.current = remote.payload; setState(remote.payload); }
+            if (saved.ok && actionSeqRef.current === actionSeqAtFetch) { revisionRef.current = remote.version ?? 0; stateRef.current = remote.payload; setState(remote.payload); }
+            else if (stableStringify(remote.payload) === stableStringify(stateRef.current)) revisionRef.current = remote.version ?? 0;
+            else { syncBlockedRef.current = true; setStorageError("Есть изменения на другом устройстве. Локальная копия сохранена до сверки."); }
           } else if (remote.payload) {
-            const same = stableStringify(remote.payload) === stableStringify(local.state);
+            const same = stableStringify(remote.payload) === stableStringify(stateRef.current);
             if (same) revisionRef.current = remote.version ?? 0;
             else {
               syncBlockedRef.current = true;
@@ -88,23 +108,35 @@ function useTrackerStateInternal(): TrackerStore {
       try { payload = JSON.parse(stableStringify(next)) as TrackerState; }
       catch { setStorageError("Локально сохранено, но данные не удалось подготовить к синхронизации"); return true; }
       syncQueue.current = syncQueue.current.then(async () => {
-        if (syncBlockedRef.current || revisionRef.current == null) return;
-        const response = await fetch("/api/sync", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ payload, expectedRevision: revisionRef.current }) });
+        if (syncBlockedRef.current) return;
+        if (revisionRef.current == null) {
+          const syncRead = await fetchWithRetry("/api/sync", { cache: "no-store" });
+          if (!syncRead.ok) throw new Error("sync read failed");
+          const remote = await syncRead.json() as { payload?: TrackerState | null; version?: number };
+          if (remote.payload && stableStringify(remote.payload) !== stableStringify(stateRef.current)) {
+            syncBlockedRef.current = true;
+            setStorageError("Есть изменения на другом устройстве. Локальная копия сохранена до сверки.");
+            return;
+          }
+          revisionRef.current = remote.version ?? 0;
+        }
+        const expectedRevision = revisionRef.current;
+        const response = await fetchWithRetry("/api/sync", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ payload, expectedRevision }) });
         if (response.status === 409) { syncBlockedRef.current = true; setStorageError("Есть конфликт на другом устройстве. Локальная копия сохранена."); return; }
         if (!response.ok) throw new Error("sync write failed");
         const saved = await response.json() as { revision?: number };
-        revisionRef.current = saved.revision ?? revisionRef.current + 1;
+        revisionRef.current = saved.revision ?? expectedRevision + 1;
         const pending = next.outbox.filter((item) => item.type === "workout.set.completed" && item.status === "pending" && !sentOutboxRef.current.has(item.id));
         for (const item of pending) {
           const details = item.payload as { dueAt?: string; expiresAt?: string; message?: string; sessionId?: string } | undefined;
           if (!details?.dueAt || !details.expiresAt) continue;
-          const commandResponse = await fetch("/api/workout/command", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ commandKey: item.id, sourceEntityId: item.entityId, payload: { ...details, itemId: item.id }, sourceVersion: item.version ?? 1, dueAt: details.dueAt, expiresAt: details.expiresAt, message: details.message ?? "Ритм: отдых завершен. Открой тренировку для следующего подхода." }) });
+          const commandResponse = await fetchWithRetry("/api/workout/command", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ commandKey: item.id, sourceEntityId: item.entityId, payload: { ...details, itemId: item.id }, sourceVersion: item.version ?? 1, dueAt: details.dueAt, expiresAt: details.expiresAt, message: details.message ?? "Ритм: отдых завершен. Открой тренировку для следующего подхода." }) });
           if (!commandResponse.ok) throw new Error("workout command failed");
           sentOutboxRef.current.add(item.id);
         }
       }).catch(() => setStorageError("Нет связи с сервером; изменение осталось локально"));
     }
-    setStorageError(undefined);
+    if (!syncBlockedRef.current) setStorageError(undefined);
     return true;
   }
   return { state, update, userId, storageError };

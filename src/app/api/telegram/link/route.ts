@@ -23,16 +23,12 @@ export async function POST() {
   const rawToken = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
   const admin = createAdminClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
-  const { error } = await admin.from("telegram_links").upsert({
-    user_id: user.id,
-    token_hash: hashTelegramLinkToken(rawToken),
-    expires_at: expiresAt,
-    token_expires_at: expiresAt,
-    telegram_user_id: null,
-    confirmed_at: null,
-    connected_at: null,
-    revoked_at: null,
-  }, { onConflict: "user_id" });
+  const tokenFields = { token_hash: hashTelegramLinkToken(rawToken), expires_at: expiresAt, token_expires_at: expiresAt };
+  const { data: existing, error: lookupError } = await admin.from("telegram_links").select("user_id").eq("user_id", user.id).maybeSingle();
+  if (lookupError) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+  const { error } = existing
+    ? await admin.from("telegram_links").update(tokenFields).eq("user_id", user.id)
+    : await admin.from("telegram_links").insert({ user_id: user.id, ...tokenFields, telegram_user_id: null, confirmed_at: null, connected_at: null, revoked_at: null });
   if (error) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
 
   return NextResponse.json({ link: `https://t.me/${me.result.username}?start=${rawToken}`, expiresAt });

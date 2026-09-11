@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { hashTelegramLinkToken, parseTelegramRestCallback, validateTelegramUpdate, verifyTelegramSecret, type TelegramUpdate } from "@/lib/telegram";
@@ -83,7 +84,6 @@ export async function POST(request: NextRequest) {
         .select("user_id")
         .eq("token_hash", hashTelegramLinkToken(rawToken))
         .gt("token_expires_at", new Date().toISOString())
-        .is("confirmed_at", null)
         .maybeSingle();
       if (linkLookupError) {
         await finishUpdate("failed", "telegram link lookup unavailable");
@@ -91,10 +91,20 @@ export async function POST(request: NextRequest) {
       }
       if (link) {
         const connectedAt = new Date().toISOString();
-        const { error: linkUpdateError } = await admin.from("telegram_links").update({ telegram_user_id: telegramUpdate.message.chat.id, confirmed_at: connectedAt, connected_at: connectedAt, revoked_at: null }).eq("user_id", link.user_id).eq("token_hash", hashTelegramLinkToken(rawToken));
+        const tokenHash = hashTelegramLinkToken(rawToken);
+        const { data: linkedRow, error: linkUpdateError } = await admin.from("telegram_links")
+          .update({ token_hash: hashTelegramLinkToken(randomUUID()), expires_at: connectedAt, token_expires_at: connectedAt, telegram_user_id: telegramUpdate.message.chat.id, confirmed_at: connectedAt, connected_at: connectedAt, revoked_at: null })
+          .eq("user_id", link.user_id)
+          .eq("token_hash", tokenHash)
+          .select("user_id")
+          .maybeSingle();
         if (linkUpdateError) {
           await finishUpdate("failed", "telegram link update unavailable");
           return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+        }
+        if (!linkedRow) {
+          if (!await finishUpdate("processed")) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+          return NextResponse.json({ accepted: true, updateId: telegramUpdate.update_id, duplicate: true });
         }
         try {
           await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {

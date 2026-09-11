@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `46e81fd` (`fix: fail closed when Telegram bot token is missing`).
+Проверяемый кодовый commit: `ee550ec` (`feat: add private observations and export`).
 
 ## Закрыто в этом проходе
 
@@ -28,4 +28,4 @@
 - Outbox acknowledgement теперь сохраняется отдельным user-scoped durable индексом; сетевой сбой не записывается как успех, а повтор использует стабильный command key. Явный UI для `sending/failed` остаётся отдельной задачей.
 - Два устройства, два аккаунта и реальная job -> Telegram отправка с pending job остаются непроверенными; scheduler transport уже подтверждён. UI разрешения revision-конфликта написан, но two-device acceptance ещё не запускался.
 - Автоматический fallback user-scoped storage на глобальную legacy-запись удалён; явный перенос старых данных доступен из авторизованных настроек.
-- Полный SPEC по сну, фото, экспорту, check-in, postpone/skip и аналитике остаётся незавершенным.
+- Полный SPEC по приватным фото, check-in/postpone и расширенной аналитике остаётся незавершенным; базовая дневная отметка, сон и JSON-экспорт реализованы.

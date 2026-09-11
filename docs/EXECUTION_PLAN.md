@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `c254b64` (`fix: sync explicit legacy imports`).
+Проверяемый кодовый commit: `fe7027b` (`fix: use token expiry for Telegram links`).
 
 ## Закрыто в этом проходе
 

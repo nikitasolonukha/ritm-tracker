@@ -2,7 +2,7 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `c254b64` (`fix: sync explicit legacy imports`).
+Кодовый commit: `fe7027b` (`fix: use token expiry for Telegram links`).
 
 ## Локально проверено
 
@@ -19,19 +19,20 @@
 ## Production и Telegram
 
 - Production URL: `https://ritm-tracker.vercel.app/`.
-- Текущий подтвержденный production deployment: `dpl_HKsm7tNt4MQzArvYVoBfJWXWNZEx` (READY), alias `https://ritm-tracker.vercel.app/`.
+- Текущий подтвержденный production deployment: `dpl_9v4wq8Ne1ZyjT7v8q1J4iGX5uurh` (READY), alias `https://ritm-tracker.vercel.app/`.
 - Production smoke после deployment: `/` -> `200` с оболочкой входа, `/manifest.webmanifest` -> `200`, `/sw.js` -> `200`, webhook GET -> `405` (маршрут доступен и принимает только POST).
 - Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.
 - Supabase project `wlaojddckdebbeqafbbg`: миграции `persistent_telegram_links` и `workout_timer_commands` применены; timer RPC доступен `authenticated`, недоступен `anon`, прямые INSERT в служебные `commands` и `notification_jobs` для `authenticated` запрещены.
 - Telegram `getMe` подтверждает `@solonflowai_treker_bot`.
 - `getWebhookInfo`: webhook установлен на production, `pending_update_count=0`, `last_error=null`.
 - Реальная привязка Telegram проверена по сообщению пользователя: deep-link `/start <token>` получил ответ «Telegram подключен к Ритму.»
+- Повторная генерация ссылки теперь обновляет `token_expires_at`; webhook проверяет срок токена, а не срок постоянного подключения.
 
 ## Не проверено и не объявляется готовым
 
 - Реальная отправка production job в Telegram — **НЕ ПРОВЕРЕНО**: pending job не создавался, чтобы не отправлять пользователю искусственное тестовое сообщение.
 - Production `+30` с заменой dueAt и production cancel — **НЕ ПРОВЕРЕНО**.
-- `pg_cron`, `pg_net` и `supabase_vault` включены; job `ritm-telegram-worker-every-10-seconds` активен. После redeploy последние вызовы worker получили HTTP `200` и `processed: 0`; активная Telegram-привязка существует, pending jobs нет.
+- `pg_cron`, `pg_net` и `supabase_vault` включены; job `ritm-telegram-worker-every-10-seconds` активен. После последнего redeploy вызовы worker получили HTTP `200` и `processed: 0`; активная Telegram-привязка существует, pending jobs нет.
 - Два устройства/два аккаунта и полноценное conflict resolution — **НЕ ПРОВЕРЕНО**.
 - Явный перенос legacy storage реализован, но на production не подтверждался на реальном аккаунте, чтобы не менять личный журнал.
 - Chromium Playwright остаётся ограничен Windows `spawn EPERM`; WebKit smoke пройден отдельно.

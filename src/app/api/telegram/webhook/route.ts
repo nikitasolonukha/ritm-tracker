@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     const chatId = callback.message?.chat?.id;
     const parsed = parseTelegramRestCallback(callback.data);
     if (!telegramUserId || (chatId != null && chatId !== telegramUserId) || !parsed) {
-      const acknowledged = await answerCallbackQuery(botToken, callback.id, "Действие устарело");
+      const acknowledged = await answerCallbackQuery(botToken, callback.id, "Действие устарело").catch(() => false);
       if (!await finishUpdate("processed")) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
       return NextResponse.json({ accepted: true, updateId: telegramUpdate.update_id, callback: "invalid", acknowledgement: acknowledged ? "sent" : "unknown" }, { status: acknowledged ? 200 : 202 });
     }

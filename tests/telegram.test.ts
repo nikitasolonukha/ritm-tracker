@@ -44,3 +44,9 @@ test("permanent Telegram delivery failures mark the connection instead of retryi
   assert.match(worker, /delivery_status: "error"/);
   assert.match(worker, /nextStatus = permanent \? "cancelled"/);
 });
+
+test("invalid Telegram callbacks keep their update durable when acknowledgement is unavailable", () => {
+  const webhook = fs.readFileSync(new URL("../src/app/api/telegram/webhook/route.ts", import.meta.url), "utf8");
+  assert.match(webhook, /answerCallbackQuery\(botToken, callback\.id, "Действие устарело"\)\.catch\(\(\) => false\)/);
+  assert.match(webhook, /finishUpdate\("processed"\)/);
+});

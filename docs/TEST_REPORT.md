@@ -2,11 +2,11 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `12ceae9` (`fix: harden function search paths`).
+Кодовый commit: `c213e55` (`fix: keep starter workout out of history`).
 
 ## Локально проверено
 
-- Основной Node test suite: **46 passed, 0 failed**.
+- Основной Node test suite: **47 passed, 0 failed**.
 - ESLint и TypeScript: passed.
 - `next build`: passed; в сборке присутствуют middleware и `/api/workout/timer`.
 - WebKit smoke на production build: anonymous `/` -> `/login?reason=not-configured`, webhook/worker без секрета `401`, manifest и service worker `200`.
@@ -19,7 +19,7 @@
 ## Production и Telegram
 
 - Production URL: `https://ritm-tracker.vercel.app/`.
-- Текущий подтвержденный production deployment: `dpl_GBRK8CMxpWBHgZ6M8nQ47F1R2k6i` (READY), alias `https://ritm-tracker.vercel.app/`.
+- Текущий подтвержденный production deployment: `dpl_C1GrjaHTj4eykgY29PNih5mG1187` (READY), alias `https://ritm-tracker.vercel.app/`.
 - Production smoke после deployment: `/` -> `200` с оболочкой входа, `/manifest.webmanifest` -> `200`, `/sw.js` -> `200`, webhook GET -> `405` (маршрут доступен и принимает только POST).
 - Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.
 - Supabase project `wlaojddckdebbeqafbbg`: миграции `persistent_telegram_links` и `workout_timer_commands` применены; timer RPC доступен `authenticated`, недоступен `anon`, прямые INSERT в служебные `commands` и `notification_jobs` для `authenticated` запрещены.
@@ -36,6 +36,7 @@
 - При обнаружении revision-конфликта UI предлагает оставить локальную или серверную копию; обе версии сначала сохраняются в user-scoped резервные записи, а выбор локальной копии выполняет повторный owner-scoped PUT с актуальной revision. Фактический сценарий на двух устройствах пока не запускался.
 - Раздел прогресса сохраняет приватные дневные наблюдения (сон, энергия, самочувствие, заметка) и поддерживает JSON-экспорт user-scoped состояния.
 - Раздел прогресса также поддерживает user-scoped галерею фото до 5 МБ на файл с удалением и включением в JSON-экспорт; это приватное состояние приложения, не отдельное Supabase Storage.
+- Новый аккаунт получает только шаблон программы: фактическая тренировка появляется в истории после явного старта сессии; добавлен регрессионный тест этого разделения.
 
 ## Не проверено и не объявляется готовым
 

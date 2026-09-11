@@ -27,8 +27,11 @@ export async function POST() {
     user_id: user.id,
     token_hash: hashTelegramLinkToken(rawToken),
     expires_at: expiresAt,
+    token_expires_at: expiresAt,
     telegram_user_id: null,
     confirmed_at: null,
+    connected_at: null,
+    revoked_at: null,
   }, { onConflict: "user_id" });
   if (error) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
 

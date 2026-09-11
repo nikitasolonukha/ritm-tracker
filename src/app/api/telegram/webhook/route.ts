@@ -39,11 +39,12 @@ export async function POST(request: NextRequest) {
       const { data: link } = await admin.from("telegram_links")
         .select("user_id")
         .eq("token_hash", hashTelegramLinkToken(rawToken))
-        .gt("expires_at", new Date().toISOString())
+        .gt("token_expires_at", new Date().toISOString())
         .is("confirmed_at", null)
         .maybeSingle();
       if (link) {
-        await admin.from("telegram_links").update({ telegram_user_id: update.message.chat.id, confirmed_at: new Date().toISOString() }).eq("user_id", link.user_id);
+        const connectedAt = new Date().toISOString();
+        await admin.from("telegram_links").update({ telegram_user_id: update.message.chat.id, confirmed_at: connectedAt, connected_at: connectedAt, revoked_at: null }).eq("user_id", link.user_id).eq("token_hash", hashTelegramLinkToken(rawToken));
         await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
           method: "POST",
           headers: { "content-type": "application/json" },

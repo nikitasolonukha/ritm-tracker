@@ -6,6 +6,7 @@ export const runtime = "nodejs";
 
 type ClaimedJob = {
   id: string;
+  user_id: string;
   telegram_user_id: number;
   source_entity_id: string;
   source_version: number;
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
 
   const jobs = (data ?? []) as ClaimedJob[];
   const results: Array<{ id: string; status: string }> = [];
-  async function finish(job: ClaimedJob, status: "sent" | "failed" | "unknown", error?: string, nextAttemptAt?: string | null) {
+  async function finish(job: ClaimedJob, status: "sent" | "failed" | "unknown" | "cancelled", error?: string, nextAttemptAt?: string | null) {
     const result = await admin.rpc("finish_notification_job", {
       p_job_id: job.id,
       p_lease_token: job.lease_token,
@@ -40,6 +41,13 @@ export async function POST(request: NextRequest) {
     });
     if (result.error) return "queue_unavailable" as const;
     return result.data === true ? status : "lease_lost";
+  }
+  async function markDeliveryError(job: ClaimedJob, error: string) {
+    return admin.from("telegram_links").update({
+      delivery_status: "error",
+      last_delivery_error: error.slice(0, 1000),
+      last_delivery_error_at: new Date().toISOString(),
+    }).eq("user_id", job.user_id);
   }
   for (const job of jobs) {
     let response: Response;
@@ -74,7 +82,9 @@ export async function POST(request: NextRequest) {
 
     const retryAfter = payload.parameters?.retry_after;
     const nextAttemptAt = retryAfter ? new Date(Date.now() + retryAfter * 1000).toISOString() : null;
-    const nextStatus = job.attempts >= 3 ? "unknown" : "failed";
+    const permanent = response.status === 400 || response.status === 403;
+    if (permanent) await markDeliveryError(job, payload.description ?? `telegram_http_${response.status}`);
+    const nextStatus = permanent ? "cancelled" : job.attempts >= 3 ? "unknown" : "failed";
     const status = await finish(job, nextStatus, payload.description ?? `telegram_http_${response.status}`, nextAttemptAt);
     if (status === "queue_unavailable") return NextResponse.json({ error: "queue_unavailable" }, { status: 503 });
     results.push({ id: job.id, status });

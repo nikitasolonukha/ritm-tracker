@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
         const connectedAt = new Date().toISOString();
         const tokenHash = hashTelegramLinkToken(rawToken);
         const { data: linkedRow, error: linkUpdateError } = await admin.from("telegram_links")
-          .update({ token_hash: hashTelegramLinkToken(randomUUID()), expires_at: connectedAt, token_expires_at: connectedAt, telegram_user_id: telegramUpdate.message.chat.id, confirmed_at: connectedAt, connected_at: connectedAt, revoked_at: null })
+          .update({ token_hash: hashTelegramLinkToken(randomUUID()), expires_at: connectedAt, token_expires_at: connectedAt, telegram_user_id: telegramUpdate.message.chat.id, confirmed_at: connectedAt, connected_at: connectedAt, revoked_at: null, delivery_status: "connected", last_delivery_error: null, last_delivery_error_at: null })
           .eq("user_id", link.user_id)
           .eq("token_hash", tokenHash)
           .select("user_id")

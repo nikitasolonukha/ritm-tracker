@@ -12,7 +12,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const { data, error } = await supabase.from("telegram_links")
-    .select("telegram_user_id, confirmed_at, connected_at, revoked_at, token_expires_at")
+    .select("telegram_user_id, confirmed_at, connected_at, revoked_at, token_expires_at, delivery_status, last_delivery_error")
     .eq("user_id", user.id)
     .maybeSingle();
   if (error) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
@@ -20,9 +20,10 @@ export async function GET() {
   const connected = Boolean(data?.telegram_user_id && data.confirmed_at && !data.revoked_at);
   const pending = Boolean(!connected && data?.token_expires_at && new Date(data.token_expires_at).getTime() > Date.now());
   return NextResponse.json({
-    status: connected ? "connected" : pending ? "pending" : data ? "expired" : "disconnected",
+    status: connected ? (data?.delivery_status === "error" ? "error" : "connected") : pending ? "pending" : data ? "expired" : "disconnected",
     connectedAt: data?.connected_at ?? null,
     tokenExpiresAt: data?.token_expires_at ?? null,
+    lastError: connected && data?.delivery_status === "error" ? data.last_delivery_error : null,
   });
 }
 

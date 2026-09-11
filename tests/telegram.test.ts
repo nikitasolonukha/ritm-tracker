@@ -34,3 +34,13 @@ test("Telegram delivery SQL fences stale workers and resumes failed updates", ()
   assert.match(migration, /claim_telegram_update/);
   assert.match(migration, /status in \('received', 'processing', 'processed', 'failed'\)/);
 });
+
+test("permanent Telegram delivery failures mark the connection instead of retrying forever", () => {
+  const migration = fs.readFileSync(new URL("../supabase/migrations/20260911140000_telegram_link_delivery_status.sql", import.meta.url), "utf8");
+  const worker = fs.readFileSync(new URL("../src/app/api/telegram/worker/route.ts", import.meta.url), "utf8");
+  assert.match(migration, /delivery_status text not null default 'connected'/);
+  assert.match(migration, /telegram_links_delivery_status_check/);
+  assert.match(worker, /response\.status === 400 \|\| response\.status === 403/);
+  assert.match(worker, /delivery_status: "error"/);
+  assert.match(worker, /nextStatus = permanent \? "cancelled"/);
+});

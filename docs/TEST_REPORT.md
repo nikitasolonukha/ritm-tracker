@@ -2,7 +2,7 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `29a6f6c` (`feat: add workout set editing controls`).
+Кодовый commit: `8d0288d` (`feat: edit completed workout history`).
 
 ## Локально проверено
 
@@ -37,6 +37,7 @@
 - Active workout показывает составные плечи как `Подход 1 из 2` и `Подход 2 из 2`; E2E smoke дошёл до итогового экрана и сохранил снимки, но Windows runner зависает при остановке локального Next server.
 - Настройки поддерживают добавление/удаление логического подхода; для составных упражнений изменение атомарно добавляет или удаляет пару сегментов.
 - User-scoped storage больше не подхватывает глобальную legacy-запись автоматически; добавлен регрессионный тест. Старые данные сохраняются и предлагаются для явного переноса в авторизованных настройках.
+- История завершённой тренировки позволяет изменить фактические вес и повторения отдельного подхода; значения валидируются и сохраняются user-scoped командой без изменения шаблона будущих занятий.
 
 ## Production и Telegram
 
@@ -58,7 +59,8 @@
 - После `dpl_24teXCJiswwEk1jQXLeK8MWCUgHs` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
 - После `dpl_C2st8r7VyWipAj8nBm6gZUjrirW5` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
 - После `dpl_9uebkQGbVjWNdyKwhqAhbUU4bmtt` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
-- GitHub Actions CI для commit `29a6f6c` (run `34617725466`) завершился успешно.
+- После `dpl_4QRjjZpq3MnhWpsCVgUp769mgu4n` проверены `/login` и `/sw.js`: `200`; Vercel runtime errors и error-level logs за 30 минут: отсутствуют.
+- GitHub Actions CI для commit `8d0288d` (run `34618337577`) завершился успешно.
 - GitHub Actions CI для commit `fec3a27` (run `34617068037`) завершился успешно.
 - GitHub Actions CI для commit `bc409ca` (run `34616241105`) завершился успешно.
 - Повторная генерация link проверена кодовым путём: подтверждённое `telegram_user_id/connected_at` сохраняется до нового `/start`, а consumed token больше не принимается повторно.

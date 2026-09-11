@@ -61,10 +61,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ accepted: true, updateId: telegramUpdate.update_id, callback: "invalid", acknowledgement: acknowledged ? "sent" : "unknown" }, { status: acknowledged ? 200 : 202 });
     }
     const { action, sourceEntityId, sourceVersion } = parsed;
+    const { data: callbackJob, error: callbackJobError } = await admin.from("notification_jobs")
+      .select("source_entity_id, source_version, user_id")
+      .eq("id", sourceEntityId)
+      .eq("source_version", sourceVersion)
+      .maybeSingle();
+    if (callbackJobError || !callbackJob || callbackJob.source_version !== sourceVersion) {
+      const acknowledged = await answerCallbackQuery(botToken, callback.id, "Действие устарело").catch(() => false);
+      if (!await finishUpdate("processed")) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+      return NextResponse.json({ accepted: true, updateId: telegramUpdate.update_id, callback: "invalid", acknowledgement: acknowledged ? "sent" : "unknown" }, { status: acknowledged ? 200 : 202 });
+    }
     const { data: command, error: commandError } = await admin.rpc("accept_telegram_timer_command", {
       p_telegram_user_id: telegramUserId,
       p_command_key: `telegram-callback-${telegramUpdate.update_id}`,
-      p_entity_id: sourceEntityId,
+      p_entity_id: callbackJob.source_entity_id,
       p_payload: { source: "telegram", callbackId: callback.id, action },
       p_source_version: sourceVersion,
       p_action: action,

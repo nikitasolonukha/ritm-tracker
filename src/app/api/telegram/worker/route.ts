@@ -60,8 +60,8 @@ export async function POST(request: NextRequest) {
           text: job.message,
           reply_markup: {
             inline_keyboard: [[
-              { text: "+30 сек", callback_data: `rest_add30:${job.source_entity_id}:${job.source_version}` },
-              { text: "Пропустить", callback_data: `rest_skip:${job.source_entity_id}:${job.source_version}` },
+              { text: "+30 сек", callback_data: `rest_add30:${job.id}:${job.source_version}` },
+              { text: "Пропустить", callback_data: `rest_skip:${job.id}:${job.source_version}` },
             ]],
           },
         }),

@@ -66,11 +66,17 @@ export default function SettingsPage() {
     return { ...next, workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id === template.id ? { ...item, title: title || item.title } : item) };
   });
 
+  const editHabit = (habitId: string, field: "title" | "schedule" | "privateTitle", value: string) => update((previous) => ({
+    ...previous,
+    habits: previous.habits.map((habit) => habit.id !== habitId ? habit : { ...habit, [field]: value }),
+  }));
+
   return <main className="shell appPage">
     <Link className="backLink" href="/today"><ArrowLeft size={18} /> Сегодня</Link>
     <header className="pageHeader"><div><p className="eyebrow">Аккаунт</p><h1>Настройки</h1></div></header>
     {storageError && <p className="storageMessage" role="alert">{storageError}</p>}
     {legacyState && <section className="panel migrationNotice"><p className="eyebrow">Старые данные</p><h2>Найдена локальная история</h2><p>Она хранится отдельно и не открывается автоматически другому аккаунту. Перенести её в этот аккаунт?</p><button className="primary" onClick={importLegacy}>Перенести историю</button></section>}
+    <section className="panel settingsEditor"><div className="sectionHeading"><div><p className="eyebrow">Приватно</p><h2>Ритм дня</h2></div><span className="muted">Названия и расписание</span></div><div className="settingsList">{state.habits.map((habit) => <article className="settingRow habitSettingRow" key={habit.id}><label>Действие<input value={habit.title} onChange={(event) => editHabit(habit.id, "title", event.target.value)} /></label><label>Когда<input value={habit.schedule} placeholder="Например, после завтрака" onChange={(event) => editHabit(habit.id, "schedule", event.target.value)} /></label><label>Название владельца<input value={habit.privateTitle ?? ""} placeholder="Необязательно" onChange={(event) => editHabit(habit.id, "privateTitle", event.target.value)} /></label></article>)}</div></section>
     <section className="panel settingsEditor">
       <label>Название программы<input value={title || template.title} onChange={(event) => setTitle(event.target.value)} /></label>
       <button className="primary" onClick={saveTitle}><Save size={18} /> Сохранить программу</button>

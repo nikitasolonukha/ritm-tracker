@@ -236,6 +236,10 @@ select {
   gap: 10px;
 }
 
+.habitSettingRow {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .settingExercise {
   grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
@@ -245,6 +249,7 @@ select {
 
 @media (max-width: 760px) {
   .settingRow,
+  .habitSettingRow,
   .settingExercise {
     grid-template-columns: 1fr;
   }

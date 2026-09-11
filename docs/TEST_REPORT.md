@@ -18,19 +18,21 @@
 - Production URL: `https://ritm-tracker.vercel.app/`.
 - Текущий подтвержденный production deployment: `dpl_9RygqE7s1Bz6u5MhLmp4kHkmVhun` (READY), alias `https://ritm-tracker.vercel.app/`.
 - Production smoke после deployment: `/` -> `200` с оболочкой входа, `/manifest.webmanifest` -> `200`, `/sw.js` -> `200`, webhook GET -> `405` (маршрут доступен и принимает только POST).
+- Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.
+- Supabase project `wlaojddckdebbeqafbbg`: миграции `persistent_telegram_links` и `workout_timer_commands` применены; timer RPC доступен `authenticated`, недоступен `anon`, прямые INSERT в служебные `commands` и `notification_jobs` для `authenticated` запрещены.
 - Telegram `getMe` подтверждает `@solonflowai_treker_bot`.
 - `getWebhookInfo`: webhook установлен на production, `pending_update_count=0`, `last_error=null`.
 - Реальная привязка Telegram проверена по сообщению пользователя: deep-link `/start <token>` получил ответ «Telegram подключен к Ритму.»
 
 ## Не проверено и не объявляется готовым
 
-- Новые migrations `20260911100000_persistent_telegram_links.sql` и `20260911101000_workout_timer_commands.sql` не применены к Supabase production: нет безопасно доступного project ref/CLI credentials.
 - Production job через `notification_jobs -> scheduler -> worker -> Telegram` на 60 секунд — **НЕ ПРОВЕРЕНО**.
 - Production `+30` с заменой dueAt и production cancel — **НЕ ПРОВЕРЕНО**.
 - pg_cron/pg_net/Vault scheduler — **НЕ ПРОВЕРЕНО**.
 - Два устройства/два аккаунта и полноценное conflict resolution — **НЕ ПРОВЕРЕНО**.
 - Chromium Playwright остаётся ограничен Windows `spawn EPERM`; WebKit smoke пройден отдельно.
 - Полный iPhone offline/background/lock-screen сценарий — **НЕ ПРОВЕРЕНО**.
+- RLS для посторонней таблицы `public.RAGformyAIagent` не менялся; её назначение и корректные политики не подтверждены.
 
 ## Ограничения теста
 

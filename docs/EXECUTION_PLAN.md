@@ -21,7 +21,8 @@
 
 ## Открытые блокеры
 
-- Новые Supabase migrations не применены автоматически: нет доступного Supabase CLI/project ref или server credentials.
+- Миграции `persistent_telegram_links` и `workout_timer_commands` применены в Supabase project `wlaojddckdebbeqafbbg`; наличие RPC, права `authenticated` и запрет `anon` проверены SQL-запросом.
+- В Supabase остаётся отдельная посторонняя таблица `public.RAGformyAIagent` без RLS; автоматически включать RLS нельзя без понимания её владельца и политик.
 - Реальный pg_cron/pg_net/Vault scheduler не подтвержден.
 - Потерянный PUT response и полноценные sync-состояния требуют отдельной state-machine и UI разрешения конфликта.
 - Outbox acknowledgement нужно довести до явных `pending/sending/accepted/failed/cancelled` переходов.

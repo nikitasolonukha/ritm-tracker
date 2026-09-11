@@ -18,7 +18,7 @@
 ## Production и Telegram
 
 - Production URL: `https://ritm-tracker.vercel.app/`.
-- Текущий подтвержденный production deployment: `dpl_EoVzDLMZDp81dpzUp3up4tZ3qdgi` (READY), alias `https://ritm-tracker.vercel.app/`.
+- Текущий подтвержденный production deployment: `dpl_EqwGdgRzaP87Hvf9jPaUyqYE5YK2` (READY), alias `https://ritm-tracker.vercel.app/`.
 - Production smoke после deployment: `/` -> `200` с оболочкой входа, `/manifest.webmanifest` -> `200`, `/sw.js` -> `200`, webhook GET -> `405` (маршрут доступен и принимает только POST).
 - Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.
 - Supabase project `wlaojddckdebbeqafbbg`: миграции `persistent_telegram_links` и `workout_timer_commands` применены; timer RPC доступен `authenticated`, недоступен `anon`, прямые INSERT в служебные `commands` и `notification_jobs` для `authenticated` запрещены.
@@ -28,9 +28,9 @@
 
 ## Не проверено и не объявляется готовым
 
-- Production job через `notification_jobs -> scheduler -> worker -> Telegram` на 60 секунд — **НЕ ПРОВЕРЕНО**.
+- Реальная отправка production job в Telegram — **НЕ ПРОВЕРЕНО**: pending job не создавался, чтобы не отправлять пользователю искусственное тестовое сообщение.
 - Production `+30` с заменой dueAt и production cancel — **НЕ ПРОВЕРЕНО**.
-- `pg_cron`, `pg_net` и `supabase_vault` включены в Supabase; `cron.job` пока пуст. Постоянный scheduler не включён до отдельного подтверждения передачи server-to-server ключа worker в Vault.
+- `pg_cron`, `pg_net` и `supabase_vault` включены; job `ritm-telegram-worker-every-10-seconds` активен. После redeploy последние вызовы worker получили HTTP `200` и `processed: 0`; активная Telegram-привязка существует, pending jobs нет.
 - Два устройства/два аккаунта и полноценное conflict resolution — **НЕ ПРОВЕРЕНО**.
 - Chromium Playwright остаётся ограничен Windows `spawn EPERM`; WebKit smoke пройден отдельно.
 - Полный iPhone offline/background/lock-screen сценарий — **НЕ ПРОВЕРЕНО**.

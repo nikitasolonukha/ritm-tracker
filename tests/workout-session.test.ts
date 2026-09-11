@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createInitialState } from "../src/lib/storage.ts";
+import { createInitialState, readOutboxAcks, writeOutboxAck } from "../src/lib/storage.ts";
 import { cancelWorkoutSession, finishWorkoutSession, startWorkoutSession, type SessionTrackerState } from "../src/lib/workout-session.ts";
 
 test("starting a template creates an independent session snapshot", () => {
@@ -22,4 +22,22 @@ test("finish and cancel are idempotent and clear only the active workout timer",
   assert.equal(finishWorkoutSession(finished, started.sessionId).workoutSessions?.[0].finishedAt, finished.workoutSessions?.[0].finishedAt);
   const cancelled = cancelWorkoutSession(started.state, started.sessionId);
   assert.equal(cancelled.workoutSessions?.[0].status, "cancelled");
+});
+
+test("outbox acknowledgements survive reload and stay isolated per user", () => {
+  const values = new Map<string, string>();
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => { values.set(key, value); },
+      },
+    },
+  });
+
+  assert.equal(writeOutboxAck("command-1", "user-a").ok, true);
+  assert.deepEqual([...readOutboxAcks("user-a")], ["command-1"]);
+  assert.deepEqual([...readOutboxAcks("user-b")], []);
+  delete (globalThis as { window?: unknown }).window;
 });

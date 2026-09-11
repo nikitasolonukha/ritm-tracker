@@ -6,13 +6,14 @@
 
 ## Локально проверено
 
-- Основной Node test suite: **42 passed, 0 failed**.
+- Основной Node test suite: **43 passed, 0 failed**.
 - ESLint и TypeScript: passed.
 - `next build`: passed; в сборке присутствуют middleware и `/api/workout/timer`.
 - WebKit smoke на production build: anonymous `/` -> `/login?reason=not-configured`, webhook/worker без секрета `401`, manifest и service worker `200`.
 - WebKit установлен и headless запуск подтвержден.
 - Timer helper: version 1 -> reschedule version 2 (+30) -> cancel version 3.
 - Outbox acknowledgement после успешного command request сохраняется в отдельном user-scoped localStorage ключе; основной sync payload не изменяется.
+- Добавлен тест изоляции ack между пользователями и сохранения ack после reload.
 
 ## Production и Telegram
 

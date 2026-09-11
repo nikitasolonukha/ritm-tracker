@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
-import { readOutboxAcks, readStateSafely, writeOutboxAck, writeState, type TrackerState } from "@/lib/storage";
+import { backupSyncConflict, readOutboxAcks, readStateSafely, writeOutboxAck, writeState, type TrackerState } from "@/lib/storage";
 import { stableStringify } from "@/lib/tracker";
 
 type SyncConflict = { local: TrackerState; remote: TrackerState; remoteRevision: number };
@@ -172,6 +172,8 @@ function useTrackerStateInternal(): TrackerStore {
   }
   function resolveSyncConflict(choice: "local" | "remote") {
     if (!syncConflict || !userId || !identityReady.current) return false;
+    const backup = backupSyncConflict(userId, syncConflict.remoteRevision, syncConflict.local, syncConflict.remote);
+    if (!backup.ok) { setStorageError(backup.error ?? "Не удалось сохранить резервные копии конфликта"); return false; }
     if (choice === "remote") {
       const saved = writeState(syncConflict.remote, userId);
       if (!saved.ok) { setStorageError(saved.error ?? "Не удалось сохранить серверную копию"); return false; }

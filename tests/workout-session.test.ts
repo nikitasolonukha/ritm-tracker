@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createInitialState, readOutboxAcks, writeOutboxAck } from "../src/lib/storage.ts";
+import { backupSyncConflict, createInitialState, readOutboxAcks, writeOutboxAck } from "../src/lib/storage.ts";
 import { cancelWorkoutSession, finishWorkoutSession, startWorkoutSession, type SessionTrackerState } from "../src/lib/workout-session.ts";
 
 test("starting a template creates an independent session snapshot", () => {
@@ -39,5 +39,20 @@ test("outbox acknowledgements survive reload and stay isolated per user", () => 
   assert.equal(writeOutboxAck("command-1", "user-a").ok, true);
   assert.deepEqual([...readOutboxAcks("user-a")], ["command-1"]);
   assert.deepEqual([...readOutboxAcks("user-b")], []);
+  delete (globalThis as { window?: unknown }).window;
+});
+
+test("sync conflict backup keeps both user-scoped copies", () => {
+  const values = new Map<string, string>();
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: { localStorage: { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value) } },
+  });
+  const local = createInitialState("2026-09-10");
+  const remote = createInitialState("2026-09-11");
+  assert.equal(backupSyncConflict("user-a", 7, local, remote).ok, true);
+  assert.equal(values.has("ritm-tracker-state-v1-sync-conflict:user-a:7:local"), true);
+  assert.equal(values.has("ritm-tracker-state-v1-sync-conflict:user-a:7:remote"), true);
+  assert.equal(values.has("ritm-tracker-state-v1-sync-conflict:user-b:7:local"), false);
   delete (globalThis as { window?: unknown }).window;
 });

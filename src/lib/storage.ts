@@ -68,6 +68,18 @@ export function writeOutboxAck(id: string, userId?: string): { ok: boolean; erro
   }
 }
 
+export function backupSyncConflict(userId: string, revision: number, local: TrackerState, remote: TrackerState): { ok: boolean; error?: string } {
+  if (typeof window === "undefined") return { ok: false, error: "browser storage unavailable" };
+  try {
+    const prefix = `${storageKey}-sync-conflict:${userId}:${revision}`;
+    window.localStorage.setItem(`${prefix}:local`, JSON.stringify(local));
+    window.localStorage.setItem(`${prefix}:remote`, JSON.stringify(remote));
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "sync conflict backup failed" };
+  }
+}
+
 export type StateReadResult = {
   state: TrackerState;
   status: "empty" | "loaded" | "corrupt" | "unsupported" | "unavailable";

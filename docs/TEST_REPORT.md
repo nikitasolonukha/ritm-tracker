@@ -16,7 +16,8 @@
 ## Production и Telegram
 
 - Production URL: `https://ritm-tracker.vercel.app/`.
-- Последний подтвержденный production deployment до этого прохода: `dpl_DZqoNTNmm8e9dofwEZRFRUK1PdGQ`.
+- Текущий подтвержденный production deployment: `dpl_9RygqE7s1Bz6u5MhLmp4kHkmVhun` (READY), alias `https://ritm-tracker.vercel.app/`.
+- Production smoke после deployment: `/` -> `200` с оболочкой входа, `/manifest.webmanifest` -> `200`, `/sw.js` -> `200`, webhook GET -> `405` (маршрут доступен и принимает только POST).
 - Telegram `getMe` подтверждает `@solonflowai_treker_bot`.
 - `getWebhookInfo`: webhook установлен на production, `pending_update_count=0`, `last_error=null`.
 - Реальная привязка Telegram проверена по сообщению пользователя: deep-link `/start <token>` получил ответ «Telegram подключен к Ритму.»

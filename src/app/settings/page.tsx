@@ -5,6 +5,7 @@ import { ArrowLeft, Plus, Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTrackerState } from "@/components/tracker-state";
 import type { SessionTrackerState } from "@/lib/workout-session";
+import type { ExerciseSet } from "@/lib/tracker";
 
 export default function SettingsPage() {
   const { state, update, importLegacy, legacyState, storageError } = useTrackerState();
@@ -25,7 +26,7 @@ export default function SettingsPage() {
   }, []);
   if (!state || !template) return <main className="shell appPage"><p className="muted">Загружаю настройки...</p></main>;
 
-  const editExercise = (exerciseId: string, field: string, value: string) => update((previous) => {
+  const editExercise = (exerciseId: string, field: string, value: string, componentOverride?: ExerciseSet["component"]) => update((previous) => {
     const next = previous as SessionTrackerState;
     return {
       ...next,
@@ -38,7 +39,7 @@ export default function SettingsPage() {
           if (field === "equipment") return { ...exercise, equipment: value };
           if (field === "equipmentPosition") return { ...exercise, equipmentPosition: value };
           if (field === "restSec") return { ...exercise, restSec: Number(value) as 180 | 240 };
-          const component = exercise.sets[0]?.component;
+          const component = componentOverride ?? exercise.sets[0]?.component;
           return {
             ...exercise,
             sets: exercise.sets.map((set) => {
@@ -136,15 +137,13 @@ export default function SettingsPage() {
       <button className="primary" onClick={saveTitle}><Save size={18} /> Сохранить программу</button>
       <div className="sectionHeading"><h2>Упражнения</h2><button className="secondary" onClick={addExercise}><Plus size={17} /> Добавить</button></div>
       {template.exercises.map((exercise) => {
-        const first = exercise.sets[0];
+        const segments = [...new Set(exercise.sets.map((set) => set.component ?? "single"))];
         return <article className="settingExercise" key={exercise.id}>
           <label>Название<input value={exercise.name} onChange={(event) => editExercise(exercise.id, "name", event.target.value)} /></label>
           <label>Группа мышц<input value={exercise.muscleGroup ?? ""} placeholder="Например, грудь" onChange={(event) => editExercise(exercise.id, "muscleGroup", event.target.value)} /></label>
           <label>Оборудование<input value={exercise.equipment ?? ""} placeholder="Например, тренажёр" onChange={(event) => editExercise(exercise.id, "equipment", event.target.value)} /></label>
           <label>Положение оборудования<input value={exercise.equipmentPosition ?? ""} placeholder="Необязательно" onChange={(event) => editExercise(exercise.id, "equipmentPosition", event.target.value)} /></label>
-          <label>Вес<input type="number" min="0" step="0.5" value={first?.weightKg ?? ""} onChange={(event) => editExercise(exercise.id, "weightKg", event.target.value)} /></label>
-          <label>Режим<select value={first?.weightMode ?? ""} onChange={(event) => editExercise(exercise.id, "weightMode", event.target.value)}><option value="">Уточнить</option><option value="total">Общий вес</option><option value="per-hand">На сторону / гантель</option></select></label>
-          <label>Повторы<input type="number" min="1" max="100" value={first?.reps ?? ""} onChange={(event) => editExercise(exercise.id, "reps", event.target.value)} /></label>
+          {segments.map((segment) => { const segmentSet = exercise.sets.find((set) => (set.component ?? "single") === segment); const segmentName = segment === "compound-a" ? "Часть A" : segment === "compound-b" ? "Часть B" : "Рабочие подходы"; const component = segment === "single" ? undefined : segment as ExerciseSet["component"]; return <div className="segmentEditor" key={segment}><strong>{segmentName}</strong><label>Вес<input type="number" min="0" step="0.5" value={segmentSet?.weightKg ?? ""} onChange={(event) => editExercise(exercise.id, "weightKg", event.target.value, component)} /></label><label>Режим<select value={segmentSet?.weightMode ?? ""} onChange={(event) => editExercise(exercise.id, "weightMode", event.target.value, component)}><option value="">Уточнить</option><option value="total">Общий вес</option><option value="per-hand">На сторону / гантель</option></select></label><label>Повторы<input type="number" min="1" max="100" value={segmentSet?.reps ?? ""} onChange={(event) => editExercise(exercise.id, "reps", event.target.value, component)} /></label></div>; })}
           <label>Отдых<select value={exercise.restSec ?? 180} onChange={(event) => editExercise(exercise.id, "restSec", event.target.value)}><option value="180">180 сек</option><option value="240">240 сек</option></select></label>
           <button className="iconButton" onClick={() => removeExercise(exercise.id)} aria-label={`Удалить ${exercise.name}`}><Trash2 size={17} /></button>
         </article>;

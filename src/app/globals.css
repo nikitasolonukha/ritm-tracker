@@ -811,6 +811,8 @@ textarea:focus-visible {
   background: var(--surface);
 }
 
+.textButton { border: 0; padding: 0; color: inherit; text-decoration: underline; background: transparent; font: inherit; cursor: pointer; }
+
 .wide,
 .workoutPanel,
 .importer {

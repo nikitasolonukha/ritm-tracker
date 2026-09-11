@@ -5,7 +5,7 @@ import { ArrowRight, Check, Dumbbell, Settings2 } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
 import { useTrackerState } from "@/components/tracker-state";
 import type { SessionTrackerState } from "@/lib/workout-session";
-import { calculateWorkoutTotals, getLocalDate } from "@/lib/tracker";
+import { applyHabitCompletion, calculateWorkoutTotals, getLocalDate } from "@/lib/tracker";
 
 const weekday = new Intl.DateTimeFormat("ru-RU", { weekday: "short", timeZone: "Europe/Moscow" });
 
@@ -25,7 +25,7 @@ export default function TodayPage() {
   }).length;
   const dates = Array.from({ length: 7 }, (_, index) => { const date = new Date(`${today}T12:00:00`); date.setDate(date.getDate() - (6 - index)); return getLocalDate(date); });
   const currentAction = pending[0];
-  const complete = (habitId: string) => update((previous) => ({ ...previous, completions: [...previous.completions, { id: `completion-${habitId}-${today}`, habitId, completedAt: new Date().toISOString(), localDate: today, source: "web" }] }));
+  const complete = (habitId: string) => update((previous) => ({ ...previous, completions: applyHabitCompletion(previous.completions, { id: `completion-${habitId}-${today}`, habitId, completedAt: new Date().toISOString(), localDate: today, source: "web" }) }));
   return <main className="shell appPage todayPage">
     <header className="pageHeader"><div><p className="eyebrow">{formatDate(today)}</p><h1>Сегодня</h1></div><Link className="iconButton" href="/settings" aria-label="Настройки"><Settings2 size={20} /></Link></header>
     {storageError && <p className="storageMessage" role="alert">{storageError}</p>}

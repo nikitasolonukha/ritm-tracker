@@ -13,6 +13,7 @@ import {
   defaultHabits,
   type Workout,
 } from "../src/lib/tracker.ts";
+import { decideLostPutResponse } from "../src/lib/sync.ts";
 
 test("Moscow local date is independent from UTC date", () => {
   assert.equal(getLocalDate(new Date("2026-09-09T21:30:00.000Z"), "Europe/Moscow"), "2026-09-10");
@@ -40,6 +41,13 @@ test("stable JSON is valid when optional transport fields are undefined", () => 
   const encoded = stableStringify({ z: undefined, a: [undefined, Number.NaN, { b: undefined, a: 1 }] });
   assert.equal(encoded, '{"a":[null,null,{"a":1}]}');
   assert.doesNotThrow(() => JSON.parse(encoded));
+});
+
+test("lost sync response is accepted only when the server has the sent payload", () => {
+  const payload = { version: 1, value: "local" };
+  assert.deepEqual(decideLostPutResponse(payload, 10, { payload: { value: "local", version: 1 }, version: 11 }), { action: "accepted", revision: 11 });
+  assert.deepEqual(decideLostPutResponse(payload, 10, { payload: null, version: 10 }), { action: "retry", revision: 10 });
+  assert.deepEqual(decideLostPutResponse(payload, 10, { payload: { version: 1, value: "other" }, version: 11 }), { action: "conflict", revision: 11 });
 });
 
 test("45 kg per side for 8 reps is 720 kg", () => {

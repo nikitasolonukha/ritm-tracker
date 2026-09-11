@@ -2,11 +2,11 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `8d0288d` (`feat: edit completed workout history`).
+Кодовый commit: `4a15613` (`fix: isolate offline PWA cache by account`).
 
 ## Локально проверено
 
-- Основной Node test suite: **53 passed, 0 failed**.
+- Основной Node test suite: **54 passed, 0 failed**.
 - ESLint и TypeScript: passed.
 - ESLint: passed без предупреждений; приватная галерея использует `next/image` с data URL и `unoptimized`.
 - `next build`: passed; в сборке присутствуют middleware и `/api/workout/timer`.
@@ -38,6 +38,7 @@
 - Настройки поддерживают добавление/удаление логического подхода; для составных упражнений изменение атомарно добавляет или удаляет пару сегментов.
 - User-scoped storage больше не подхватывает глобальную legacy-запись автоматически; добавлен регрессионный тест. Старые данные сохраняются и предлагаются для явного переноса в авторизованных настройках.
 - История завершённой тренировки позволяет изменить фактические вес и повторения отдельного подхода; значения валидируются и сохраняются user-scoped командой без изменения шаблона будущих занятий.
+- Service worker больше не кеширует `/` как общий fallback: публичный cache содержит только login/manifest/assets, страницы аккаунта кешируются отдельно по user-scoped ключу, выход очищает активный account cache, а неизвестная offline-навигация отдаёт отдельное состояние «Нет связи», не форму входа. Добавлен регрессионный тест A15b.
 
 ## Production и Telegram
 
@@ -95,10 +96,10 @@
 - Явный перенос legacy storage реализован, но на production не подтверждался на реальном аккаунте, чтобы не менять личный журнал.
 - Bundled Chromium/WebKit Playwright в Windows остаются ограничены `spawn EPERM`; установленный Chrome через `PLAYWRIGHT_CHANNEL=chrome` прошёл полный access smoke 3/3.
 - Автоматическое завершение Playwright demo после двух viewport зависает на остановке локального Next dev server в Windows; сами действия обоих тестов дошли до итогового экрана, а четыре снимка визуально проверены. Это не объявляется стабильным CI E2E до устранения зависания runner.
-- Полный iPhone offline/background/lock-screen сценарий — **НЕ ПРОВЕРЕНО**.
+- Полный iPhone offline/background/lock-screen сценарий — **НЕ ПРОВЕРЕНО**; реализован account-scoped service-worker cache и отдельная offline-страница, но физический iPhone/background сценарий не выполнялся.
 - RLS для посторонней таблицы `public.RAGformyAIagent` не менялся; её назначение и корректные политики не подтверждены.
 - Supabase security advisor всё ещё сообщает об отключённой leaked-password protection, RLS/GraphQL exposure для посторонней `public.RAGformyAIagent` и public `vector` extension; эти настройки требуют отдельного решения владельца проекта и намеренно не менялись автоматически.
 
 ## Ограничения теста
 
-Production account использовался read-only. Реальная тестовая тренировка и job не создавались, чтобы не добавлять лишнюю запись в личный журнал.
+Production account использовался read-only. Реальная тестовая тренировка и job не создавались, чтобы не добавлять лишнюю запись в личный журнал. `pnpm test/lint/tsc` в этом проходе не завершили установочную проверку из-за `EACCES` при обращении pnpm к registry; эквивалентные локальные команды через установленные бинарники и production build завершились успешно.

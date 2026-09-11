@@ -59,6 +59,13 @@ test("A05 starter chest program has four working sets", () => {
   assert.equal(createStarterWorkout("2026-09-09").exercises[0].sets.length, 4);
 });
 
+test("initial state keeps the starter program out of workout history", () => {
+  const state = createInitialState("2026-09-09");
+  assert.equal(state.workouts.length, 0);
+  assert.equal(state.workoutTemplates?.length, 1);
+  assert.equal(state.activeWorkoutId, undefined);
+});
+
 test("A06 45 kg per side x 8 is 720 kg", () => {
   const set = workoutFixture().exercises[0].sets[0];
   assert.equal(tracker.calculateExerciseVolume([{ ...set, completed: true }]), 720);
@@ -88,7 +95,7 @@ test("A11 historical import does not replace active workout", () => {
   const state = createInitialState("2026-09-09");
   const imported = tracker.parseWorkoutNotes("28.08.2026\nЖим\n45x8");
   const next = { ...state, workouts: [...state.workouts, imported] };
-  assert.equal(next.activeWorkoutId, state.workouts[0].id);
+  assert.equal(next.activeWorkoutId, undefined);
 });
 
 test("A12 unique real dates are used for milestone counts", () => {
@@ -139,7 +146,7 @@ test("user-scoped reads never fall back to another account's legacy journal", ()
   globalThis.window = { localStorage: { getItem: (key) => records.get(key) ?? null, setItem: (key, value) => records.set(key, value), removeItem: (key) => records.delete(key) } };
   const result = readStateSafely("different-user");
   assert.equal(result.status, "empty");
-  assert.equal(result.state.workouts.length, 1);
+  assert.equal(result.state.workouts.length, 0);
   assert.equal(records.get(storageKey), JSON.stringify(createInitialState("2026-09-09")));
   delete globalThis.window;
 });

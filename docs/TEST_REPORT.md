@@ -2,7 +2,7 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `bb807ab` (`fix: recover sync after lost put responses`).
+Кодовый commit: `dc4109a` (`fix: upload local state when remote is empty`).
 
 ## Локально проверено
 
@@ -18,13 +18,14 @@
 - Outbox acknowledgement после успешного command request сохраняется в отдельном user-scoped localStorage ключе; основной sync payload не изменяется.
 - Sync recovery: тестовое решение lost PUT response покрывает `accepted` при совпавшем payload и новой ревизии, `retry` при прежней ревизии и `conflict` при чужой новой версии; UI показывает offline/error и даёт ручной retry.
 - Начальный sync сохраняет базовый локальный снимок до GET и не объявляет локальное действие, сделанное во время GET, конфликтом, если сервер всё ещё содержит этот базовый снимок.
+- При пустом remote payload локальное состояние со статусом `loaded` отправляется после получения server revision.
 - Добавлен тест изоляции ack между пользователями и сохранения ack после reload.
 - User-scoped storage больше не подхватывает глобальную legacy-запись автоматически; добавлен регрессионный тест. Старые данные сохраняются и предлагаются для явного переноса в авторизованных настройках.
 
 ## Production и Telegram
 
 - Production URL: `https://ritm-tracker.vercel.app/`.
-- Подтверждённый production deployment для `bb807ab`: `dpl_BB8YNyXgpWgfuqxX1wC4kG8Qmw9U` (READY), alias `https://ritm-tracker.vercel.app/`.
+- Подтверждённый production deployment для `dc4109a`: `dpl_HG6iWBoZUcXVeWozgLRsHcuHgjV2` (READY), alias `https://ritm-tracker.vercel.app/`.
 - Production smoke после deployment: `/` -> `200` с оболочкой входа, `/manifest.webmanifest` -> `200`, `/sw.js` -> `200`, webhook GET -> `405` (маршрут доступен и принимает только POST).
 - После `dpl_BB8YNyXgpWgfuqxX1wC4kG8Qmw9U` повторно проверены login shell, manifest и service worker; Vercel runtime errors за 15 минут после публикации: отсутствуют.
 - Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.

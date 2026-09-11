@@ -126,11 +126,13 @@ function useTrackerStateInternal(): TrackerStore {
         if (!response.ok) throw new Error("sync write failed");
         const saved = await response.json() as { revision?: number };
         revisionRef.current = saved.revision ?? expectedRevision + 1;
-        const pending = next.outbox.filter((item) => item.type === "workout.set.completed" && item.status === "pending" && !sentOutboxRef.current.has(item.id));
+        const pending = next.outbox.filter((item) => ["workout.set.completed", "timer.rescheduled", "timer.cancelled"].includes(item.type) && item.status === "pending" && !sentOutboxRef.current.has(item.id));
         for (const item of pending) {
-          const details = item.payload as { dueAt?: string; expiresAt?: string; message?: string; sessionId?: string } | undefined;
-          if (!details?.dueAt || !details.expiresAt) continue;
-          const commandResponse = await fetchWithRetry("/api/workout/command", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ commandKey: item.id, sourceEntityId: item.entityId, payload: { ...details, itemId: item.id }, sourceVersion: item.version ?? 1, dueAt: details.dueAt, expiresAt: details.expiresAt, message: details.message ?? "Ритм: отдых завершен. Открой тренировку для следующего подхода." }) });
+          const details = item.payload as { dueAt?: string; expiresAt?: string; message?: string; sessionId?: string; sourceId?: string } | undefined;
+          if (item.type === "workout.set.completed" && (!details?.dueAt || !details.expiresAt)) continue;
+          if (item.type !== "workout.set.completed" && item.type !== "timer.rescheduled" && item.type !== "timer.cancelled") continue;
+          const isTimerCommand = item.type !== "workout.set.completed";
+          const commandResponse = await fetchWithRetry(isTimerCommand ? "/api/workout/timer" : "/api/workout/command", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(isTimerCommand ? { commandKey: item.id, sourceEntityId: item.entityId, payload: { ...details, itemId: item.id }, sourceVersion: item.version ?? 1, action: item.type === "timer.cancelled" ? "cancel" : "reschedule", dueAt: details?.dueAt, expiresAt: details?.expiresAt, message: details?.message } : { commandKey: item.id, sourceEntityId: item.entityId, payload: { ...details, itemId: item.id }, sourceVersion: item.version ?? 1, dueAt: details?.dueAt, expiresAt: details?.expiresAt, message: details?.message ?? "Ритм: отдых завершен. Открой тренировку для следующего подхода." }) });
           if (!commandResponse.ok) throw new Error("workout command failed");
           sentOutboxRef.current.add(item.id);
         }

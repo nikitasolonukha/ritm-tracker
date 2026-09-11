@@ -59,6 +59,32 @@ export type RestTimer = {
   version?: number;
 };
 
+export function createRestTimerCommand(
+  timer: RestTimer,
+  action: "reschedule" | "cancel",
+  nowIso: string,
+  message: string,
+) {
+  if (!timer.sourceId) return null;
+  const version = (timer.version ?? 0) + 1;
+  const dueAt = action === "reschedule"
+    ? new Date(new Date(timer.endsAt ?? nowIso).getTime() + 30000).toISOString()
+    : nowIso;
+  const expiresAt = new Date(new Date(dueAt).getTime() + 600000).toISOString();
+  return {
+    timer: action === "cancel" ? null : { ...timer, endsAt: dueAt, durationSec: timer.durationSec + 30, version, status: "running" as const },
+    command: {
+      id: `timer-${action}-${timer.sourceId}-${version}`,
+      entityId: timer.sourceId,
+      type: action === "cancel" ? "timer.cancelled" as const : "timer.rescheduled" as const,
+      createdAt: nowIso,
+      status: "pending" as const,
+      version,
+      payload: { sourceId: timer.sourceId, dueAt: action === "reschedule" ? dueAt : undefined, expiresAt: action === "reschedule" ? expiresAt : undefined, message },
+    },
+  };
+}
+
 export type WorkoutCommand = {
   id: string;
   type: "workout.set.completed";

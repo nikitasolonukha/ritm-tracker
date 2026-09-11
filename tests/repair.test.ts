@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   completeWorkoutSet,
+  createRestTimerCommand,
   calculateExerciseVolume,
   commitDraftValue,
   getLocalDate,
@@ -95,4 +96,17 @@ test("compound shoulder pairs start one rest per pair", () => {
 
 test("impossible Russian dates are rejected", () => {
   assert.equal(parseWorkoutNotes("31 февраля 2026\nЖим\n45x8").id, "");
+});
+
+test("rest reschedule creates one newer command and cancel stops the timer", () => {
+  const timer = { sourceId: "session-1:bench:set-1", startedAt: "2026-09-10T08:00:00.000Z", endsAt: "2026-09-10T08:04:00.000Z", durationSec: 240, version: 1, status: "running" as const };
+  const extended = createRestTimerCommand(timer, "reschedule", "2026-09-10T08:01:00.000Z", "rest");
+  assert.equal(extended?.timer?.version, 2);
+  assert.equal(extended?.timer?.endsAt, "2026-09-10T08:04:30.000Z");
+  assert.equal(extended?.command.type, "timer.rescheduled");
+  assert.equal(extended?.command.payload.expiresAt, "2026-09-10T08:14:30.000Z");
+  const cancelled = createRestTimerCommand(extended!.timer!, "cancel", "2026-09-10T08:02:00.000Z", "rest");
+  assert.equal(cancelled?.timer, null);
+  assert.equal(cancelled?.command.type, "timer.cancelled");
+  assert.equal(cancelled?.command.version, 3);
 });

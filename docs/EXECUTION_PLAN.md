@@ -28,7 +28,7 @@
 - В Supabase остаётся отдельная посторонняя таблица `public.RAGformyAIagent` без RLS; автоматически включать RLS нельзя без понимания её владельца и политик.
 - Supabase `pg_cron`/`pg_net`/Vault scheduler включён: job `ritm-telegram-worker-every-10-seconds` активен, worker отвечает `200`.
 - Security advisor больше не показывает mutable `search_path`; остаются внешние настройки Supabase для `RAGformyAIagent`, public `vector` и leaked-password protection.
-- Потерянный PUT response и полноценные sync-состояния требуют отдельной state-machine и UI разрешения конфликта.
+- Потерянный PUT response обрабатывается как локально сохранённое, но неподтверждённое изменение; state-machine и UI разрешения revision-конфликта реализованы, acceptance на двух устройствах ещё не запускался.
 - Outbox acknowledgement теперь сохраняется отдельным user-scoped durable индексом; сетевой сбой не записывается как успех, а повтор использует стабильный command key. Явный UI для `sending/failed` остаётся отдельной задачей.
 - Два устройства, два аккаунта и реальная job -> Telegram отправка с pending job остаются непроверенными; scheduler transport уже подтверждён. UI разрешения revision-конфликта написан, но two-device acceptance ещё не запускался.
 - Автоматический fallback user-scoped storage на глобальную legacy-запись удалён; явный перенос старых данных доступен из авторизованных настроек.

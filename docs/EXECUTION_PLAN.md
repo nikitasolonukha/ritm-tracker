@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `40f7a40` (`feat: resolve cross-device sync conflicts`).
+Проверяемый кодовый commit: `590b171` (`fix: preserve both sync conflict versions`).
 
 ## Закрыто в этом проходе
 

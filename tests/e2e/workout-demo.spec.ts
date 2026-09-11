@@ -19,6 +19,7 @@ test("demo workout runs from saved 4x8 plan through summary", async ({ page }, t
   await page.screenshot({ path: `artifacts/ui-review-final/${testInfo.project.name}-active.png`, fullPage: true });
 
   for (let exerciseIndex = 0; exerciseIndex < 3; exerciseIndex += 1) {
+    if (exerciseIndex === 2) await expect(page.getByText("Подход 1 из 2", { exact: true }).first()).toBeVisible();
     for (let setIndex = 0; setIndex < 4; setIndex += 1) await completeCurrentSet(page);
     if (exerciseIndex < 2) await page.getByRole("button", { name: /Следующее упражнение/ }).click();
   }

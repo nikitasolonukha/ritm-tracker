@@ -138,8 +138,9 @@ function useTrackerStateInternal(): TrackerStore {
             }
           } else {
             revisionRef.current = remote.version ?? 0;
-            setSyncStatus(actionSeqRef.current !== actionSeqAtFetch ? "dirty" : "idle");
-            if (actionSeqRef.current !== actionSeqAtFetch) queueSync();
+            const shouldUploadLocal = local.status === "loaded" || actionSeqRef.current !== actionSeqAtFetch;
+            setSyncStatus(shouldUploadLocal ? "dirty" : "idle");
+            if (shouldUploadLocal) queueSync();
           }
         }).catch(() => { setSyncStatus("offline"); setStorageError("Синхронизация недоступна; локальные изменения сохранены"); });
       }

@@ -61,7 +61,9 @@
 - После `dpl_C2st8r7VyWipAj8nBm6gZUjrirW5` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
 - После `dpl_9uebkQGbVjWNdyKwhqAhbUU4bmtt` повторно проверены `/login` и `/sw.js`: `200`; Vercel runtime errors за 30 минут: отсутствуют.
 - После `dpl_4QRjjZpq3MnhWpsCVgUp769mgu4n` проверены `/login` и `/sw.js`: `200`; Vercel runtime errors и error-level logs за 30 минут: отсутствуют.
+- После `dpl_CLyRwYPrnX4CdzxCai8vazF9cnub` проверены `/login` и обновлённый `/sw.js`: `200`; новый service worker содержит account-scoped cache и offline-состояние без login fallback; Vercel runtime errors за 15 минут: отсутствуют.
 - GitHub Actions CI для commit `8d0288d` (run `34618337577`) завершился успешно.
+- GitHub Actions CI для текущего дерева `3e649b5` (run `34619541769`) завершился успешно; предыдущий run на `4a15613` был отменён при следующем push.
 - GitHub Actions CI для commit `fec3a27` (run `34617068037`) завершился успешно.
 - GitHub Actions CI для commit `bc409ca` (run `34616241105`) завершился успешно.
 - Повторная генерация link проверена кодовым путём: подтверждённое `telegram_user_id/connected_at` сохраняется до нового `/start`, а consumed token больше не принимается повторно.

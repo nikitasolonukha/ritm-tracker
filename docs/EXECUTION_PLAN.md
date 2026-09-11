@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `fe7027b` (`fix: use token expiry for Telegram links`).
+Проверяемый кодовый commit: `367f19f` (`fix: record Telegram delivery uncertainty`).
 
 ## Закрыто в этом проходе
 

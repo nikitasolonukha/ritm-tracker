@@ -2,7 +2,7 @@
 
 Дата: 2026-09-11
 
-Кодовый commit: `fe7027b` (`fix: use token expiry for Telegram links`).
+Кодовый commit: `367f19f` (`fix: record Telegram delivery uncertainty`).
 
 ## Локально проверено
 
@@ -19,7 +19,7 @@
 ## Production и Telegram
 
 - Production URL: `https://ritm-tracker.vercel.app/`.
-- Текущий подтвержденный production deployment: `dpl_9v4wq8Ne1ZyjT7v8q1J4iGX5uurh` (READY), alias `https://ritm-tracker.vercel.app/`.
+- Текущий подтвержденный production deployment: `dpl_ELUNRPAtsDkzFrsZbKY3rci6We5n` (READY), alias `https://ritm-tracker.vercel.app/`.
 - Production smoke после deployment: `/` -> `200` с оболочкой входа, `/manifest.webmanifest` -> `200`, `/sw.js` -> `200`, webhook GET -> `405` (маршрут доступен и принимает только POST).
 - Vercel Production variables присутствуют; production `/` показывает обычный вход без `reason=not-configured`.
 - Supabase project `wlaojddckdebbeqafbbg`: миграции `persistent_telegram_links` и `workout_timer_commands` применены; timer RPC доступен `authenticated`, недоступен `anon`, прямые INSERT в служебные `commands` и `notification_jobs` для `authenticated` запрещены.
@@ -27,6 +27,7 @@
 - `getWebhookInfo`: webhook установлен на production, `pending_update_count=0`, `last_error=null`.
 - Реальная привязка Telegram проверена по сообщению пользователя: deep-link `/start <token>` получил ответ «Telegram подключен к Ритму.»
 - Повторная генерация ссылки теперь обновляет `token_expires_at`; webhook проверяет срок токена, а не срок постоянного подключения.
+- Worker записывает сетевую неопределённость Telegram как `unknown`, проверяет результат финализации job и не объявляет очередь обработанной при ошибке записи.
 
 ## Не проверено и не объявляется готовым
 

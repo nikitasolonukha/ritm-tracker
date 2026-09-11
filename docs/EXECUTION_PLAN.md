@@ -1,6 +1,6 @@
 # Ритм: план и статус
 
-Проверяемый кодовый commit: `090a803` (`test: cover complete workout demo flow`).
+Проверяемый кодовый commit: `9ac188c` (`security: isolate demo mode from Vercel`).
 
 ## Закрыто в этом проходе
 
@@ -30,6 +30,7 @@
 - Settings получил фактический Telegram connection status и owner-scoped connect/reconnect/disconnect controls; diagnostic job остаётся доступной только после подтверждённой привязки.
 - Permanent Telegram HTTP `400/403` теперь переводит связь в `error`, отменяет бессмысленную повторную job и показывает владельцу необходимость переподключения; миграция статуса применена в production.
 - Стартовый план тренировок теперь явно содержит редактируемые `4×8` повторения без личных весов; добавлен Chrome demo E2E сценарий полного workout flow для `1440×1000` и `390×844` со снимками активной и итоговой страниц.
+- Demo bypass теперь дополнительно блокируется на Vercel даже при ошибочно выставленном `RITM_DEMO_MODE`; локальный smoke остаётся только явным demo-режимом.
 
 ## Уже было закрыто
 
@@ -48,6 +49,6 @@
 - Outbox acknowledgement сохраняется отдельным user-scoped durable индексом; сетевой сбой не записывается как успех, повтор использует стабильный command key, а UI показывает `sending/failed`.
 - Два устройства, два аккаунта и реальная job -> Telegram отправка с pending job остаются непроверенными; scheduler transport уже подтверждён. UI разрешения revision-конфликта написан, но two-device acceptance ещё не запускался.
 - Composite FK владельца workout set структурно подтверждён в production Supabase; rollback-проверка на двух Auth-пользователях отложена, поскольку в проекте есть только одна учётка и тестовые аккаунты не создавались.
-- Production deployment текущего commit: `dpl_mtPbaSRWRUc5KWfeqqXubJo5NkdR` READY; реальный Telegram job/callback по-прежнему требует отдельного owner-approved теста.
+- Production deployment текущего commit: `dpl_7iP34k4R5oBLvyyVfZBStUxVNuaT` READY; реальный Telegram job/callback по-прежнему требует отдельного owner-approved теста.
 - Автоматический fallback user-scoped storage на глобальную legacy-запись удалён; явный перенос старых данных доступен из авторизованных настроек.
 - Приватная локальная галерея фото, базовая дневная отметка, сон и JSON-экспорт реализованы. Отдельное удалённое хранилище фото, check-in/postpone и расширенная аналитика остаются незавершенными.

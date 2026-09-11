@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
-import { readStateSafely, writeState, type TrackerState } from "@/lib/storage";
+import { readOutboxAcks, readStateSafely, writeOutboxAck, writeState, type TrackerState } from "@/lib/storage";
 import { stableStringify } from "@/lib/tracker";
 
 type TrackerStore = { state: TrackerState | null; update: (mutator: (state: TrackerState) => TrackerState) => boolean; userId?: string; storageError?: string };
@@ -62,6 +62,7 @@ function useTrackerStateInternal(): TrackerStore {
         return;
       }
       setUserId(data.user?.id);
+      sentOutboxRef.current = readOutboxAcks(data.user?.id);
       if (!data.user && isSupabaseConfigured) { setStorageError("Войдите, чтобы открыть личный трекер"); return; }
       const local = readStateSafely(data.user?.id);
       identityReady.current = true;
@@ -126,7 +127,7 @@ function useTrackerStateInternal(): TrackerStore {
         if (!response.ok) throw new Error("sync write failed");
         const saved = await response.json() as { revision?: number };
         revisionRef.current = saved.revision ?? expectedRevision + 1;
-        const pending = next.outbox.filter((item) => ["workout.set.completed", "timer.rescheduled", "timer.cancelled"].includes(item.type) && item.status === "pending" && !sentOutboxRef.current.has(item.id));
+        const pending = next.outbox.filter((item) => ["workout.set.completed", "timer.rescheduled", "timer.cancelled"].includes(item.type) && ["pending", "failed", "sending"].includes(item.status) && !sentOutboxRef.current.has(item.id));
         for (const item of pending) {
           const details = item.payload as { dueAt?: string; expiresAt?: string; message?: string; sessionId?: string; sourceId?: string } | undefined;
           if (item.type === "workout.set.completed" && (!details?.dueAt || !details.expiresAt)) continue;
@@ -134,6 +135,8 @@ function useTrackerStateInternal(): TrackerStore {
           const isTimerCommand = item.type !== "workout.set.completed";
           const commandResponse = await fetchWithRetry(isTimerCommand ? "/api/workout/timer" : "/api/workout/command", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(isTimerCommand ? { commandKey: item.id, sourceEntityId: item.entityId, payload: { ...details, itemId: item.id }, sourceVersion: item.version ?? 1, action: item.type === "timer.cancelled" ? "cancel" : "reschedule", dueAt: details?.dueAt, expiresAt: details?.expiresAt, message: details?.message } : { commandKey: item.id, sourceEntityId: item.entityId, payload: { ...details, itemId: item.id }, sourceVersion: item.version ?? 1, dueAt: details?.dueAt, expiresAt: details?.expiresAt, message: details?.message ?? "Ритм: отдых завершен. Открой тренировку для следующего подхода." }) });
           if (!commandResponse.ok) throw new Error("workout command failed");
+          const acknowledgement = writeOutboxAck(item.id, userId);
+          if (!acknowledgement.ok) throw new Error(acknowledgement.error ?? "outbox acknowledgement write failed");
           sentOutboxRef.current.add(item.id);
         }
       }).catch(() => setStorageError("Нет связи с сервером; изменение осталось локально"));

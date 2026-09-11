@@ -37,8 +37,35 @@ export type TrackerState = {
 
 export const storageKey = "ritm-tracker-state-v1";
 export const storageBackupPrefix = `${storageKey}-backup-`;
+export const outboxAckKey = `${storageKey}-outbox-acks`;
 export function getStorageKey(userId?: string) {
   return userId ? `${storageKey}:${userId}` : storageKey;
+}
+
+export function getOutboxAckKey(userId?: string) {
+  return userId ? `${outboxAckKey}:${userId}` : outboxAckKey;
+}
+
+export function readOutboxAcks(userId?: string): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(getOutboxAckKey(userId)) ?? "[]") as unknown;
+    return new Set(Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export function writeOutboxAck(id: string, userId?: string): { ok: boolean; error?: string } {
+  if (typeof window === "undefined") return { ok: false, error: "browser storage unavailable" };
+  try {
+    const acks = readOutboxAcks(userId);
+    acks.add(id);
+    window.localStorage.setItem(getOutboxAckKey(userId), JSON.stringify([...acks].sort()));
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "outbox acknowledgement write failed" };
+  }
 }
 
 export type StateReadResult = {

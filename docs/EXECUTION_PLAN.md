@@ -25,6 +25,6 @@
 - В Supabase остаётся отдельная посторонняя таблица `public.RAGformyAIagent` без RLS; автоматически включать RLS нельзя без понимания её владельца и политик.
 - Реальный pg_cron/pg_net/Vault scheduler не подтвержден.
 - Потерянный PUT response и полноценные sync-состояния требуют отдельной state-machine и UI разрешения конфликта.
-- Outbox acknowledgement нужно довести до явных `pending/sending/accepted/failed/cancelled` переходов.
+- Outbox acknowledgement теперь сохраняется отдельным user-scoped durable индексом; сетевой сбой не записывается как успех, а повтор использует стабильный command key. Явный UI для `sending/failed` остаётся отдельной задачей.
 - Два устройства, два аккаунта, реальная job -> worker -> Telegram доставка, reschedule и cancel в production не объявляются проверенными.
 - Полный SPEC по сну, фото, экспорту, check-in, postpone/skip и аналитике остаётся незавершенным.

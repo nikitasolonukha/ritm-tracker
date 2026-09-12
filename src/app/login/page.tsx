@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyRound, LogIn } from "lucide-react";
+import { Eye, EyeOff, KeyRound, LogIn } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [visible, setVisible] = useState(false);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setError("");
     try { const { error: authError } = await createClient().auth.signInWithPassword({ email, password }); if (authError) throw authError; window.location.assign("/"); }
@@ -17,6 +18,7 @@ export default function LoginPage() {
     finally { setBusy(false); }
   }
   async function requestReset() {
+    if (!email.trim()) { setError("Введите email, чтобы получить письмо для восстановления."); return; }
     setBusy(true); setError(""); setResetSent(false);
     try {
       const { error: resetError } = await createClient().auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/update-password` });
@@ -25,5 +27,5 @@ export default function LoginPage() {
     } catch (resetError) { setError(resetError instanceof Error ? resetError.message : "Не удалось отправить письмо"); }
     finally { setBusy(false); }
   }
-  return <main className="shell authShell"><section className="panel authPanel"><p className="eyebrow">Ритм</p><h1>Вход</h1><p className="muted">Только владелец приложения.</p>{!isSupabaseConfigured && <p className="storageMessage">Supabase пока не настроен в окружении.</p>}<form onSubmit={submit} className="authForm"><label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="username" /></label><label>Пароль<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" /></label>{error && <p className="storageMessage" role="alert">{error}</p>}{resetSent && <p className="storageMessage" role="status">Письмо отправлено. Проверь почту и перейди по ссылке.</p>}<button className="primary" disabled={busy || !isSupabaseConfigured}><LogIn size={18} /> {busy ? "Вхожу…" : "Войти"}</button></form><button className="textButton" type="button" onClick={requestReset} disabled={busy || !isSupabaseConfigured || !email}> <KeyRound size={16} /> Забыли пароль?</button></section></main>;
+  return <main className="shell authShell"><section className="panel authPanel"><p className="eyebrow">Ритм</p><h1>Вход</h1><p className="muted">Только владелец приложения.</p>{!isSupabaseConfigured && <p className="storageMessage">Supabase пока не настроен в окружении.</p>}<form onSubmit={submit} className="authForm"><label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="username" /></label><label>Пароль<span className="passwordField"><input type={visible ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" /><button className="iconButton" type="button" aria-label={visible ? "Скрыть пароль" : "Показать пароль"} onClick={() => setVisible(!visible)}>{visible ? <EyeOff size={20} /> : <Eye size={20} />}</button></span></label>{error && <p className="storageMessage" role="alert">{error}</p>}{resetSent && <p className="storageMessage" role="status">Письмо отправлено. Проверь почту и перейди по ссылке.</p>}<button className="primary" disabled={busy || !isSupabaseConfigured}><LogIn size={18} /> {busy ? "Вхожу…" : "Войти"}</button></form><button className="textButton" type="button" onClick={requestReset} disabled={busy || !isSupabaseConfigured}> <KeyRound size={16} /> Забыли пароль?</button></section></main>;
 }

@@ -26,9 +26,14 @@ export async function middleware(request: NextRequest) {
     },
   });
   const { data: { user } } = await supabase.auth.getUser();
-  if (user && user.id !== ownerId) return NextResponse.redirect(new URL("/login?reason=forbidden", request.url));
-  if (!user && !isLogin && !isPasswordRecovery) return NextResponse.redirect(new URL("/login", request.url));
-  if (user && isLogin) return NextResponse.redirect(new URL("/", request.url));
+  const redirect = (path: string) => {
+    const next = NextResponse.redirect(new URL(path, request.url));
+    response.cookies.getAll().forEach((cookie) => next.cookies.set(cookie));
+    return next;
+  };
+  if (user && user.id !== ownerId && !isLogin) return redirect("/login?reason=forbidden");
+  if (!user && !isLogin && !isPasswordRecovery) return redirect("/login");
+  if (user && user.id === ownerId && isLogin) return redirect("/");
   return response;
 }
 

@@ -115,7 +115,7 @@ function useTrackerStateInternal(): TrackerStore {
           if (local.status === "empty" && remote.payload) {
             setLegacyState(undefined);
             const saved = writeState(remote.payload, data.user.id);
-            if (saved.ok && actionSeqRef.current === actionSeqAtFetch) { revisionRef.current = remote.version ?? 0; stateRef.current = remote.payload; setState(remote.payload); }
+            if (saved.ok && actionSeqRef.current === actionSeqAtFetch) { revisionRef.current = remote.version ?? 0; stateRef.current = remote.payload; setState(remote.payload); setSyncStatus("idle"); }
             else if (stableStringify(remote.payload) === stableStringify(stateRef.current)) revisionRef.current = remote.version ?? 0;
             else {
               syncBlockedRef.current = true;
@@ -262,6 +262,7 @@ function useTrackerStateInternal(): TrackerStore {
       setState(syncConflict.remote);
       setSyncConflict(undefined);
       setStorageError(undefined);
+      setSyncStatus("idle");
       return true;
     }
     syncBlockedRef.current = false;

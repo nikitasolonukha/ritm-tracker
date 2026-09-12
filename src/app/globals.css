@@ -883,7 +883,7 @@ textarea:focus-visible {
   background: var(--surface);
 }
 
-.textButton { border: 0; padding: 0; color: inherit; text-decoration: underline; background: transparent; font: inherit; cursor: pointer; }
+.textButton { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border: 1px solid var(--line); border-radius: 12px; padding: 10px 16px; color: var(--text); text-decoration: none; background: var(--surface-2); font: inherit; cursor: pointer; }
 
 .wide,
 .workoutPanel,

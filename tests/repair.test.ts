@@ -16,6 +16,13 @@ import {
 } from "../src/lib/tracker.ts";
 import { decideLostPutResponse } from "../src/lib/sync.ts";
 import { prepareSyncPayload } from "../src/lib/sync.ts";
+import { createInitialState, migrateState } from "../src/lib/storage.ts";
+
+test("loading a modern snapshot does not reactivate a historical workout", () => {
+  const state = { ...createInitialState("2026-09-12"), workouts: [{ id: "history", date: "2026-09-11", title: "Fixture", exercises: [] }] };
+  assert.equal(migrateState(state).activeWorkoutId, undefined);
+  assert.equal(stableStringify(migrateState(state)), stableStringify(state));
+});
 
 test("Moscow local date is independent from UTC date", () => {
   assert.equal(getLocalDate(new Date("2026-09-09T21:30:00.000Z"), "Europe/Moscow"), "2026-09-10");

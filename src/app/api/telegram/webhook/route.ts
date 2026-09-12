@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { hashTelegramLinkToken, parseTelegramRestCallback, validateTelegramUpdate, verifyTelegramSecret, type TelegramUpdate } from "@/lib/telegram";
@@ -88,46 +87,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ accepted: true, updateId: telegramUpdate.update_id, callback: command?.status ?? "accepted", acknowledgement: acknowledged ? "sent" : "unknown" }, { status: acknowledged ? 200 : 202 });
   }
   if (telegramUpdate.message?.text?.startsWith("/start ") && telegramUpdate.message.chat?.id != null) {
-    const rawToken = telegramUpdate.message.text.slice(7).trim();
-    if (rawToken) {
-      const { data: link, error: linkLookupError } = await admin.from("telegram_links")
-        .select("user_id")
-        .eq("token_hash", hashTelegramLinkToken(rawToken))
-        .gt("token_expires_at", new Date().toISOString())
-        .maybeSingle();
-      if (linkLookupError) {
-        await finishUpdate("failed", "telegram link lookup unavailable");
-        return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
-      }
-      if (link) {
-        const connectedAt = new Date().toISOString();
-        const tokenHash = hashTelegramLinkToken(rawToken);
-        const { data: linkedRow, error: linkUpdateError } = await admin.from("telegram_links")
-          .update({ token_hash: hashTelegramLinkToken(randomUUID()), expires_at: connectedAt, token_expires_at: connectedAt, telegram_user_id: telegramUpdate.message.chat.id, confirmed_at: connectedAt, connected_at: connectedAt, revoked_at: null, delivery_status: "connected", last_delivery_error: null, last_delivery_error_at: null })
-          .eq("user_id", link.user_id)
-          .eq("token_hash", tokenHash)
-          .select("user_id")
-          .maybeSingle();
-        if (linkUpdateError) {
-          await finishUpdate("failed", "telegram link update unavailable");
-          return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
-        }
-        if (!linkedRow) {
-          if (!await finishUpdate("processed")) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
-          return NextResponse.json({ accepted: true, updateId: telegramUpdate.update_id, duplicate: true });
-        }
-        try {
-          await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ chat_id: telegramUpdate.message.chat.id, text: "Telegram подключен к Ритму." }),
-          });
-        } catch {
-          if (!await finishUpdate("processed")) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
-          return NextResponse.json({ accepted: true, updateId: telegramUpdate.update_id, linked: true, confirmation: "unknown" }, { status: 202 });
-        }
-      }
+    const message = telegramUpdate.message;
+    const senderId = message.from?.id;
+    if (!senderId || senderId !== message.chat?.id || senderId <= 0) {
+      if (!await finishUpdate("processed")) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+      return NextResponse.json({ accepted: true, linked: false });
     }
+    const rawToken = message.text!.slice(7).trim();
+    const { data: linked, error } = await admin.rpc("confirm_telegram_link", {
+      p_token_hash: hashTelegramLinkToken(rawToken), p_telegram_user_id: senderId,
+    });
+    if (error) {
+      await finishUpdate("failed", "telegram link update unavailable");
+      return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+    }
+    let confirmation = false;
+    try {
+      const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chat_id: senderId, text: linked ? "Telegram подключен к Ритму." : "Ссылка истекла или уже использована. Создайте новую в настройках Ритма." }),
+      });
+      const body = await response.json();
+      confirmation = response.ok && body.ok === true;
+    } catch { /* The binding is durable even when the confirmation cannot be delivered. */ }
+    if (!await finishUpdate("processed")) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+    return NextResponse.json({ accepted: true, linked: linked === true, confirmation: confirmation ? "sent" : "unknown" });
   }
   if (!await finishUpdate("processed")) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
   return NextResponse.json({ accepted: true, updateId: telegramUpdate.update_id });

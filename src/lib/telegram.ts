@@ -3,7 +3,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 export type TelegramUpdate = {
   update_id: number;
   callback_query?: { id: string; data?: string; from?: { id: number }; message?: { chat?: { id: number } } };
-  message?: { chat?: { id: number }; text?: string };
+  message?: { from?: { id: number }; chat?: { id: number }; text?: string };
 };
 
 export function verifyTelegramSecret(actual: string | null, expected: string | undefined): boolean {

@@ -37,7 +37,8 @@ export async function POST() {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   if (!url || !serviceRoleKey || !botToken) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
 
-  const meResponse = await fetch(`https://api.telegram.org/bot${botToken}/getMe`, { cache: "no-store" });
+  const meResponse = await fetch(`https://api.telegram.org/bot${botToken}/getMe`, { cache: "no-store", signal: AbortSignal.timeout(8000) }).catch(() => null);
+  if (!meResponse) return NextResponse.json({ error: "telegram_unavailable" }, { status: 503 });
   const me = await meResponse.json().catch(() => ({})) as { ok?: boolean; result?: { username?: string } };
   if (!meResponse.ok || !me.ok || !me.result?.username) return NextResponse.json({ error: "telegram_unavailable" }, { status: 503 });
 

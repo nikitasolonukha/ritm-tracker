@@ -186,7 +186,7 @@ export function writeState(state: TrackerState, userId?: string): { ok: boolean;
   }
 }
 
-function migrateState(state: TrackerState): TrackerState {
+export function migrateState(state: TrackerState): TrackerState {
   const workoutTemplates = state.workoutTemplates?.length ? state.workoutTemplates : state.workouts.slice(0, 1);
-  return { ...state, workoutTemplates, activeWorkoutId: state.activeWorkoutId ?? state.workouts[0]?.id, workoutCommands: state.workoutCommands ?? [], photos: state.photos ?? [] };
+  return { ...state, workoutTemplates, workoutCommands: state.workoutCommands ?? [], photos: state.photos ?? [] };
 }

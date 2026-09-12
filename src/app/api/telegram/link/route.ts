@@ -11,7 +11,13 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const { data, error } = await supabase.from("telegram_links")
+  if (user.id !== process.env.RITM_OWNER_USER_ID) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceRoleKey) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+  // Service tables remain inaccessible to browser credentials. Only return this owner's status.
+  const admin = createAdminClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
+  const { data, error } = await admin.from("telegram_links")
     .select("telegram_user_id, confirmed_at, connected_at, revoked_at, token_expires_at, delivery_status, last_delivery_error")
     .eq("user_id", user.id)
     .maybeSingle();

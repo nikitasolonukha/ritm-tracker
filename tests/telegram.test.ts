@@ -3,6 +3,15 @@ import fs from "node:fs";
 import test from "node:test";
 import { hashTelegramLinkToken, parseTelegramRestCallback, validateTelegramUpdate, verifyTelegramSecret } from "../src/lib/telegram.ts";
 
+test("Telegram status reads the service table only after owner verification and scopes by user", () => {
+  const source = fs.readFileSync(new URL("../src/app/api/telegram/link/route.ts", import.meta.url), "utf8");
+  const get = source.slice(source.indexOf("export async function GET"), source.indexOf("export async function POST"));
+  assert.ok(get.includes("supabase.auth.getUser()"));
+  assert.ok(get.indexOf("user.id !== process.env.RITM_OWNER_USER_ID") < get.indexOf('admin.from("telegram_links")'));
+  assert.ok(get.includes('.eq("user_id", user.id)'));
+  assert.ok(!get.includes('supabase.from("telegram_links")'));
+});
+
 test("Telegram webhook secret comparison is exact and timing-safe", () => {
   assert.equal(verifyTelegramSecret("secret", "secret"), true);
   assert.equal(verifyTelegramSecret("secret", "other"), false);

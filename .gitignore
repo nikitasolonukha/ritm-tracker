@@ -15,3 +15,4 @@ artifacts/product-qa/*.log
 artifacts/product-qa/test-results/
 artifacts/product-qa/failure-*.png
 artifacts/product-qa/registration-blocked-*.png
+artifacts/product-qa-webkit/

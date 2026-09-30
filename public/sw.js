@@ -1,6 +1,6 @@
-const PUBLIC_CACHE = "ritm-public-v2";
+const PUBLIC_CACHE = "ritm-public-v3";
 const META_CACHE = "ritm-pwa-meta-v1";
-const ACCOUNT_CACHE_PREFIX = "ritm-account-v2-";
+const ACCOUNT_CACHE_PREFIX = "ritm-account-v3-";
 const ACCOUNT_MARKER = "/__ritm_active_account__";
 const PUBLIC_SHELL = ["/login", "/manifest.webmanifest", "/icon.svg"];
 let activeAccountId;
@@ -11,6 +11,11 @@ function accountCacheName(userId) {
 
 function isStaticAsset(request) {
   return request.destination === "script" || request.destination === "style" || request.destination === "font" || request.destination === "image";
+}
+
+function isPrivatePage(path) {
+  return ["/today", "/workouts", "/settings", "/progress", "/journal", "/journal/import"].includes(path)
+    || ["/workout/", "/workouts/templates/", "/journal/workouts/"].some((prefix) => path.startsWith(prefix));
 }
 
 async function loadActiveAccount() {
@@ -53,7 +58,18 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("message", (event) => {
-  if (event.data?.type === "set-account" && typeof event.data.userId === "string") event.waitUntil(saveActiveAccount(event.data.userId));
+  if (event.data?.type === "set-account" && typeof event.data.userId === "string") event.waitUntil((async () => {
+    const id = event.data.userId;
+    await saveActiveAccount(id);
+    // Capture the first authenticated shell even when login redirected there before the worker learned the account.
+    if (!event.data.url) return;
+    const url = new URL(event.data.url);
+    if (url.origin !== self.location.origin || !isPrivatePage(url.pathname)) return;
+    try {
+      const response = await fetch(url.href, { cache: "no-store", headers: { Accept: "text/html" } });
+      if (response.ok && !response.redirected && response.headers.get("x-ritm-account-id") === id && activeAccountId === id) await (await caches.open(accountCacheName(id))).put(url.href, response);
+    } catch { /* Keep the previous offline shell and all local records. */ }
+  })());
   if (event.data?.type === "clear-account") event.waitUntil(clearActiveAccount());
 });
 
@@ -61,6 +77,9 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const isNavigation = event.request.mode === "navigate";
   const isAsset = isStaticAsset(event.request);
+  const requestUrl = new URL(event.request.url);
+  if (requestUrl.origin !== self.location.origin || requestUrl.pathname.startsWith("/api/")) return;
+  const isPublicAsset = isAsset && (requestUrl.pathname.startsWith("/_next/static/") || ["/icon.svg", "/favicon.ico"].includes(requestUrl.pathname));
   if (!isNavigation && !isAsset) return;
 
   event.respondWith((async () => {
@@ -69,11 +88,11 @@ self.addEventListener("fetch", (event) => {
       if (!response.ok) return response;
       const finalPath = new URL(response.url).pathname;
       const copy = response.clone();
-      if (isAsset) {
+      if (isPublicAsset && !response.redirected) {
         event.waitUntil(caches.open(PUBLIC_CACHE).then((cache) => cache.put(event.request, copy)));
-      } else if (finalPath === "/login") {
+      } else if (isNavigation && finalPath === "/login") {
         event.waitUntil(caches.open(PUBLIC_CACHE).then((cache) => cache.put("/login", copy)));
-      } else if (activeAccountId) {
+      } else if (isNavigation && activeAccountId && response.headers.get("x-ritm-account-id") === activeAccountId && !response.redirected && finalPath === requestUrl.pathname && !["/login", "/register", "/update-password"].includes(finalPath)) {
         event.waitUntil(caches.open(accountCacheName(activeAccountId)).then((cache) => cache.put(event.request, copy)));
       }
       return response;

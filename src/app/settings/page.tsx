@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, LogOut, Plus, Save, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, ArrowUp, ArrowDown, LogOut, Plus, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useTrackerState } from "@/components/tracker-state";
 import { createClient } from "@/lib/supabase/client";
 import { setServiceWorkerAccount } from "@/lib/pwa";
@@ -11,20 +11,29 @@ import type { ExerciseSet } from "@/lib/tracker";
 import { SettingsInput } from "@/components/settings-input";
 import { TelegramSettings } from "@/components/telegram-settings";
 import { AppNav } from "@/components/app-nav";
+import { HabitEditor } from "@/components/habit-editor";
+import { DataSettings } from "@/components/data-settings";
 
 export default function SettingsPage() {
   const { state, update, importLegacy, legacyState, storageError, syncStatus } = useTrackerState();
   const sessionState = state as SessionTrackerState | null;
-  const template = sessionState?.workoutTemplates?.[0];
-  const [title, setTitle] = useState("");
-  const [section, setSection] = useState<"habits" | "program" | "telegram">("habits");
-  if (!state || !template) return <main className="shell appPage"><p className="muted">Загружаю настройки...</p></main>;
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>();
+  const template = sessionState?.workoutTemplates?.find((t) => t.id === selectedTemplateId) ?? sessionState?.workoutTemplates?.[0];
+  const [signOutError, setSignOutError] = useState("");
+  const [section, setSection] = useState<"habits" | "program" | "telegram" | "data">("habits");
+  useEffect(() => { const query = new URLSearchParams(window.location.search); const section = query.get("section"); if (section === "program" || section === "telegram" || section === "data") setSection(section); setSelectedTemplateId(query.get("program") ?? undefined); }, []);
+  if (!state) return <main className="shell appPage"><p className="muted">Загружаю настройки...</p></main>;
+  const addProgram = () => {
+    const id = `program-${crypto.randomUUID()}`;
+    if (update((previous) => ({ ...previous, workoutTemplates: [...(previous.workoutTemplates ?? []), { id, title: "Новая программа", date: new Date().toISOString().slice(0, 10), exercises: [] }] }))) setSelectedTemplateId(id);
+  };
+  const removeProgram = () => { if (template && window.confirm(`Удалить программу «${template.title}»? Записанные тренировки останутся.`)) update((previous) => ({ ...previous, workoutTemplates: previous.workoutTemplates?.filter((p) => p.id !== template.id) })); };
 
   const editExercise = (exerciseId: string, field: string, value: string) => update((previous) => {
     const next = previous as SessionTrackerState;
     return {
       ...next,
-      workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id !== template.id ? item : {
+      workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id !== template?.id ? item : {
         ...item,
         exercises: item.exercises.map((exercise) => {
           if (exercise.id !== exerciseId) return exercise;
@@ -43,7 +52,7 @@ export default function SettingsPage() {
     const next = previous as SessionTrackerState;
     return {
       ...next,
-      workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id !== template.id ? item : {
+      workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id !== template?.id ? item : {
         ...item,
         exercises: item.exercises.map((exercise) => exercise.id !== exerciseId ? exercise : {
           ...exercise,
@@ -63,7 +72,7 @@ export default function SettingsPage() {
     const id = `exercise-${Date.now()}`;
     return {
       ...next,
-      workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id !== template.id ? item : {
+      workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id !== template?.id ? item : {
         ...item,
         exercises: [...item.exercises, {
           id,
@@ -78,7 +87,7 @@ export default function SettingsPage() {
 
   const removeExercise = (exerciseId: string) => update((previous) => {
     const next = previous as SessionTrackerState;
-    return { ...next, workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id !== template.id ? item : { ...item, exercises: item.exercises.filter((exercise) => exercise.id !== exerciseId) }) };
+    return { ...next, workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id !== template?.id ? item : { ...item, exercises: item.exercises.filter((exercise) => exercise.id !== exerciseId) }) };
   });
 
   const addSet = (exerciseId: string) => update((previous) => {
@@ -86,18 +95,17 @@ export default function SettingsPage() {
     const id = `set-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`;
     return {
       ...next,
-      workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id !== template.id ? item : {
+      workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id !== template?.id ? item : {
         ...item,
         exercises: item.exercises.map((exercise) => {
           if (exercise.id !== exerciseId) return exercise;
           const components = [...new Set(exercise.sets.map((set) => set.component).filter((component) => component === "compound-a" || component === "compound-b"))];
-          const pairNumber = new Set(exercise.sets.map((set, index) => set.segmentId ?? (set.component && set.component !== "single" ? `pair-${Math.floor(index / 2)}` : `set-${index}`))).size;
           if (components.length > 1) {
-            const pairId = `pair-${pairNumber}`;
+            const pairId = `pair-${crypto.randomUUID()}`;
             return { ...exercise, sets: [...exercise.sets, ...components.map((component) => { const source = [...exercise.sets].reverse().find((set) => set.component === component); const base: ExerciseSet = source ? { ...source } : { id: `${id}-${component}`, weightKg: null, reps: 8, completed: false, component: component as ExerciseSet["component"] }; return { ...base, id: `${id}-${component}`, component: component as ExerciseSet["component"], segmentId: pairId, completed: false, weightDraft: undefined, repsDraft: undefined }; })] };
           }
           const source = exercise.sets.at(-1);
-          return source ? { ...exercise, sets: [...exercise.sets, { ...source, id, completed: false, weightDraft: undefined, repsDraft: undefined }] } : exercise;
+          return { ...exercise, sets: [...exercise.sets, source ? { ...source, id, completed: false, weightDraft: undefined, repsDraft: undefined } : { id, weightKg: null, reps: 8, completed: false }] };
         }),
       }),
     };
@@ -107,7 +115,7 @@ export default function SettingsPage() {
     const next = previous as SessionTrackerState;
     return {
       ...next,
-      workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id !== template.id ? item : {
+      workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id !== template?.id ? item : {
         ...item,
         exercises: item.exercises.map((exercise) => {
           if (exercise.id !== exerciseId || exercise.sets.length <= 1) return exercise;
@@ -124,7 +132,7 @@ export default function SettingsPage() {
     const next = previous as SessionTrackerState;
     return {
       ...next,
-      workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id !== template.id ? item : {
+      workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id !== template?.id ? item : {
         ...item,
         exercises: item.exercises.map((exercise) => exercise.id !== exerciseId ? exercise : {
           ...exercise,
@@ -139,20 +147,14 @@ export default function SettingsPage() {
     };
   });
 
-  const saveTitle = () => update((previous) => {
-    const next = previous as SessionTrackerState;
-    return { ...next, workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id === template.id ? { ...item, title: title || item.title } : item) };
-  });
-
-  function signOut() {
-    setServiceWorkerAccount();
-    void createClient().auth.signOut().finally(() => { window.location.assign("/login"); });
+  async function signOut() {
+    try {
+      const { error } = await createClient().auth.signOut({ scope: "local" });
+      if (error) { setSignOutError("Не удалось выйти. Попробуйте снова."); return; }
+      setServiceWorkerAccount();
+      window.location.assign("/login");
+    } catch { setSignOutError("Не удалось выйти. Проверьте соединение."); }
   }
-
-  const editHabit = (habitId: string, field: "title" | "schedule" | "privateTitle", value: string) => update((previous) => ({
-    ...previous,
-    habits: previous.habits.map((habit) => habit.id !== habitId ? habit : { ...habit, [field]: value }),
-  }));
   const addHabit = () => {
     const id = `habit-${crypto.randomUUID()}`;
     update((previous) => ({ ...previous, habits: [...previous.habits, { id, type: "habit", title: "Новая привычка", schedule: "" }] }));
@@ -161,20 +163,24 @@ export default function SettingsPage() {
   return <main className="shell appPage">
     <Link className="backLink" href="/today"><ArrowLeft size={18} /> Сегодня</Link>
     <header className="pageHeader"><div><p className="eyebrow">Аккаунт</p><h1>Настройки</h1></div><button className="secondary" onClick={signOut}><LogOut size={17} /> Выйти</button></header>
+    {signOutError && <p role="alert" className="storageMessage">{signOutError}</p>}
     {storageError && <p className="storageMessage" role="alert">{storageError}</p>}
     <p className="muted" role="status">{syncStatus === "idle" ? "Изменения сохранены" : syncStatus === "syncing" || syncStatus === "dirty" ? "Сохраняем изменения…" : syncStatus === "loading" ? "Загружаем данные…" : "Изменения на этом устройстве"}</p>
     {legacyState && <section className="panel migrationNotice"><p className="eyebrow">Старые данные</p><h2>Найдена локальная история</h2><p>Она хранится отдельно и не открывается автоматически другому аккаунту. Перенести её в этот аккаунт?</p><button className="primary" onClick={importLegacy}>Перенести историю</button></section>}
-    <div className="settingsTabs" role="tablist" aria-label="Раздел настроек">{([["habits", "Привычки"], ["program", "Программа"], ["telegram", "Telegram"]] as const).map(([id, label]) => <button key={id} role="tab" aria-selected={section === id} onClick={() => setSection(id)}>{label}</button>)}</div>
+    <div className="settingsTabs" role="tablist" aria-label="Раздел настроек">{([["habits", "Привычки"], ["program", "Программа"], ["telegram", "Telegram"], ["data", "Данные"]] as const).map(([id, label]) => <button key={id} role="tab" aria-selected={section === id} onClick={() => setSection(id)}>{label}</button>)}</div>
     {section === "telegram" && <TelegramSettings />}
+    {section === "data" && <DataSettings />}
     <div hidden={section !== "habits"}>
     <button className="secondary" onClick={addHabit}><Plus size={18} /> Добавить привычку</button>
 
-    <section className="panel settingsEditor"><div className="sectionHeading"><div><p className="eyebrow">Приватно</p><h2>Ритм дня</h2></div><span className="muted">Названия и расписание</span></div><div className="settingsList">{state.habits.map((habit) => <article className="settingRow habitSettingRow" key={habit.id}><label>Действие<SettingsInput value={habit.title} onCommit={(value) => editHabit(habit.id, "title", value)} /></label><label>Когда<SettingsInput value={habit.schedule} placeholder="Например, после завтрака" onCommit={(value) => editHabit(habit.id, "schedule", value)} /></label><label>Личная заметка<SettingsInput value={habit.privateTitle} placeholder="Необязательно" onCommit={(value) => editHabit(habit.id, "privateTitle", value)} /></label></article>)}</div></section>
+    <section className="settingsEditor"><div className="sectionHeading"><h2>Ритм дня</h2><span className="muted">{state.habits.filter((h) => !h.archived).length} действий</span></div><div className="settingsList">{state.habits.map((habit) => <HabitEditor key={habit.id} habit={habit} />)}</div></section>
     </div>
     <div hidden={section !== "program"}>
+    <div className="settingsActions"><button className="secondary" onClick={addProgram}><Plus size={18} /> Новая программа</button>{template && <button className="secondary" onClick={removeProgram}><Trash2 size={18} /> Удалить программу</button>}</div>
+    {template ? <>
+    <label>Программа<select value={template.id} onChange={(e) => setSelectedTemplateId(e.target.value)}>{sessionState?.workoutTemplates?.map((p) => <option value={p.id} key={p.id}>{p.title}</option>)}</select></label>
     <section className="panel settingsEditor">
-      <label>Название программы<input value={title || template.title} onChange={(event) => setTitle(event.target.value)} /></label>
-      <button className="primary" onClick={saveTitle}><Save size={18} /> Сохранить название</button>
+      <label>Название программы<SettingsInput value={template.title} onCommit={(title) => { if (title.trim()) update((previous) => ({ ...previous, workoutTemplates: previous.workoutTemplates?.map((p) => p.id === template.id ? { ...p, title: title.trim() } : p) })); }} /></label>
       <div className="sectionHeading"><h2>Упражнения</h2><button className="secondary" onClick={addExercise}><Plus size={17} /> Добавить</button></div>
       {template.exercises.map((exercise) => {
         const logicalSetCount = new Set(exercise.sets.map((set, index) => set.segmentId ?? (set.component && set.component !== "single" ? `pair-${Math.floor(index / 2)}` : `set-${index}`))).size;
@@ -194,9 +200,11 @@ export default function SettingsPage() {
           <div className="setEditorActions"><span>{logicalSetCount} логич. подход{logicalSetCount === 1 ? "" : logicalSetCount < 5 ? "а" : "ов"}</span><button className="secondary" onClick={() => addSet(exercise.id)}>Добавить подход</button>{!exercise.sets.some((set) => set.component && set.component !== "single") && exercise.sets.length >= 2 && exercise.sets.length % 2 === 0 && <button className="secondary" onClick={() => makeCompound(exercise.id)}>Сделать парами A/B</button>}<button className="iconButton" onClick={() => removeSet(exercise.id)} disabled={logicalSetCount <= 1} aria-label={`Удалить последний подход ${exercise.name}`}><Trash2 size={17} /></button></div>
           <label>Отдых<select value={exercise.restSec ?? 180} onChange={(event) => editExercise(exercise.id, "restSec", event.target.value)}><option value="180">180 сек</option><option value="240">240 сек</option></select></label>
           <button className="iconButton" onClick={() => removeExercise(exercise.id)} aria-label={`Удалить ${exercise.name}`}><Trash2 size={17} /></button>
+          <div className="settingsActions">{([-1, 1] as const).map((direction) => <button key={direction} className="iconButton" aria-label={direction === -1 ? "Переместить выше" : "Переместить ниже"} disabled={template.exercises.indexOf(exercise) + direction < 0 || template.exercises.indexOf(exercise) + direction >= template.exercises.length} onClick={() => update((previous) => ({ ...previous, workoutTemplates: previous.workoutTemplates?.map((p) => { if (p.id !== template.id) return p; const list = [...p.exercises]; const index = list.findIndex((e) => e.id === exercise.id); [list[index], list[index + direction]] = [list[index + direction], list[index]]; return { ...p, exercises: list }; }) }))}>{direction === -1 ? <ArrowUp size={18} /> : <ArrowDown size={18} />}</button>)}</div>
         </div></details>;
       })}
     </section>
+    </> : <p className="muted">Добавьте свою первую программу.</p>}
     </div>
     <AppNav active="settings" />
   </main>;

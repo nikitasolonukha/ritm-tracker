@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { hashTelegramLinkToken, parseTelegramRestCallback, validateTelegramUpdate, verifyTelegramSecret, type TelegramUpdate } from "@/lib/telegram";
+import { hashTelegramLinkToken, parseTelegramHabitCallback, parseTelegramRestCallback, validateTelegramUpdate, verifyTelegramSecret, type TelegramUpdate } from "@/lib/telegram";
+import { boundedServerFetch } from "@/lib/server-fetch";
 
 export const runtime = "nodejs";
+export const maxDuration = 30;
 
 async function answerCallbackQuery(botToken: string, callbackId: string, text: string) {
   const response = await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
     method: "POST",
+    signal: AbortSignal.timeout(8000),
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ callback_query_id: callbackId, text, show_alert: false }),
   });
@@ -32,7 +35,7 @@ export async function POST(request: NextRequest) {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   if (!url || !serviceRoleKey || !botToken) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
-  const admin = createClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
+  const admin = createClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false }, global: { fetch: boundedServerFetch } });
   const { data: claim, error: claimError } = await admin.rpc("claim_telegram_update", { p_update_id: telegramUpdate.update_id, p_payload: telegramUpdate });
   if (claimError || !claim || typeof claim !== "object") return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
   const claimStatus = (claim as { status?: string }).status;
@@ -53,6 +56,16 @@ export async function POST(request: NextRequest) {
     const callback = telegramUpdate.callback_query;
     const telegramUserId = callback.from?.id;
     const chatId = callback.message?.chat?.id;
+    const habitCallback = parseTelegramHabitCallback(callback.data);
+    if (habitCallback && telegramUserId && chatId === telegramUserId) {
+      const accepted = await admin.rpc("accept_telegram_habit_command", { p_telegram_user_id: telegramUserId, p_command_key: `telegram-callback-${telegramUpdate.update_id}`, p_job_id: habitCallback.jobId, p_source_version: habitCallback.sourceVersion, p_action: habitCallback.action });
+      if (accepted.error) { await finishUpdate("failed", "habit command unavailable"); return NextResponse.json({ error: "storage_unavailable" }, { status: 503 }); }
+      const status = accepted.data?.status;
+      const applied = status === "applied" || status === "duplicate";
+      const acknowledged = await answerCallbackQuery(botToken, callback.id, applied ? habitCallback.action === "done" ? "Отмечено" : habitCallback.action === "later" ? "Отложено на 10 минут" : "Пропущено" : status === "limited" ? "Достигнут лимит повторов" : "Действие устарело").catch(() => false);
+      if (!await finishUpdate("processed")) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+      return NextResponse.json({ accepted: true, callback: status, acknowledgement: acknowledged ? "sent" : "unknown" });
+    }
     const parsed = parseTelegramRestCallback(callback.data);
     if (!telegramUserId || (chatId != null && chatId !== telegramUserId) || !parsed) {
       const acknowledged = await answerCallbackQuery(botToken, callback.id, "Действие устарело").catch(() => false);
@@ -82,7 +95,8 @@ export async function POST(request: NextRequest) {
       await finishUpdate("failed", "timer command unavailable");
       return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
     }
-    const acknowledged = await answerCallbackQuery(botToken, callback.id, action === "cancel" ? "Отдых пропущен" : "Отдых продлен на 30 секунд").catch(() => false);
+    const applied = command?.status === "applied" || command?.status === "duplicate";
+    const acknowledged = await answerCallbackQuery(botToken, callback.id, applied ? action === "cancel" ? "Отдых пропущен" : "Отдых продлен на 30 секунд" : "Действие устарело").catch(() => false);
     if (!await finishUpdate("processed")) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
     return NextResponse.json({ accepted: true, updateId: telegramUpdate.update_id, callback: command?.status ?? "accepted", acknowledgement: acknowledged ? "sent" : "unknown" }, { status: acknowledged ? 200 : 202 });
   }
@@ -101,17 +115,25 @@ export async function POST(request: NextRequest) {
       await finishUpdate("failed", "telegram link update unavailable");
       return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
     }
+    let connected = linked === true;
+    if (!connected) {
+      const existing = await admin.from("telegram_links").select("confirmed_at")
+        .eq("token_hash", hashTelegramLinkToken(rawToken)).eq("telegram_user_id", senderId).is("revoked_at", null).maybeSingle();
+      if (existing.error) { await finishUpdate("failed", "telegram link read unavailable"); return NextResponse.json({ error: "storage_unavailable" }, { status: 503 }); }
+      connected = Boolean(existing.data?.confirmed_at);
+    }
     let confirmation = false;
     try {
       const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        signal: AbortSignal.timeout(8000),
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ chat_id: senderId, text: linked ? "Telegram подключен к Ритму." : "Ссылка истекла или уже использована. Создайте новую в настройках Ритма." }),
+        body: JSON.stringify({ chat_id: senderId, text: connected ? "Telegram подключен к Ритму." : "Ссылка истекла или уже использована. Создайте новую в настройках Ритма." }),
       });
       const body = await response.json();
       confirmation = response.ok && body.ok === true;
     } catch { /* The binding is durable even when the confirmation cannot be delivered. */ }
     if (!await finishUpdate("processed")) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
-    return NextResponse.json({ accepted: true, linked: linked === true, confirmation: confirmation ? "sent" : "unknown" });
+    return NextResponse.json({ accepted: true, linked: connected, confirmation: confirmation ? "sent" : "unknown" });
   }
   if (!await finishUpdate("processed")) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
   return NextResponse.json({ accepted: true, updateId: telegramUpdate.update_id });

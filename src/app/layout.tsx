@@ -21,7 +21,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="ru">
       <body>
         <PwaRegistration />
-        <TrackerProvider>{children}</TrackerProvider>
+        <TrackerProvider demoMode={process.env.RITM_DEMO_MODE === "1" && process.env.VERCEL !== "1"}>{children}</TrackerProvider>
       </body>
     </html>
   );

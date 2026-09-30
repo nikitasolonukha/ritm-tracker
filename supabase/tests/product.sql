@@ -1,0 +1,51 @@
+\set ON_ERROR_STOP on
+begin;
+create function pg_temp.assert_true(value boolean, label text) returns void language plpgsql as $$ begin if value is distinct from true then raise exception 'FAILED: %',label; end if; raise notice 'PASS: %',label; end; $$;
+insert into auth.users(id,email) values('a1000000-0000-4000-8000-000000000001','ritm-fixture-a@example.test'),('b1000000-0000-4000-8000-000000000002','ritm-fixture-b@example.test');
+grant execute on function pg_temp.assert_true(boolean,text) to authenticated,service_role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','a1000000-0000-4000-8000-000000000001',true);
+select public.save_tracker_state(0,jsonb_build_object('version',1,'habits','[]'::jsonb,'completions','[]'::jsonb,'workouts',jsonb_build_array(jsonb_build_object('id','w1','exercises',jsonb_build_array(jsonb_build_object('id','e1','sets',jsonb_build_array(jsonb_build_object('id','s1','weightKg',12.5,'reps',8,'completed',true)))))),'activeTimer',jsonb_build_object('sourceId','w1:e1:s1'),'outbox',jsonb_build_array(jsonb_build_object('id','cmd1','type','workout.set.completed','entityId','w1:e1:s1','version',1,'status','pending','payload',jsonb_build_object('dueAt',now()+interval '3 minutes','expiresAt',now()+interval '5 minutes','message','Fixture rest')))));
+select pg_temp.assert_true((public.accept_workout_command('cmd1','w1:e1:s1','{}',1,null,null,'Fixture')->>'status')='accepted','saved fact can acknowledge command');
+do $$ begin
+  perform public.accept_workout_command('forged','other:exercise:set','{}',1,now(),now()+interval '1 hour','Forgery');
+  raise exception 'forged RPC succeeded';
+exception when insufficient_privilege then raise notice 'PASS: forged RPC rejected'; end; $$;
+do $$ begin perform count(*) from public.notification_jobs; raise exception 'queue read succeeded'; exception when insufficient_privilege then raise notice 'PASS: client queue read denied'; end; $$;
+select set_config('request.jwt.claim.sub','b1000000-0000-4000-8000-000000000002',true);
+select pg_temp.assert_true((select count(*)=0 from public.tracker_state),'second account cannot read first');
+do $$ begin perform public.accept_workout_command('cmd1','w1:e1:s1','{}',1,null,null,'Fixture'); raise exception 'cross-account RPC succeeded'; exception when insufficient_privilege then raise notice 'PASS: cross-account RPC denied'; end; $$;
+select public.save_tracker_state(0,'{"version":1,"habits":[],"completions":[],"workouts":[],"outbox":[],"activeTimer":null}');
+select pg_temp.assert_true((select count(*)=1 from public.tracker_state),'second account sees only own snapshot');
+do $$ begin update public.tracker_state set user_id='a1000000-0000-4000-8000-000000000001'; raise exception 'ownership transfer succeeded'; exception when insufficient_privilege then raise notice 'PASS: ownership reassignment denied'; end; $$;
+do $$ begin
+  perform public.save_tracker_state(1,'{"version":1,"habits":[],"completions":[],"workouts":[],"outbox":[{"id":"missing","type":"workout.set.completed","entityId":"w2:e2:s2","version":1,"status":"pending","payload":{}}]}');
+  raise exception 'missing fact accepted';
+exception when invalid_parameter_value then raise notice 'PASS: missing fact rejects complete transaction'; end; $$;
+select pg_temp.assert_true((select version=1 from public.tracker_state),'failed command leaves revision unchanged');
+insert into storage.objects(bucket_id,name) values('progress-photos','b1000000-0000-4000-8000-000000000002/fixture.png');
+do $$ begin insert into storage.objects(bucket_id,name) values('progress-photos','a1000000-0000-4000-8000-000000000001/attack.png'); raise exception 'foreign photo insert accepted'; exception when insufficient_privilege then raise notice 'PASS: foreign photo write rejected'; end; $$;
+select set_config('request.jwt.claim.sub','a1000000-0000-4000-8000-000000000001',true);
+select pg_temp.assert_true((select count(*)=0 from storage.objects),'private photo hidden from second identity');
+reset role;
+select set_config('request.jwt.claim.sub','',true);
+select pg_temp.assert_true((select count(*)=1 from public.commands where command_key='cmd1'),'one durable command');
+select pg_temp.assert_true((select count(*)=1 from public.notification_jobs where source_entity_id='w1:e1:s1'),'one durable rest job');
+insert into public.workout_sessions(id,user_id,local_date,title) values('c1000000-0000-4000-8000-000000000003','a1000000-0000-4000-8000-000000000001',current_date,'Fixture');
+do $$ begin insert into public.workout_sets(session_id,user_id,exercise_id,exercise_name,set_number) values('c1000000-0000-4000-8000-000000000003','b1000000-0000-4000-8000-000000000002','e','fixture',1); raise exception 'cross-owner child accepted'; exception when foreign_key_violation then raise notice 'PASS: child FK rejects different owner'; end; $$;
+select pg_temp.assert_true(public.consume_registration_attempt(repeat('a',64)),'registration attempt accepted');
+select public.consume_registration_attempt(repeat('a',64)) from generate_series(1,4);
+select pg_temp.assert_true(not public.consume_registration_attempt(repeat('a',64)),'registration rate limited durably');
+insert into public.telegram_links(user_id,token_hash,expires_at,token_expires_at,telegram_user_id,confirmed_at,connected_at)
+values('a1000000-0000-4000-8000-000000000001',repeat('b',64),now()+interval '1 hour',now()+interval '1 hour',1234567890,now(),now());
+select public.plan_habit_notifications('a1000000-0000-4000-8000-000000000001',jsonb_build_object('habits',jsonb_build_array(jsonb_build_object('id','fixture-habit','title','Fixture','reminderEnabled',true,'time',to_char((now()+interval '10 minutes') at time zone 'Europe/Moscow','HH24:MI'))),'completions','[]'::jsonb));
+select pg_temp.assert_true((select count(*)>0 from public.notification_jobs where source_entity_id like 'habit:fixture-habit:%' and status='pending'),'real future habit queue planned');
+update public.tracker_state set payload=jsonb_set(payload,'{habits}',jsonb_build_array(jsonb_build_object('id','fixture-habit','title','Fixture','schedule','','reminderEnabled',true,'time',to_char((now()+interval '10 minutes') at time zone 'Europe/Moscow','HH24:MI')))) where user_id='a1000000-0000-4000-8000-000000000001';
+select pg_temp.assert_true((public.accept_telegram_habit_command(987654321,'bad-chat',(select id from public.notification_jobs where source_entity_id like 'habit:fixture-habit:%' and status='pending' order by due_at limit 1),(select source_version from public.notification_jobs where source_entity_id like 'habit:fixture-habit:%' and status='pending' order by due_at limit 1),'done')->>'status')='unlinked','callback from another Telegram account denied');
+select public.accept_telegram_habit_command(1234567890,'snooze-fixture',(select id from public.notification_jobs where source_entity_id like 'habit:fixture-habit:%' and status='pending' order by due_at limit 1),(select source_version from public.notification_jobs where source_entity_id like 'habit:fixture-habit:%' and status='pending' order by due_at limit 1),'later');
+select pg_temp.assert_true((select jsonb_array_length(payload->'habitSnoozes')=1 from public.tracker_state where user_id='a1000000-0000-4000-8000-000000000001'),'snooze callback saved to account snapshot');
+select public.accept_telegram_habit_command(1234567890,'done-fixture',(select id from public.notification_jobs where source_entity_id like 'habit:fixture-habit:%' and status='pending' order by due_at limit 1),(select source_version from public.notification_jobs where source_entity_id like 'habit:fixture-habit:%' and status='pending' order by due_at limit 1),'done');
+select pg_temp.assert_true((select jsonb_array_length(payload->'completions')=1 from public.tracker_state where user_id='a1000000-0000-4000-8000-000000000001'),'done callback produces one durable completion');
+select public.plan_habit_notifications('a1000000-0000-4000-8000-000000000001','{"habits":[],"completions":[]}');
+select pg_temp.assert_true((select count(*)=0 from public.notification_jobs where source_entity_id like 'habit:fixture-habit:%' and status='pending'),'removed reminder cancels queued notifications');
+rollback;

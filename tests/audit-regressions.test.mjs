@@ -117,7 +117,7 @@ test("A14 decimal input accepts comma and rejects negative", () => {
 
 test("A15 offline assets never receive an HTML login fallback", async () => {
   const handlers = {};
-  const context = { Response, self: { addEventListener: (name, handler) => { handlers[name] = handler; }, skipWaiting() {}, clients: { claim() {} } }, fetch: async () => { throw new Error("offline"); }, caches: { match: async (request) => request === "/" ? { headers: new Map([["Content-Type", "text/html"]]) } : undefined, open: async () => ({ put() {}, addAll() {} }), keys: async () => [] } };
+  const context = { Response, URL, self: { location: { origin: "https://app.test" }, addEventListener: (name, handler) => { handlers[name] = handler; }, skipWaiting() {}, clients: { claim() {} } }, fetch: async () => { throw new Error("offline"); }, caches: { match: async (request) => request === "/" ? { headers: new Map([["Content-Type", "text/html"]]) } : undefined, open: async () => ({ put() {}, addAll() {} }), keys: async () => [] } };
   vm.runInNewContext(fs.readFileSync(new URL("../public/sw.js", import.meta.url), "utf8"), context);
   let responsePromise;
   handlers.fetch({ request: { method: "GET", mode: "same-origin", url: "https://app.test/_next/static/chunks/app.js", destination: "script" }, respondWith: (promise) => { responsePromise = promise; } });
@@ -130,7 +130,7 @@ test("A15b offline navigation never falls back to the public login shell", async
   const context = {
     Response,
     URL,
-    self: { addEventListener: (name, handler) => { handlers[name] = handler; }, skipWaiting() {}, clients: { claim() {} } },
+    self: { location: { origin: "https://app.test" }, addEventListener: (name, handler) => { handlers[name] = handler; }, skipWaiting() {}, clients: { claim() {} } },
     fetch: async () => { throw new Error("offline"); },
     caches: {
       match: async () => undefined,

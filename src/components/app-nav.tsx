@@ -1,11 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarDays, Dumbbell, Home, LineChart } from "lucide-react";
+import { CalendarDays, Clock, Dumbbell, Home, LineChart, SkipForward } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createRestTimerCommand, restoreRestTimer } from "@/lib/tracker";
+import type { SessionTrackerState } from "@/lib/workout-session";
 import { useTrackerState } from "@/components/tracker-state";
 
 export function AppNav({ active }: { active: string }) {
-  const { state, syncConflict, resolveSyncConflict, retrySync, syncStatus } = useTrackerState();
+  const { state, update, syncConflict, resolveSyncConflict, retrySync, syncStatus } = useTrackerState();
+  const [now,setNow]=useState(() => new Date().toISOString());
+  useEffect(() => { if (!state?.activeTimer) return; const tick=setInterval(() => setNow(new Date().toISOString()),1000); return () => clearInterval(tick); },[state?.activeTimer]);
+  const rest=state?.activeTimer ? restoreRestTimer(state.activeTimer,now) : null;
+  const activeSession=(state as SessionTrackerState | null)?.workoutSessions?.find((s) => s.status === "active");
+  const timerAction=(action:"cancel"|"reschedule") => update((previous) => {
+    if (!previous.activeTimer) return previous;
+    const command=createRestTimerCommand(previous.activeTimer,action,new Date().toISOString(),"Ритм: отдых завершён.");
+    return command ? { ...previous,activeTimer:command.timer,outbox:[...previous.outbox,command.command] } : previous;
+  });
   const failed = state?.outbox.filter((item) => item.status === "failed").length ?? 0;
   const queued = state?.outbox.filter((item) => ["pending", "sending"].includes(item.status)).length ?? 0;
   const items = [
@@ -15,6 +27,7 @@ export function AppNav({ active }: { active: string }) {
     ["journal", "/journal", "Журнал", CalendarDays],
   ] as const;
   return <>
+    {rest && !rest.expired && activeSession && <div className="globalRest"><Link href={`/workout/${activeSession.id}`}><Clock size={18} />Отдых · {Math.floor(rest.remainingSec/60)}:{String(rest.remainingSec%60).padStart(2,"0")}</Link><button className="secondary" onClick={() => timerAction("reschedule")}>+30 с</button><button className="iconButton" onClick={() => timerAction("cancel")} aria-label="Пропустить текущий отдых" title="Пропустить отдых"><SkipForward size={18} /></button></div>}
     {syncConflict && <section className="syncConflict" role="alert"><strong>Данные изменены на другом устройстве</strong><p>Обе версии будут сохранены в резервную копию. Выберите, какую сделать основной.</p><div><button className="secondary" onClick={() => resolveSyncConflict("local")}>Оставить эту копию</button><button className="primary" onClick={() => resolveSyncConflict("remote")}>Взять серверную</button></div></section>}
     {!syncConflict && failed > 0 && <p className="outboxStatus" role="status">Не отправлено: {failed}. Данные сохранены локально, повтор будет выполнен автоматически.</p>}
     {!syncConflict && failed === 0 && queued > 0 && <p className="outboxStatus" role="status">Синхронизация: {queued}</p>}

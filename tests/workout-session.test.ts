@@ -15,7 +15,7 @@ test("starting a template creates an independent session snapshot", () => {
 test("finish and cancel are idempotent and clear only the active workout timer", () => {
   const initial = createInitialState("2026-09-10") as SessionTrackerState;
   const started = startWorkoutSession(initial, initial.workoutTemplates![0].id, new Date("2026-09-10T08:00:00.000Z"))!;
-  const withTimer = { ...started.state, activeTimer: { sourceId: "test", startedAt: "2026-09-10T08:00:00.000Z", durationSec: 240 } };
+  const withTimer = { ...started.state, workouts: started.state.workouts.map((workout) => ({ ...workout, exercises: workout.exercises.map((exercise) => ({ ...exercise, sets: exercise.sets.map((set) => ({ ...set, completed: true })) })) })), activeTimer: { sourceId: "test", startedAt: "2026-09-10T08:00:00.000Z", durationSec: 240 } };
   const finished = finishWorkoutSession(withTimer, started.sessionId, new Date("2026-09-10T09:00:00.000Z"));
   assert.equal(finished.activeTimer, null);
   assert.equal(finished.activeSessionId, undefined);

@@ -1,58 +1,63 @@
 # Ритм
 
-Личный PWA-трекер привычек, приёмов, тренировок и наблюдений. Текущая версия — первый локальный вертикальный срез: данные сохраняются в `localStorage`, есть очередь будущей синхронизации, но Supabase и Telegram ещё не подключены к реальному backend.
+PWA для тренировок, привычек, сна, наблюдений и приватных фото. Next.js 15 / React 19, Supabase Auth/Postgres/Storage, серверная очередь Telegram. Локальная запись сохраняется до отправки на сервер. Это не медицинский сервис: пользователь задаёт собственную схему приёма.
 
-## Что уже работает
+## Запуск
 
-- Экран `Сегодня`: план дня, быстрые отметки, защита от повторной отметки одной привычки за локальный день.
-- Экран `Зал`: запись подходов, вес/повторы, отметка выполнения, расчёт фактического объёма, таймер отдыха на 180/240 секунд.
-- Импорт заметок: вставка текста тренировки, разбор даты, упражнений, подходов и настроек тренажёра.
-- Экран `Прогресс`: история тренировок, недельная лента и диагностика локальной очереди.
-- PWA shell: manifest, иконка, service worker для базового offline shell.
+Node.js 22 и pnpm 9.15.0. Переменные перечислены в `.env.example`; секреты задаются в `.env.local` или серверной конфигурации хостинга, не в Git.
 
-## Команды
-
-```bash
-pnpm install
+```sh
+pnpm install --frozen-lockfile
 pnpm dev
-pnpm build
-pnpm lint
 pnpm test
+pnpm lint
+pnpm exec tsc --noEmit
+pnpm build
 ```
 
-На этой машине `npm` и `npx` сейчас нерабочие из-за отсутствующего глобального `npm-cli.js`. Внутри Codex-обёртки `pnpm test/lint` также пытаются запускать dependency check и могут падать до выполнения скрипта. Проверенные команды:
+Если системный pnpm shim неисправен, используйте `npx --yes pnpm@9.15.0` или прямые команды Node из `docs/TEST_REPORT.md`. Миграции `supabase/migrations` применяются по порядку. Не запускайте reset на рабочей базе.
 
-```bash
-node --test --experimental-strip-types tests\tracker.test.ts
-.\node_modules\.bin\eslint "src/**/*.{ts,tsx}" "tests/**/*.ts"
-.\node_modules\.bin\tsc --noEmit
-.\node_modules\.bin\next build
+## Аккаунты
+
+- Вход по email/паролю. Серверная регистрация создаёт активный аккаунт без письма подтверждения, затем выполняется обычный вход Supabase.
+- Регистрация: одинаковый источник, тело до 2 КБ, пять попыток на IP/час. Вне Vercel используется общий консервативный лимит.
+- Пароль не нормализуется. Личные credentials и программы не входят в defaults.
+- Middleware проверяет пользователя через `getUser`. Аккаунты изолированы RLS и отдельными локальными ключами.
+- Выход закрывает приватный кеш, но не удаляет несинхронизированные записи.
+- Явный `RITM_DEMO_MODE=1` работает только локально с отдельными данными, не на Vercel.
+
+## Сценарии
+
+В настройках задаются программы, упражнения, подходы, рабочие веса, оборудование и отдых. Старт создаёт независимый снимок программы и уникальную сессию. Фактический подход сохраняется перед отображением успеха, запускает отдых и отправляется в серверную транзакцию с командой и уведомлением. История, частичное завершение и отмена не изменяют шаблон. Исправление истории не создаёт таймеров.
+
+Привычки: дни недели, время или связь с событием, отметка/пропуск/отмена, архив, ограниченное откладывание. События сна используются для расчёта длительности. Наблюдения содержат сон, массу, энергию, самочувствие и заметку.
+
+Импорт тренировок: исходный текст, уточнение года, предпросмотр, исправление и подтверждение. JSON-восстановление добавляет новые записи, сохраняя существующие значения, активную сессию и очередь. Повреждённые данные не заменяются молча.
+
+Фото хранятся в собственном каталоге приватного Storage `progress-photos`: JPG/PNG/WebP до 5 МБ. JSON-экспорт встраивает изображения; предел резервного файла 20 МБ. Удаление из галереи пока убирает запись, не физический объект Storage.
+
+## Синхронизация И PWA
+
+Сравниваются локальный снимок, сохранённая базовая копия и серверная ревизия. Изменения двух устройств переводятся в явный конфликт с резервированием обеих копий. Потерянный ответ PUT сверяется GET; успех не предполагается.
+
+Service worker разделяет публичные ресурсы и HTML аккаунта с проверенным сервером ID. Auth/API/redirect и внешние приватные фото не входят в общий fallback. Активный маршрут сохраняется отдельно для offline reload. История и outbox не очищаются при обновлении SW.
+
+## Telegram И Выпуск
+
+Webhook защищён secret header, одноразовой привязкой и долговременными receipts `update_id`. Worker использует версии источника, аренду с токеном, отмену, срок годности, ограниченные повторы, `429/retry_after` и отдельный неопределённый результат. Повторная доставка при неопределённости возможна; exactly-once звук iPhone не обещается.
+
+Worker принимает один job и один повтор update за запуск. Запросы базы ограничены 3 секундами, Telegram 8 секундами. Это предел нагрузки, не обещание масштаба. Секундный scheduler не основан на Vercel Hobby Cron и не ждёт минуты внутри функции. Новые платные ресурсы и тарифы автоматически не меняются.
+
+В Vercel загружаются только `src`, `public`, package/lock и Next/TypeScript/ESLint configuration. Секреты, `.private`, дампы, fixtures и screenshots не загружаются. Локальная миграция не означает применение в production. Разрешения, deployment и реальные внешние проверки перечислены в `docs/TEST_REPORT.md`.
+
+## Проверка
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-postgres.ps1
+$env:PRODUCT_QA_URL = 'http://localhost:3005'
+node node_modules/@playwright/test/cli.js test --config=tests/e2e/product.config.ts
 ```
 
-## Архитектурные решения
+SQL runner требует отдельный контейнер `ritm-product-qa-20260930`, создаёт изолированную базу и выполняет fixtures с rollback. Browser flow требует заранее запущенную сборку приложения с настоящей локальной Supabase, допускает только локальные адреса и использует две выделенные QA-учётки. Production не является fixture.
 
-- Frontend: Next.js App Router.
-- Хранилище первой версии: локальный `localStorage` плюс outbox команд для будущей синхронизации.
-- Доменная логика вынесена в `src/lib/tracker.ts` и покрыта тестами отдельно от UI.
-- Реальные напоминания не делаются через Vercel Hobby Cron: по официальной документации Vercel Hobby ограничен запуском раз в день и точностью в пределах часа.
-- Для production-напоминаний целевая схема: Supabase Postgres + RLS + Edge Functions + Cron/очередь задач + Telegram Bot API.
-
-## Проверка лимитов
-
-Дата проверки: 2026-09-09.
-
-- Next.js PWA docs: [nextjs.org/docs/app/guides/progressive-web-apps](https://nextjs.org/docs/app/guides/progressive-web-apps). Документация описывает manifest, service worker, push и локальную проверку PWA.
-- Supabase Edge Functions pricing: [supabase.com/docs/guides/functions/pricing](https://supabase.com/docs/guides/functions/pricing). Free quota указана как 500,000 invocations; сверх квоты на платных планах — $2 за 1M invocations.
-- Supabase Cron quickstart: [supabase.com/docs/guides/cron/quickstart](https://supabase.com/docs/guides/cron/quickstart).
-- Vercel Cron usage/pricing: [vercel.com/docs/cron-jobs/usage-and-pricing](https://vercel.com/docs/cron-jobs/usage-and-pricing). Hobby: 100 cron jobs per project, minimum interval once per day, scheduling precision per-hour.
-
-Расчёт из брифа: вызов Edge Function каждые 10 секунд постоянно за 31 день = `31 * 24 * 60 * 6 = 267,840` вызовов. Это меньше 500,000, но такая схема всё равно плохая для напоминаний: она тратит квоту на пустые циклы и не решает доставку/повторы надёжно.
-
-## Что нужно для production
-
-- Supabase migrations с таблицами users, habits, habit_completions, workouts, exercise_sets, observations, photos, reminder_jobs, command_outbox.
-- RLS-политики на все таблицы, views/RPC и Storage bucket.
-- Telegram auth verification для WebApp init data и webhook handler с идемпотентными callback-командами.
-- Закрытый Storage bucket для фото, thumbnail/compression pipeline, удаление EXIF/геометаданных.
-- Реальная очередь напоминаний с lease/lock, retry, 429 handling и отдельными состояниями `scheduled/sent/failed/cancelled`.
-- Экспорт/импорт JSON и CSV с защитой от дублей.
+Готовность к продаже определяется проверенным пользовательским путём. Непроверенные сценарии и ограничения выпуска явно указаны в `docs/TEST_REPORT.md` и `docs/EXECUTION_PLAN.md`.

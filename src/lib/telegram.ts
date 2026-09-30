@@ -31,3 +31,11 @@ export function parseTelegramRestCallback(data: unknown): { action: "cancel" | "
   if (!Number.isSafeInteger(sourceVersion) || sourceVersion < 1) return null;
   return { action: match[1] === "skip" ? "cancel" : "reschedule", sourceEntityId: match[2], sourceVersion };
 }
+
+export function parseTelegramHabitCallback(data: unknown): { action: "done" | "skip" | "later"; jobId: string; sourceVersion: number } | null {
+  if (typeof data !== "string" || data.length > 64) return null;
+  const match = data.match(/^habit_(done|skip|later):([a-f0-9-]{36}):(\d+)$/);
+  if (!match || !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(match[2])) return null;
+  const version = Number(match[3]);
+  return Number.isInteger(version) && version > 0 && version <= 2147483647 ? { action: match[1] as "done" | "skip" | "later", jobId: match[2], sourceVersion: version } : null;
+}

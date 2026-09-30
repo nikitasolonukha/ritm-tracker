@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { verifyTelegramSecret } from "@/lib/telegram";
+import { POST as handleSavedUpdate } from "../webhook/route";
+import { boundedServerFetch } from "@/lib/server-fetch";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 type ClaimedJob = {
   id: string;
@@ -25,8 +28,20 @@ export async function POST(request: NextRequest) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   if (!url || !serviceRoleKey || !botToken) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
 
-  const admin = createClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
-  const { data, error } = await admin.rpc("claim_notification_jobs", { p_limit: 10, p_lease_seconds: 45 });
+  const admin = createClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false }, global: { fetch: boundedServerFetch } });
+  const stuck = await admin.from("telegram_updates").select("update_id, payload")
+    .or(`status.eq.failed,and(status.eq.processing,lease_until.lt.${new Date().toISOString()})`)
+    .lt("attempts", 5).order("update_id").limit(1);
+  if (stuck.error) return NextResponse.json({ error: "update_queue_unavailable" }, { status: 503 });
+  for (const update of stuck.data ?? []) {
+    // Reprocess only durable, previously authenticated Telegram updates. The webhook owns claim/lease fencing.
+    await handleSavedUpdate(new NextRequest(new URL("/api/telegram/webhook", request.url), {
+      method: "POST", headers: { "content-type": "application/json", "x-telegram-bot-api-secret-token": process.env.TELEGRAM_WEBHOOK_SECRET! }, body: JSON.stringify(update.payload),
+    })).catch(() => undefined);
+  }
+  const refresh = await admin.rpc("refresh_habit_notifications");
+  if (refresh.error) return NextResponse.json({ error: "queue_unavailable" }, { status: 503 });
+  const { data, error } = await admin.rpc("claim_notification_jobs", { p_limit: 1, p_lease_seconds: 45 });
   if (error) return NextResponse.json({ error: "queue_unavailable" }, { status: 503 });
 
   const jobs = (data ?? []) as ClaimedJob[];
@@ -51,19 +66,22 @@ export async function POST(request: NextRequest) {
   }
   for (const job of jobs) {
     let response: Response;
+    const replyMarkup = job.source_entity_id.startsWith("habit:") ? { inline_keyboard: [[
+      { text: "Выполнено", callback_data: `habit_done:${job.id}:${job.source_version}` },
+      { text: "Пропустить", callback_data: `habit_skip:${job.id}:${job.source_version}` },
+    ],[{ text: "+10 минут", callback_data: `habit_later:${job.id}:${job.source_version}` }]] } : job.source_entity_id.startsWith("telegram-diagnostic:") ? undefined : { inline_keyboard: [[
+      { text: "+30 сек", callback_data: `rest_add30:${job.id}:${job.source_version}` },
+      { text: "Пропустить", callback_data: `rest_skip:${job.id}:${job.source_version}` },
+    ]] };
     try {
       response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: "POST",
+        signal: AbortSignal.timeout(8000),
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           chat_id: job.telegram_user_id,
           text: job.message,
-          reply_markup: {
-            inline_keyboard: [[
-              { text: "+30 сек", callback_data: `rest_add30:${job.id}:${job.source_version}` },
-              { text: "Пропустить", callback_data: `rest_skip:${job.id}:${job.source_version}` },
-            ]],
-          },
+          reply_markup: replyMarkup,
         }),
       });
     } catch (error) {

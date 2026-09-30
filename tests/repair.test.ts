@@ -138,7 +138,7 @@ test("rest reschedule creates one newer command and cancel stops the timer", () 
   assert.equal(extended?.timer?.version, 2);
   assert.equal(extended?.timer?.endsAt, "2026-09-10T08:04:30.000Z");
   assert.equal(extended?.command.type, "timer.rescheduled");
-  assert.equal(extended?.command.payload.expiresAt, "2026-09-10T08:14:30.000Z");
+  assert.equal(extended?.command.payload.expiresAt, "2026-09-10T08:06:30.000Z");
   const cancelled = createRestTimerCommand(extended!.timer!, "cancel", "2026-09-10T08:02:00.000Z", "rest");
   assert.equal(cancelled?.timer, null);
   assert.equal(cancelled?.command.type, "timer.cancelled");

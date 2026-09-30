@@ -11,6 +11,7 @@ export type TrackerState = {
   version: 1;
   habits: typeof defaultHabits;
   completions: HabitCompletion[];
+  habitSnoozes?: Array<{ id: string; habitId: string; localDate: string; dueAt: string; count: number }>;
   workouts: Workout[];
   workoutTemplates?: Workout[];
   activeWorkoutId?: string;
@@ -23,12 +24,14 @@ export type TrackerState = {
     sleep: number;
     skin: "better" | "same" | "worse" | "unknown";
     note: string;
+    weightKg?: number;
   }>;
   photos?: Array<{
     id: string;
     date: string;
     name: string;
     dataUrl: string;
+    storagePath?: string;
   }>;
   outbox: Array<{
     id: string;
@@ -44,6 +47,14 @@ export type TrackerState = {
 export const storageKey = "ritm-tracker-state-v1";
 export const storageBackupPrefix = `${storageKey}-backup-`;
 export const outboxAckKey = `${storageKey}-outbox-acks`;
+export function readSyncCheckpoint(userId: string): { revision: number; fingerprint: string } | undefined {
+  try { return JSON.parse(window.localStorage.getItem(`${getStorageKey(userId)}:checkpoint`) ?? "null") ?? undefined; }
+  catch { return undefined; }
+}
+export function writeSyncCheckpoint(userId: string, revision: number, fingerprint: string) {
+  try { window.localStorage.setItem(`${getStorageKey(userId)}:checkpoint`, JSON.stringify({ revision, fingerprint })); return true; }
+  catch { return false; }
+}
 export function getStorageKey(userId?: string) {
   return userId ? `${storageKey}:${userId}` : storageKey;
 }
@@ -121,7 +132,6 @@ export function createStarterWorkout(localDate = getLocalDate()): Workout {
         settings: "настроить",
         category: "working",
         restSec: 240,
-        weightFactor: 2,
         sets: [1, 2, 3, 4].map((index) => ({ id: `exercise-a-${index}`, weightKg: null, reps: 8, completed: false, weightMode: "total" as const })),
       },
       {
@@ -187,6 +197,6 @@ export function writeState(state: TrackerState, userId?: string): { ok: boolean;
 }
 
 export function migrateState(state: TrackerState): TrackerState {
-  const workoutTemplates = state.workoutTemplates?.length ? state.workoutTemplates : state.workouts.slice(0, 1);
+  const workoutTemplates = state.workoutTemplates ?? state.workouts.slice(0, 1);
   return { ...state, workoutTemplates, workoutCommands: state.workoutCommands ?? [], photos: state.photos ?? [] };
 }

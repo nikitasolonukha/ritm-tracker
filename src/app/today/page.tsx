@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Check, Dumbbell, Settings2 } from "lucide-react";
+import { ArrowRight, Check, Clock, Dumbbell, Settings2, SkipForward, Undo2 } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
 import { useTrackerState } from "@/components/tracker-state";
 import type { SessionTrackerState } from "@/lib/workout-session";
-import { applyHabitCompletion, calculateWorkoutTotals, getHabitCommandIdentity, getLocalDate } from "@/lib/tracker";
-
-const weekday = new Intl.DateTimeFormat("ru-RU", { weekday: "short", timeZone: "Europe/Moscow" });
+import { calculateWorkoutTotals, getLocalDate } from "@/lib/tracker";
+import { changeHabit, habitsForDate, sleepFromEvents, snoozeHabit } from "@/lib/habits";
 
 export default function TodayPage() {
   const { state, update, storageError } = useTrackerState();
@@ -15,41 +14,37 @@ export default function TodayPage() {
   const sessionState = state as SessionTrackerState;
   const today = getLocalDate();
   const active = sessionState.workoutSessions?.find((item) => item.status === "active");
-  const actionable = state.habits.filter((habit) => habit.type !== "workout");
-  const pending = actionable.filter((habit) => !state.completions.some((item) => item.habitId === habit.id && item.localDate === today));
-  const weekDates = new Set(Array.from({ length: 7 }, (_, index) => { const date = new Date(`${today}T12:00:00`); const mondayOffset = (date.getDay() + 6) % 7; date.setDate(date.getDate() - mondayOffset + index); return getLocalDate(date); }));
-  const finishedSessions = (sessionState.workoutSessions ?? []).filter((item) => {
-    if (item.status !== "completed") return false;
-    const workout = state.workouts.find((candidate) => candidate.id === item.workoutId);
-    return Boolean(workout && weekDates.has(workout.date) && calculateWorkoutTotals(workout).completedSets > 0);
-  }).length;
-  const dates = Array.from({ length: 7 }, (_, index) => { const date = new Date(`${today}T12:00:00`); date.setDate(date.getDate() - (6 - index)); return getLocalDate(date); });
-  const currentAction = pending[0];
-  const changeHabit = (habitId: string, action: "completed" | "cancelled") => update((previous) => {
-    const completionId = `completion-${habitId}-${today}`;
-    const version = previous.outbox.filter((item) => item.entityId === `habit:${habitId}:${today}`).length + 1;
-    const { id: commandId, entityId } = getHabitCommandIdentity(habitId, today, action, version);
-    const nextCompletion = { id: completionId, habitId, completedAt: new Date().toISOString(), localDate: today, source: "web" as const };
-    const nextCompletions = action === "completed"
-      ? applyHabitCompletion(previous.completions, nextCompletion)
-      : previous.completions.filter((item) => item.id !== completionId && !(item.habitId === habitId && item.localDate === today));
-    if (previous.outbox.some((item) => item.id === commandId)) return { ...previous, completions: nextCompletions };
-    return {
-      ...previous,
-      completions: nextCompletions,
-      outbox: [...previous.outbox, { id: commandId, entityId, type: `habit.${action}` as "habit.completed" | "habit.cancelled", createdAt: new Date().toISOString(), status: "pending" as const, version, payload: { habitId, localDate: today, completionId, action } }],
-    };
-  });
+  const habits = habitsForDate(state.habits, today);
+  const completed = habits.filter((h) => state.completions.some((c) => c.habitId === h.id && c.localDate === today && c.outcome !== "skipped")).length;
+  const resolved = habits.filter((h) => state.completions.some((c) => c.habitId === h.id && c.localDate === today)).length;
+  const monday = new Date(`${today}T12:00:00Z`);
+  monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
+  const weekStart = monday.toISOString().slice(0,10);
+  const sessions = (sessionState.workoutSessions ?? []).filter((s) => s.status === "completed" && state.workouts.some((w) => w.id === s.workoutId && calculateWorkoutTotals(w).completedSets > 0));
+  const finished = sessions.filter((s) => state.workouts.some((w) => w.id === s.workoutId && w.date >= weekStart && w.date <= today)).length;
+  const dates = Array.from({ length: 7 }, (_, index) => { const date = new Date(`${today}T12:00:00Z`); date.setUTCDate(date.getUTCDate() - 6 + index); return date.toISOString().slice(0,10); });
+  const sleep = sleepFromEvents(state.habits, state.completions, today);
+  const lastObservation = state.observations.map((o) => o.date).sort().at(-1);
+  const checkInDue = !lastObservation || (Date.parse(today) - Date.parse(lastObservation)) / 86_400_000 >= 3;
+  const completedDays = [...new Set(state.completions.map((c) => c.localDate))].filter((date) => { const planned = habitsForDate(state.habits, date); return planned.length > 0 && planned.every((h) => state.completions.some((c) => c.habitId === h.id && c.localDate === date && c.outcome !== "skipped")); }).length;
   return <main className="shell appPage todayPage">
-    <header className="pageHeader"><div><p className="eyebrow">{formatDate(today)}</p><h1>Сегодня</h1></div><Link className="iconButton" href="/settings" aria-label="Настройки"><Settings2 size={20} /></Link></header>
+    <header className="pageHeader"><div><p className="eyebrow">{new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(new Date(`${today}T12:00:00Z`))}</p><h1>Сегодня</h1></div><Link className="iconButton" href="/settings" aria-label="Настройки"><Settings2 size={20} /></Link></header>
     {storageError && <p className="storageMessage" role="alert">{storageError}</p>}
-    <section className="weekStrip" aria-label="Неделя">{dates.map((date) => { const isToday = date === today; const activeDate = state.completions.some((item) => item.localDate === date) || state.workouts.some((workout) => workout.date === date && calculateWorkoutTotals(workout).completedSets > 0); return <div className={`dayCapsule${isToday ? " today" : ""}`} key={date}><span>{weekday.format(new Date(`${date}T12:00:00`)).replace(".", "")}</span><strong>{date.slice(-2)}</strong>{activeDate && <i aria-label="Есть активность" />}</div>; })}</section>
+    <section className="weekStrip" aria-label="Неделя">{dates.map((date) => <div className={`dayCapsule${date === today ? " today" : ""}`} key={date}><span>{new Intl.DateTimeFormat("ru-RU", { weekday: "short" }).format(new Date(`${date}T12:00:00Z`))}</span><strong>{date.slice(-2)}</strong>{state.completions.some((c) => c.localDate === date && c.outcome !== "skipped") && <i aria-label="Есть активность" />}</div>)}</section>
     {active && <Link className="resumeBanner" href={`/workout/${active.id}`}><Dumbbell size={21} /><span><strong>Тренировка идёт</strong><small>Продолжить текущий подход</small></span><ArrowRight size={21} /></Link>}
-    <section className="todayHero"><p className="eyebrow">Сейчас</p><h2>{currentAction ? currentAction.title : "День закрыт"}</h2><p>{currentAction ? currentAction.schedule === "настроить" ? "Следующее действие ждёт отметки" : currentAction.schedule : "Все запланированные действия отмечены"}</p><div>{currentAction ? <button className="primary" onClick={() => changeHabit(currentAction.id, "completed")}><Check size={19} /> Отметить выполненным</button> : <span className="heroDone"><Check size={18} /> Сохранено за сегодня</span>}</div></section>
-    <section className="actionSection"><div className="sectionHeading"><div><p className="eyebrow">Ритм дня</p><h2>Остальные действия</h2></div><span className="muted">{actionable.length - pending.length} из {actionable.length}</span></div><div className="todayActions">{actionable.filter((habit) => habit.id !== currentAction?.id).map((habit) => { const done = !pending.includes(habit); return <button className={`actionCard${done ? " done" : ""}`} key={habit.id} onClick={() => changeHabit(habit.id, done ? "cancelled" : "completed")}><span><strong>{habit.title}</strong><small>{habit.schedule === "настроить" ? "Время не задано" : habit.schedule}</small></span><span className="checkMark">{done && <Check size={17} />}</span></button>; })}</div></section>
-    <section className="goalCard"><div><p className="eyebrow">Недельная цель</p><h2><strong>{Math.min(finishedSessions, 3)}</strong> из 3 тренировок</h2><p>Считаются только завершённые занятия.</p></div><div className="goalSegments">{[0, 1, 2].map((item) => <span className={item < Math.min(finishedSessions, 3) ? "filled" : ""} key={item} />)}</div></section>
+    {!habits.length ? <section className="emptyState"><h2>Ваш ритм дня</h2><Link className="primary" href="/settings">Добавить привычки</Link></section> : <section className="actionSection"><div className="sectionHeading"><h2>{resolved === habits.length ? "План дня закрыт" : "План дня"}</h2><span className="muted">{completed} из {habits.length} выполнено</span></div><div className="todayActions">{habits.map((habit) => {
+      const mark = state.completions.find((c) => c.habitId === habit.id && c.localDate === today);
+      const parent = state.habits.find((h) => h.id === habit.afterHabitId);
+      const parentMark = parent && state.completions.find((c) => c.habitId === parent.id && c.localDate === today && c.outcome !== "skipped");
+      const snooze=state.habitSnoozes?.find((s) => s.habitId===habit.id && s.localDate===today);
+      const due = snooze ? new Date(snooze.dueAt) : parentMark ? new Date(Date.parse(parentMark.completedAt) + (habit.delayMinutes ?? 0) * 60_000) : undefined;
+      const when = due ? `В ${new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Moscow" }).format(due)}` : parent ? `После: ${parent.title}` : habit.time || (habit.schedule === "настроить" ? "" : habit.schedule);
+      return <div className={`dailyAction${mark ? " done" : ""}`} key={habit.id}><button className="actionCard" onClick={() => update((prev) => changeHabit(prev, habit.id, today, mark ? "cancelled" : "completed"))}><span><strong>{habit.title}</strong><small>{mark?.outcome === "skipped" ? "Пропущено" : mark ? "Выполнено" : when || "Сегодня"}</small>{habit.privateTitle && <small>{habit.privateTitle}</small>}</span><span className="checkMark">{mark && (mark.outcome === "skipped" ? <SkipForward size={17} /> : <Check size={17} />)}</span></button><div className="dailyTools">{!mark && habit.reminderEnabled && <button className="iconButton" aria-label={`Отложить ${habit.title} на 10 минут`} title="Отложить на 10 минут" disabled={(snooze?.count ?? 0)>=3} onClick={() => update((prev) => snoozeHabit(prev,habit.id,today))}><Clock size={17} /></button>}<button className="iconButton" aria-label={mark ? `Отменить отметку ${habit.title}` : `Пропустить ${habit.title}`} title={mark ? "Отменить отметку" : "Пропустить сегодня"} onClick={() => update((prev) => changeHabit(prev, habit.id, today, mark ? "cancelled" : "skipped"))}>{mark ? <Undo2 size={17} /> : <SkipForward size={17} />}</button></div></div>;
+    })}</div></section>}
+    <section className="goalCard"><div><p className="eyebrow">Недельная цель</p><h2>{finished} из 3 тренировок</h2><p>Полный день отдыха между занятиями.</p></div><div className="goalSegments">{[0,1,2].map((i) => <span className={i < finished ? "filled" : ""} key={i} />)}</div></section>
+    {sleep != null && <p className="muted">Сон по отметкам: {sleep} ч.</p>}
+    {checkInDue && <Link className="resumeBanner" href="/progress"><span><strong>Как самочувствие?</strong><small>Короткая отметка за сегодня</small></span><ArrowRight size={20} /></Link>}
+    {completedDays > 0 && <p className="muted">Полностью выполненных дней: {completedDays}. Следующая контрольная точка: {[14,28,60,90].find((d) => d > completedDays) ?? Math.ceil((completedDays + 1) / 30) * 30}.</p>}
     <AppNav active="today" />
   </main>;
 }
-
-function formatDate(value: string) { return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", timeZone: "Europe/Moscow" }).format(new Date(`${value}T12:00:00`)); }

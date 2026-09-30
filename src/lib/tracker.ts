@@ -34,6 +34,7 @@ export type Workout = {
   date: string;
   title: string;
   exercises: Exercise[];
+  sourceText?: string;
 };
 
 export type HabitCompletion = {
@@ -42,6 +43,7 @@ export type HabitCompletion = {
   completedAt: string;
   localDate: string;
   source: "web" | "telegram";
+  outcome?: "completed" | "skipped";
 };
 
 export type Habit = {
@@ -51,6 +53,13 @@ export type Habit = {
   schedule: string;
   privateTitle?: string;
   targetDays?: number;
+  archived?: boolean;
+  daysOfWeek?: number[];
+  time?: string;
+  afterHabitId?: string;
+  delayMinutes?: number;
+  reminderEnabled?: boolean;
+  eventRole?: "wake" | "bedtime";
 };
 
 export type RestTimer = {
@@ -73,7 +82,7 @@ export function createRestTimerCommand(
   const dueAt = action === "reschedule"
     ? new Date(new Date(timer.endsAt ?? nowIso).getTime() + 30000).toISOString()
     : nowIso;
-  const expiresAt = new Date(new Date(dueAt).getTime() + 600000).toISOString();
+  const expiresAt = new Date(new Date(dueAt).getTime() + 120000).toISOString();
   return {
     timer: action === "cancel" ? null : { ...timer, endsAt: dueAt, durationSec: timer.durationSec + 30, version, status: "running" as const },
     command: {
@@ -345,9 +354,14 @@ export function parseWorkoutNotes(input: string): Workout {
 
     if (looksLikeSetLine(line)) continue;
 
-    const nextLine = lines[i + 1] ?? "";
     const { name, settings } = splitExerciseNameAndSettings(line);
-    const sets = looksLikeSetLine(nextLine) ? parseSetLine(nextLine) : [];
+    const sets: ExerciseSet[] = [];
+    let nextLineIndex = i + 1;
+    while (looksLikeSetLine(lines[nextLineIndex] ?? "")) {
+      const offset = sets.length;
+      sets.push(...parseSetLine(lines[nextLineIndex]).map((set, index) => ({ ...set, id: `set-${offset + index}-${slug(lines[nextLineIndex])}` })));
+      nextLineIndex += 1;
+    }
 
     exercises.push({
       id: slug(`${name}-${i}`),
@@ -358,7 +372,7 @@ export function parseWorkoutNotes(input: string): Workout {
       sets,
     });
 
-    if (sets.length > 0) i += 1;
+    if (sets.length > 0) i = nextLineIndex - 1;
   }
 
   const normalizedInput = lines.map((line) => line.replace(/\s+/g, " ").trim().toLowerCase()).join("\n");
@@ -402,8 +416,9 @@ function looksLikeSetLine(line: string) {
 }
 
 function parseSetLine(line: string): ExerciseSet[] {
-  const decimalSafe = line.replace(/(\d+),(\d+)(?=\s*[xх×])/gi, "$1.$2");
-  return decimalSafe.split(/[,;]/).map((chunk, index) => {
+  // Consume a complete weight/reps token before treating a comma as the next-set separator.
+  const chunks = line.match(/\s*\d+(?:[.,]\d+)?(?:\s*[xх×]\s*\d+)?[^,;\n]*|[^,;\n]+/gi) ?? [];
+  return chunks.map((chunk, index) => {
     const trimmed = chunk.trim();
     const match = trimmed.match(/(\d+(?:[.,]\d+)?)\s*[xх×]\s*(\d+)/i);
     if (match) {

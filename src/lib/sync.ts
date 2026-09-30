@@ -1,9 +1,15 @@
 import { stableStringify } from "./tracker.ts";
 
 export type SyncRecoveryRemote<T> = { payload?: T | null; version?: number };
+export type SyncWriteIntent = { expectedRevision: number; fingerprint: string };
 
 export function syncFingerprint(state: { outbox?: Array<{ status: string }> }): string {
   return stableStringify({ ...state, outbox: state.outbox?.map((item) => ({ ...item, status: "transport" })) });
+}
+
+export function confirmedSyncWrite<T extends { outbox?: Array<{ status: string }> }>(intent: SyncWriteIntent | undefined, remote: SyncRecoveryRemote<T>): string | undefined {
+  if (intent && remote.payload && (remote.version ?? 0) > intent.expectedRevision && syncFingerprint(remote.payload) === intent.fingerprint) return intent.fingerprint;
+  return undefined;
 }
 
 export function decideSyncDirection(local: { outbox?: Array<{ status: string }> }, remote: typeof local | null | undefined, base?: string, localEmpty = false) {

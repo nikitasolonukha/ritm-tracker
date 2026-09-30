@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createInitialState, migrateState } from "../src/lib/storage.ts";
+import { clearSyncWriteIntent, createInitialState, getStorageKey, migrateState, readSyncWriteIntent, writeSyncWriteIntent } from "../src/lib/storage.ts";
 import { acknowledgeSavedHabits, confirmedSyncWrite, decideSyncDirection, syncFingerprint } from "../src/lib/sync.ts";
 import { changeHabit, habitAnchors, habitsForDate, sleepFromEvents, snoozeHabit } from "../src/lib/habits.ts";
 import { prepareWorkoutImport, withoutRepeatedImportFacts } from "../src/lib/import.ts";
@@ -57,6 +57,38 @@ test("pending write recovery never adopts divergent or uncommitted server data",
   assert.equal(confirmedSyncWrite(intent, { payload: sent, version: 10 }), undefined);
   assert.equal(confirmedSyncWrite(intent, { version: 11 }), undefined);
   assert.equal(confirmedSyncWrite(undefined, { payload: sent, version: 11 }), undefined);
+});
+
+test("write intents survive reload, stay account-scoped and fail safely", () => {
+  const records = new Map<string, string>();
+  const original = Object.getOwnPropertyDescriptor(globalThis, "window");
+  let unavailable = false;
+  const storage = {
+    getItem: (key: string) => records.get(key) ?? null,
+    setItem: (key: string, value: string) => { if (unavailable) throw new Error("quota"); records.set(key, value); },
+    removeItem: (key: string) => { if (unavailable) throw new Error("quota"); records.delete(key); },
+  };
+  Object.defineProperty(globalThis, "window", { value: { localStorage: storage }, configurable: true });
+  try {
+    const intent = { expectedRevision: 191, fingerprint: syncFingerprint(createInitialState()) };
+    assert.equal(writeSyncWriteIntent("fixture-a", intent), true);
+    assert.deepEqual(readSyncWriteIntent("fixture-a"), intent);
+    assert.equal(readSyncWriteIntent("fixture-b"), undefined);
+    unavailable = true;
+    assert.equal(writeSyncWriteIntent("fixture-a", { ...intent, expectedRevision: 192 }), false);
+    assert.deepEqual(readSyncWriteIntent("fixture-a"), intent);
+    assert.equal(clearSyncWriteIntent("fixture-a"), false);
+    unavailable = false;
+    assert.equal(clearSyncWriteIntent("fixture-a"), true);
+    assert.equal(readSyncWriteIntent("fixture-a"), undefined);
+    for (const malformed of ["{", "null", '{"expectedRevision":-1,"fingerprint":"x"}', '{"expectedRevision":2,"fingerprint":3}']) {
+      records.set(`${getStorageKey("fixture-a")}:sync-intent`, malformed);
+      assert.equal(readSyncWriteIntent("fixture-a"), undefined);
+    }
+  } finally {
+    if (original) Object.defineProperty(globalThis, "window", original);
+    else Reflect.deleteProperty(globalThis, "window");
+  }
 });
 
 test("a habit created during PUT remains pending until its own snapshot is saved", () => {

@@ -2,8 +2,8 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
-import { backupSyncConflict, migrateState, readOutboxAcks, readStateSafely, readSyncCheckpoint, writeSyncCheckpoint, writeOutboxAck, writeState, type TrackerState } from "@/lib/storage";
-import { acknowledgeSavedHabits, decideLostPutResponse, decideSyncDirection, prepareSyncPayload, syncFingerprint } from "@/lib/sync";
+import { backupSyncConflict, clearSyncWriteIntent, migrateState, readOutboxAcks, readStateSafely, readSyncCheckpoint, readSyncWriteIntent, writeSyncCheckpoint, writeSyncWriteIntent, writeOutboxAck, writeState, type TrackerState } from "@/lib/storage";
+import { acknowledgeSavedHabits, confirmedSyncWrite, decideLostPutResponse, decideSyncDirection, prepareSyncPayload, syncFingerprint } from "@/lib/sync";
 import { mergeBackup, previewBackup } from "@/lib/backup";
 import { setServiceWorkerAccount } from "@/lib/pwa";
 import Link from "next/link";
@@ -54,8 +54,9 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
     return true;
   }
   function checkpoint(snapshot: TrackerState, revision: number) {
-    base.current = syncFingerprint(snapshot);
-    if (account.current && !writeSyncCheckpoint(account.current, revision, base.current)) throw new Error("Не удалось сохранить подтверждение синхронизации.");
+    const fingerprint = syncFingerprint(snapshot);
+    if (account.current && !writeSyncCheckpoint(account.current, revision, fingerprint)) throw new Error("Не удалось сохранить подтверждение синхронизации.");
+    base.current = fingerprint;
   }
   function conflict(remote: TrackerState, revision: number) {
     blocked.current = true;
@@ -63,15 +64,17 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
     setSyncStatus("conflict");
     setStorageError("На двух устройствах есть изменения. Выберите копию; обе будут сохранены в резерве.");
   }
-  async function deliverCommands(snapshot: TrackerState) {
+  async function deliverCommands(snapshot: TrackerState, syncAccount: string) {
     const types = ["workout.set.completed", "timer.rescheduled", "timer.cancelled"];
     for (const item of snapshot.outbox.filter((item) => types.includes(item.type) && ["pending", "failed", "sending"].includes(item.status))) {
+      if (!alive.current || account.current !== syncAccount) return;
       if (!acks.current.has(item.id)) {
         const details = item.payload as { dueAt?: string; expiresAt?: string; message?: string } | undefined;
         const timer = item.type !== "workout.set.completed";
         const response = await request(timer ? "/api/workout/timer" : "/api/workout/command", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ commandKey: item.id, sourceEntityId: item.entityId, payload: { ...details, itemId: item.id }, sourceVersion: item.version ?? 1, ...(timer ? { action: item.type === "timer.cancelled" ? "cancel" : "reschedule" } : {}), dueAt: details?.dueAt, expiresAt: details?.expiresAt, message: details?.message ?? "Ритм: отдых завершён." }) });
+        if (!alive.current || account.current !== syncAccount) return;
         if (!response.ok) throw new Error("Подход сохранён на устройстве, но сервер ещё не подтвердил уведомление. Повторите синхронизацию.");
-        const saved = writeOutboxAck(item.id, account.current);
+        const saved = writeOutboxAck(item.id, syncAccount);
         if (!saved.ok) throw new Error("Не удалось сохранить подтверждение команды.");
         acks.current.add(item.id);
       }
@@ -99,19 +102,26 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
         } else setLegacyState(undefined);
         const snapshot = current.current!;
         const revision = remote.version ?? 0;
+        // The previous page may have committed its PUT without receiving the response.
+        if (confirmedSyncWrite(readSyncWriteIntent(syncAccount), remote)) {
+          checkpoint(remote.payload!, revision);
+          if (!clearSyncWriteIntent(syncAccount)) throw new Error("Не удалось сохранить подтверждение отправки.");
+        }
         const direction = decideSyncDirection(snapshot, remote.payload, base.current, empty.current);
         if (direction === "conflict") { conflict(remote.payload!, revision); return; }
         if (direction === "download") {
           if (!persist(migrateState(remote.payload!))) throw new Error("Не удалось сохранить серверную копию на устройстве.");
           checkpoint(remote.payload!, revision);
           empty.current = false;
-          await deliverCommands(current.current!);
+          await deliverCommands(current.current!, syncAccount);
+          if (!alive.current || account.current !== syncAccount) return;
           continue;
         }
         if (direction === "same") {
           checkpoint(remote.payload!, revision);
           empty.current = false;
-          await deliverCommands(snapshot);
+          await deliverCommands(snapshot, syncAccount);
+          if (!alive.current || account.current !== syncAccount) return;
           if (current.current) {
             const prepared: TrackerState = acknowledgeSavedHabits(current.current, snapshot);
             if (prepared !== current.current && !persist(prepared)) throw new Error("Не удалось обновить очередь.");
@@ -119,14 +129,17 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
           continue;
         }
         const payload = prepareSyncPayload(snapshot);
+        if (!writeSyncWriteIntent(syncAccount, { expectedRevision: revision, fingerprint: syncFingerprint(payload) })) throw new Error("Не удалось сохранить намерение отправки. Данные остались на устройстве.");
         let savedRevision = revision;
         let put: Response | undefined;
         try {
           put = await request("/api/sync", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ payload, expectedRevision: revision }) });
         } catch {
+          if (!alive.current || account.current !== syncAccount) return;
           const recovery = await request("/api/sync");
           if (!recovery.ok) throw new Error("Сервер не подтвердил сохранение. Локальная копия сохранена.");
           const checked = await recovery.json() as { payload?: TrackerState | null; version?: number };
+          if (!alive.current || account.current !== syncAccount) return;
           const decision = decideLostPutResponse(payload, revision, checked);
           if (decision.action !== "accepted") {
             if (decision.action === "conflict" && checked.payload) { conflict(checked.payload, decision.revision); return; }
@@ -134,8 +147,10 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
           }
           savedRevision = decision.revision;
         }
+        if (!alive.current || account.current !== syncAccount) return;
         if (put?.status === 409) {
           const other = await put.json();
+          if (!alive.current || account.current !== syncAccount) return;
           if (other.remote) conflict(other.remote, other.revision);
           else throw new Error("Данные изменились на другом устройстве. Повторите синхронизацию.");
           return;
@@ -144,10 +159,13 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
           if (!put.ok) throw new Error("Сохранение на сервере не подтверждено. Локальная копия сохранена.");
           savedRevision = (await put.json()).revision;
         }
+        if (!alive.current || account.current !== syncAccount) return;
         checkpoint(payload, savedRevision);
+        if (!clearSyncWriteIntent(syncAccount)) throw new Error("Не удалось сохранить подтверждение отправки.");
         empty.current = false;
         // A recovered PUT still needs to deliver its durable commands.
-        await deliverCommands(snapshot);
+        await deliverCommands(snapshot, syncAccount);
+        if (!alive.current || account.current !== syncAccount) return;
         if (current.current) {
           const prepared: TrackerState = acknowledgeSavedHabits(current.current, payload);
           if (prepared !== current.current && !persist(prepared)) throw new Error("Не удалось обновить очередь.");

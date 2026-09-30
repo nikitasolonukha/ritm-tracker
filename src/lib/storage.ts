@@ -6,6 +6,7 @@ import {
   defaultHabits,
   getLocalDate,
 } from "./tracker.ts";
+import type { SyncWriteIntent } from "./sync.ts";
 
 export type TrackerState = {
   version: 1;
@@ -53,6 +54,21 @@ export function readSyncCheckpoint(userId: string): { revision: number; fingerpr
 }
 export function writeSyncCheckpoint(userId: string, revision: number, fingerprint: string) {
   try { window.localStorage.setItem(`${getStorageKey(userId)}:checkpoint`, JSON.stringify({ revision, fingerprint })); return true; }
+  catch { return false; }
+}
+export function readSyncWriteIntent(userId: string): SyncWriteIntent | undefined {
+  try {
+    const intent: unknown = JSON.parse(window.localStorage.getItem(`${getStorageKey(userId)}:sync-intent`) ?? "null");
+    if (intent && typeof intent === "object" && "expectedRevision" in intent && "fingerprint" in intent && Number.isSafeInteger(intent.expectedRevision) && (intent.expectedRevision as number) >= 0 && typeof intent.fingerprint === "string") return intent as SyncWriteIntent;
+  } catch { /* A damaged intent cannot confirm a server write. */ }
+  return undefined;
+}
+export function writeSyncWriteIntent(userId: string, intent: SyncWriteIntent): boolean {
+  try { window.localStorage.setItem(`${getStorageKey(userId)}:sync-intent`, JSON.stringify(intent)); return true; }
+  catch { return false; }
+}
+export function clearSyncWriteIntent(userId: string): boolean {
+  try { window.localStorage.removeItem(`${getStorageKey(userId)}:sync-intent`); return true; }
   catch { return false; }
 }
 export function getStorageKey(userId?: string) {

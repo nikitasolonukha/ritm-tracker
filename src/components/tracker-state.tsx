@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { backupSyncConflict, clearSyncWriteIntent, migrateState, readOutboxAcks, readStateSafely, readSyncCheckpoint, readSyncWriteIntent, writeSyncCheckpoint, writeSyncWriteIntent, writeOutboxAck, writeState, type TrackerState } from "@/lib/storage";
-import { acknowledgeSavedHabits, confirmedSyncWrite, decideLostPutResponse, decideSyncDirection, prepareSyncPayload, syncFingerprint } from "@/lib/sync";
+import { acknowledgeSavedHabits, confirmedSyncWrite, decideLostPutResponse, decideSyncDirection, prepareSyncPayload, syncFingerprint, type SyncWriteIntent } from "@/lib/sync";
 import { mergeBackup, previewBackup } from "@/lib/backup";
 import { setServiceWorkerAccount } from "@/lib/pwa";
 import Link from "next/link";
@@ -35,6 +35,7 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
   const current = useRef<TrackerState | null>(null);
   const account = useRef<string | undefined>(undefined);
   const base = useRef<string | undefined>(undefined);
+  const writeIntent = useRef<SyncWriteIntent | undefined>(undefined);
   const ready = useRef(false);
   const empty = useRef(false);
   const running = useRef(false);
@@ -103,9 +104,10 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
         const snapshot = current.current!;
         const revision = remote.version ?? 0;
         // The previous page may have committed its PUT without receiving the response.
-        if (confirmedSyncWrite(readSyncWriteIntent(syncAccount), remote)) {
+        if (confirmedSyncWrite(writeIntent.current, remote)) {
           checkpoint(remote.payload!, revision);
-          if (!clearSyncWriteIntent(syncAccount)) throw new Error("Не удалось сохранить подтверждение отправки.");
+          if (!clearSyncWriteIntent(syncAccount, writeIntent.current!)) throw new Error("Не удалось сохранить подтверждение отправки.");
+          writeIntent.current = undefined;
         }
         const direction = decideSyncDirection(snapshot, remote.payload, base.current, empty.current);
         if (direction === "conflict") { conflict(remote.payload!, revision); return; }
@@ -129,7 +131,9 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
           continue;
         }
         const payload = prepareSyncPayload(snapshot);
-        if (!writeSyncWriteIntent(syncAccount, { expectedRevision: revision, fingerprint: syncFingerprint(payload) })) throw new Error("Не удалось сохранить намерение отправки. Данные остались на устройстве.");
+        const intent = { expectedRevision: revision, fingerprint: syncFingerprint(payload) };
+        if (!writeSyncWriteIntent(syncAccount, intent)) throw new Error("Не удалось сохранить намерение отправки. Данные остались на устройстве.");
+        writeIntent.current = intent;
         let savedRevision = revision;
         let put: Response | undefined;
         try {
@@ -161,7 +165,8 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
         }
         if (!alive.current || account.current !== syncAccount) return;
         checkpoint(payload, savedRevision);
-        if (!clearSyncWriteIntent(syncAccount)) throw new Error("Не удалось сохранить подтверждение отправки.");
+        if (!clearSyncWriteIntent(syncAccount, intent)) throw new Error("Не удалось сохранить подтверждение отправки.");
+        writeIntent.current = undefined;
         empty.current = false;
         // A recovered PUT still needs to deliver its durable commands.
         await deliverCommands(snapshot, syncAccount);
@@ -202,6 +207,7 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
       setServiceWorkerAccount(demoMode ? undefined : id);
       acks.current = readOutboxAcks(id);
       base.current = readSyncCheckpoint(id!)?.fingerprint;
+      writeIntent.current = readSyncWriteIntent(id!);
       const local = readStateSafely(id);
       empty.current = local.status === "empty";
       if (local.status === "corrupt" || local.status === "unsupported" || local.status === "unavailable") { setStorageError(local.error ?? "Локальная история повреждена. Исходная копия сохранена."); setSyncStatus("error"); blocked.current = true; return; }

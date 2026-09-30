@@ -67,8 +67,12 @@ export function writeSyncWriteIntent(userId: string, intent: SyncWriteIntent): b
   try { window.localStorage.setItem(`${getStorageKey(userId)}:sync-intent`, JSON.stringify(intent)); return true; }
   catch { return false; }
 }
-export function clearSyncWriteIntent(userId: string): boolean {
-  try { window.localStorage.removeItem(`${getStorageKey(userId)}:sync-intent`); return true; }
+export function clearSyncWriteIntent(userId: string, expected: SyncWriteIntent): boolean {
+  try {
+    const stored = readSyncWriteIntent(userId);
+    if (stored?.expectedRevision === expected.expectedRevision && stored.fingerprint === expected.fingerprint) window.localStorage.removeItem(`${getStorageKey(userId)}:sync-intent`);
+    return true;
+  }
   catch { return false; }
 }
 export function getStorageKey(userId?: string) {

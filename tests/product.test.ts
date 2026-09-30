@@ -82,9 +82,9 @@ test("write intents survive reload, stay account-scoped and fail safely", () => 
     unavailable = true;
     assert.equal(writeSyncWriteIntent("fixture-a", { ...intent, expectedRevision: 192 }), false);
     assert.deepEqual(readSyncWriteIntent("fixture-a"), intent);
-    assert.equal(clearSyncWriteIntent("fixture-a"), false);
+    assert.equal(clearSyncWriteIntent("fixture-a", intent), false);
     unavailable = false;
-    assert.equal(clearSyncWriteIntent("fixture-a"), true);
+    assert.equal(clearSyncWriteIntent("fixture-a", intent), true);
     assert.equal(readSyncWriteIntent("fixture-a"), undefined);
     for (const malformed of ["{", "null", '{"expectedRevision":-1,"fingerprint":"x"}', '{"expectedRevision":2,"fingerprint":3}']) {
       records.set(`${getStorageKey("fixture-a")}:sync-intent`, malformed);

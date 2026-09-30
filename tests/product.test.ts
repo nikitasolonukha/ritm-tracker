@@ -74,6 +74,11 @@ test("write intents survive reload, stay account-scoped and fail safely", () => 
     assert.equal(writeSyncWriteIntent("fixture-a", intent), true);
     assert.deepEqual(readSyncWriteIntent("fixture-a"), intent);
     assert.equal(readSyncWriteIntent("fixture-b"), undefined);
+    const otherTabIntent = { ...intent, expectedRevision: 192, fingerprint: "other-tab" };
+    assert.equal(writeSyncWriteIntent("fixture-a", otherTabIntent), true);
+    assert.equal(clearSyncWriteIntent("fixture-a", intent), true);
+    assert.deepEqual(readSyncWriteIntent("fixture-a"), otherTabIntent, "A late response cannot remove another page's recovery intent");
+    assert.equal(writeSyncWriteIntent("fixture-a", intent), true);
     unavailable = true;
     assert.equal(writeSyncWriteIntent("fixture-a", { ...intent, expectedRevision: 192 }), false);
     assert.deepEqual(readSyncWriteIntent("fixture-a"), intent);

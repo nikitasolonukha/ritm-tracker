@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createInitialState, migrateState } from "../src/lib/storage.ts";
-import { acknowledgeSavedHabits, decideSyncDirection, syncFingerprint } from "../src/lib/sync.ts";
+import { acknowledgeSavedHabits, confirmedSyncWrite, decideSyncDirection, syncFingerprint } from "../src/lib/sync.ts";
 import { changeHabit, habitAnchors, habitsForDate, sleepFromEvents, snoozeHabit } from "../src/lib/habits.ts";
 import { prepareWorkoutImport, withoutRepeatedImportFacts } from "../src/lib/import.ts";
 import { validateRegistration } from "../src/lib/auth.ts";
@@ -36,6 +36,27 @@ test("transport acknowledgements cannot create data conflicts", () => {
   const local={ ...state,outbox:[{ id:"fixture",type:"habit.completed" as const,status:"pending" as const,createdAt:"2026-09-30T09:00:00Z" }] };
   const remote={ ...local,outbox:local.outbox.map((i) => ({ ...i,status:"accepted" as const })) };
   assert.equal(decideSyncDirection(local,remote),"same");
+});
+
+test("reload recovers a committed PUT before uploading later local edits", () => {
+  const initial = createInitialState();
+  const sent = { ...initial, activeTimer: null, observations: [{ id: "sent", date: "2026-09-30", energy: 5, sleep: 8, skin: "same" as const, note: "fixture" }] };
+  const local = { ...sent, observations: [...sent.observations, { ...sent.observations[0], id: "later" }] };
+  const intent = { expectedRevision: 191, fingerprint: syncFingerprint(sent) };
+  const remote = { payload: sent, version: 192 };
+  assert.equal(decideSyncDirection(local, remote.payload, syncFingerprint(initial)), "conflict");
+  const recoveredBase = confirmedSyncWrite(intent, remote);
+  assert.equal(recoveredBase, syncFingerprint(sent));
+  assert.equal(decideSyncDirection(local, remote.payload, recoveredBase), "upload");
+});
+
+test("pending write recovery never adopts divergent or uncommitted server data", () => {
+  const sent = createInitialState();
+  const intent = { expectedRevision: 10, fingerprint: syncFingerprint(sent) };
+  assert.equal(confirmedSyncWrite(intent, { payload: { ...sent, habits: [] }, version: 11 }), undefined);
+  assert.equal(confirmedSyncWrite(intent, { payload: sent, version: 10 }), undefined);
+  assert.equal(confirmedSyncWrite(intent, { version: 11 }), undefined);
+  assert.equal(confirmedSyncWrite(undefined, { payload: sent, version: 11 }), undefined);
 });
 
 test("a habit created during PUT remains pending until its own snapshot is saved", () => {

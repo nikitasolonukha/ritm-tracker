@@ -79,6 +79,26 @@ export function getStorageKey(userId?: string) {
   return userId ? `${storageKey}:${userId}` : storageKey;
 }
 
+export function legacyOfferKey(userId: string) {
+  return `${storageKey}:${userId}:legacy-offer`;
+}
+
+export function shouldShowLegacyOffer(loaded: boolean, fingerprint: string, dismissed?: string | null) {
+  return loaded && dismissed !== fingerprint;
+}
+
+export function readLegacyOffer(userId: string) {
+  if (typeof window === "undefined") return undefined;
+  try { return window.localStorage.getItem(legacyOfferKey(userId)) ?? undefined; }
+  catch { return undefined; }
+}
+
+export function writeLegacyOffer(userId: string, fingerprint: string) {
+  if (typeof window === "undefined") return false;
+  try { window.localStorage.setItem(legacyOfferKey(userId), fingerprint); return true; }
+  catch { return false; }
+}
+
 export function getOutboxAckKey(userId?: string) {
   return userId ? `${outboxAckKey}:${userId}` : outboxAckKey;
 }

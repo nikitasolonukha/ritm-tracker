@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { clearSyncWriteIntent, createInitialState, getStorageKey, migrateState, readSyncWriteIntent, writeSyncWriteIntent } from "../src/lib/storage.ts";
+import { clearSyncWriteIntent, createInitialState, getStorageKey, migrateState, readSyncWriteIntent, shouldShowLegacyOffer, writeSyncWriteIntent } from "../src/lib/storage.ts";
 import { acknowledgeSavedHabits, confirmedSyncWrite, decideSyncDirection, syncFingerprint } from "../src/lib/sync.ts";
 import { changeHabit, habitAnchors, habitsForDate, sleepFromEvents, snoozeHabit } from "../src/lib/habits.ts";
 import { prepareWorkoutImport, withoutRepeatedImportFacts } from "../src/lib/import.ts";
@@ -236,4 +236,9 @@ test("import requires missing year, rejects invalid dates and detects partial re
   assert.ok(prepareWorkoutImport("31 февраля 2026\nFixture\n45x8").error);
   const partial=prepareWorkoutImport("9 сентября 2026\nFixture press\n45x8",2026).workouts;
   assert.equal(withoutRepeatedImportFacts(partial,ready.workouts).length,0);
+});
+test("handled phone history stays hidden until that copy changes", () => {
+  assert.equal(shouldShowLegacyOffer(true, "same", "same"), false);
+  assert.equal(shouldShowLegacyOffer(true, "newer", "same"), true);
+  assert.equal(shouldShowLegacyOffer(false, "same", undefined), false);
 });

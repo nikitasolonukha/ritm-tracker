@@ -7,6 +7,7 @@ import { useTrackerState } from "@/components/tracker-state";
 import { calculateWorkoutTotals, formatLocalDate, normalizeDecimalInput, russianWord, type ExerciseSet, type WeightMode } from "@/lib/tracker";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { correctHistoricalSet, removeHistoricalExercise, removeHistoricalSet, removeHistoricalWorkout, type SessionTrackerState } from "@/lib/workout-session";
+import { AppSelect } from "@/components/app-select";
 
 type SetDraft = { weight: string; reps: string; mode: "" | WeightMode; completed: boolean; note: string };
 type Addition = { id: string; exerciseId: string; newExercise: boolean; name: string; draft: SetDraft };
@@ -20,7 +21,7 @@ function parseDraft(draft: SetDraft): Pick<ExerciseSet, "weightKg" | "reps" | "w
 }
 function SetFields({ draft, change }: { draft: SetDraft; change: (patch: Partial<SetDraft>) => void }) {
   return <>
-    <div className="setPart"><span aria-hidden="true" /><label>Фактический вес, кг<input type="text" inputMode="decimal" autoComplete="off" maxLength={20} value={draft.weight} onChange={(event) => change({ weight: event.target.value })} /></label><label>Учёт веса<select value={draft.mode} onChange={(event) => change({ mode: event.target.value as SetDraft["mode"] })}><option value="">Неизвестно</option><option value="total">Общий вес</option><option value="per-hand">На сторону / одна гантель</option></select></label><label>Фактические повторы<input type="text" inputMode="numeric" autoComplete="off" maxLength={4} value={draft.reps} onChange={(event) => change({ reps: event.target.value })} /></label></div>
+    <div className="setPart"><label>Фактический вес, кг<input type="text" inputMode="decimal" autoComplete="off" maxLength={20} value={draft.weight} onChange={(event) => change({ weight: event.target.value })} /></label><label>Учёт веса<AppSelect value={draft.mode} onChange={(value) => change({ mode: value as SetDraft["mode"] })}><option value="">Неизвестно</option><option value="total">Общий вес</option><option value="per-hand">На сторону / одна гантель</option></AppSelect></label><label>Фактические повторы<input type="text" inputMode="numeric" autoComplete="off" maxLength={4} value={draft.reps} onChange={(event) => change({ reps: event.target.value })} /></label></div>
     <label className="checkLabel" style={{ display: "flex", alignItems: "center", gap: 10, margin: "12px 0" }}><input type="checkbox" checked={draft.completed} onChange={(event) => change({ completed: event.target.checked })} />Подход выполнен</label>
     <label style={{ display: "grid", gap: 8 }}>Заметка<input maxLength={4000} value={draft.note} onChange={(event) => change({ note: event.target.value })} /></label>
   </>;

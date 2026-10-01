@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
-import { backupSyncConflict, clearSyncWriteIntent, migrateState, readOutboxAcks, readStateSafely, readSyncCheckpoint, readSyncWriteIntent, writeSyncCheckpoint, writeSyncWriteIntent, writeOutboxAck, writeState, type TrackerState } from "@/lib/storage";
+import { backupSyncConflict, clearSyncWriteIntent, migrateState, readLegacyOffer, readOutboxAcks, readStateSafely, readSyncCheckpoint, readSyncWriteIntent, shouldShowLegacyOffer, writeLegacyOffer, writeSyncCheckpoint, writeSyncWriteIntent, writeOutboxAck, writeState, type TrackerState } from "@/lib/storage";
 import { acknowledgeSavedHabits, confirmedSyncWrite, decideLostPutResponse, decideSyncDirection, prepareSyncPayload, syncFingerprint, type SyncWriteIntent } from "@/lib/sync";
 import { mergeBackup, previewBackup } from "@/lib/backup";
 import { setServiceWorkerAccount } from "@/lib/pwa";
@@ -11,7 +11,7 @@ import { usePathname } from "next/navigation";
 
 type SyncConflict = { local: TrackerState; remote: TrackerState; remoteRevision: number };
 export type SyncStatus = "idle" | "loading" | "dirty" | "syncing" | "offline" | "conflict" | "error";
-type TrackerStore = { state: TrackerState | null; update: (mutator: (state: TrackerState) => TrackerState) => boolean; importLegacy: () => boolean; resolveSyncConflict: (choice: "local" | "remote") => boolean; retrySync: () => void; syncConflict?: SyncConflict; legacyState?: TrackerState; userId?: string; storageError?: string; syncStatus: SyncStatus };
+type TrackerStore = { state: TrackerState | null; update: (mutator: (state: TrackerState) => TrackerState) => boolean; importLegacy: () => boolean; dismissLegacy: () => void; resolveSyncConflict: (choice: "local" | "remote") => boolean; retrySync: () => void; syncConflict?: SyncConflict; legacyState?: TrackerState; userId?: string; storageError?: string; syncStatus: SyncStatus };
 const TrackerContext = createContext<TrackerStore | null>(null);
 
 async function request(input: string, init: RequestInit = {}) {
@@ -99,7 +99,9 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
         legacyAllowed.current = remote.legacyImportAllowed === true;
         if (legacyAllowed.current) {
           const legacy = readStateSafely();
-          if (legacy.status === "loaded") setLegacyState(legacy.state);
+          const fingerprint = legacy.status === "loaded" ? syncFingerprint(legacy.state) : "";
+          if (shouldShowLegacyOffer(legacy.status === "loaded", fingerprint, readLegacyOffer(syncAccount))) setLegacyState(legacy.state);
+          else setLegacyState(undefined);
         } else setLegacyState(undefined);
         const snapshot = current.current!;
         const revision = remote.version ?? 0;
@@ -246,18 +248,26 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
     if (!demoMode) { setSyncStatus(blocked.current ? "conflict" : "dirty"); queueSync(); }
     return true;
   }
+  function rememberLegacy(snapshot: TrackerState) {
+    if (!account.current) return false;
+    const remembered = writeLegacyOffer(account.current, syncFingerprint(snapshot));
+    if (remembered) setLegacyState(undefined);
+    return remembered;
+  }
+  function dismissLegacy() {
+    if (legacyState) rememberLegacy(legacyState);
+  }
   function importLegacy() {
     if (!legacyState || !account.current || !legacyAllowed.current) return false;
-    const preview = previewBackup(current.current!, { state: legacyState }, account.current);
-    if (preview.unavailablePhotos) { setStorageError("В старой копии есть ссылки на недоступные фото. Сначала экспортируйте её с изображениями из исходного аккаунта."); return false; }
-    const unfinished = preview.unfinishedWorkouts ? ` Незавершённые тренировки (${preview.unfinishedWorkouts}) останутся в исходной копии и не заменят текущую сессию.` : "";
-    if (!window.confirm(`Добавить старую локальную историю в этот аккаунт? Существующие записи, активная тренировка и очередь останутся без изменений. Старые команды не будут повторно отправлены.${unfinished} Обе копии будут сохранены в резерве.`)) return false;
-    const saved = backupSyncConflict(account.current, 0, current.current!, legacyState);
+    const snapshot = legacyState;
+    const preview = previewBackup(current.current!, { state: snapshot }, account.current);
+    if (preview.unavailablePhotos) { setStorageError("В старой копии есть фото без файлов. Сначала сохраните её вместе с изображениями."); return false; }
+    const saved = backupSyncConflict(account.current, 0, current.current!, snapshot);
     if (!saved.ok) { setStorageError("Не удалось создать резервную копию."); return false; }
     let imported = false;
-    try { imported = update((previous) => mergeBackup(previous, { state: legacyState }, account.current!, { skipUnfinishedWorkouts: true })); }
+    try { imported = update((previous) => mergeBackup(previous, { state: snapshot }, account.current!, { skipUnfinishedWorkouts: true })); }
     catch (error) { setStorageError(error instanceof Error ? error.message : "Не удалось объединить историю. Исходные данные сохранены."); }
-    if (imported) setLegacyState(undefined);
+    if (imported && !rememberLegacy(snapshot)) setLegacyState(undefined);
     return imported;
   }
   function resolveSyncConflict(choice: "local" | "remote") {
@@ -271,7 +281,7 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
     queueSync();
     return true;
   }
-  return { state, update, importLegacy, resolveSyncConflict, retrySync: () => { if (!blocked.current) void sync(); }, syncConflict, legacyState, userId, storageError, syncStatus };
+  return { state, update, importLegacy, dismissLegacy, resolveSyncConflict, retrySync: () => { if (!blocked.current) void sync(); }, syncConflict, legacyState, userId, storageError, syncStatus };
 }
 
 export function TrackerProvider({ children, demoMode = false }: { children: React.ReactNode; demoMode?: boolean }) {

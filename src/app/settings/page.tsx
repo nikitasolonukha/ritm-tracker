@@ -13,6 +13,7 @@ import { TelegramSettings } from "@/components/telegram-settings";
 import { AppNav } from "@/components/app-nav";
 import { HabitEditor } from "@/components/habit-editor";
 import { DataSettings } from "@/components/data-settings";
+import { AppSelect } from "@/components/app-select";
 
 function setsWord(count: number) {
   const mod10 = count % 10;
@@ -23,7 +24,7 @@ function setsWord(count: number) {
 }
 
 export default function SettingsPage() {
-  const { state, update, importLegacy, legacyState, storageError, syncStatus } = useTrackerState();
+  const { state, update, importLegacy, dismissLegacy, legacyState, storageError, syncStatus } = useTrackerState();
   const sessionState = state as SessionTrackerState | null;
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>();
   const template = sessionState?.workoutTemplates?.find((t) => t.id === selectedTemplateId) ?? sessionState?.workoutTemplates?.[0];
@@ -192,7 +193,7 @@ export default function SettingsPage() {
     {signOutError && <p role="alert" className="storageMessage">{signOutError}</p>}
     {storageError && <p className="storageMessage" role="alert">{storageError}</p>}
     <p className="muted" role="status">{syncStatus === "idle" ? "Изменения сохранены" : syncStatus === "syncing" || syncStatus === "dirty" ? "Сохраняем изменения…" : syncStatus === "loading" ? "Загружаем данные…" : "Изменения на этом устройстве"}</p>
-    {legacyState && <section className="panel migrationNotice"><p className="eyebrow">Старые данные</p><h2>Найдена локальная история</h2><p>Она хранится отдельно и не открывается автоматически другому аккаунту. Перенести её в этот аккаунт?</p><button className="primary" onClick={importLegacy}>Перенести историю</button></section>}
+    {legacyState && <section className="panel migrationNotice"><p className="eyebrow">На этом телефоне</p><h2>Есть записи до входа в аккаунт</h2><p>Это привычки, тренировки и отметки, которые остались в памяти телефона. Их можно скопировать сюда: то, что уже есть в аккаунте, не сотрётся. Незавершённая тренировка из старой копии текущую не заменит.</p><div className="settingsActions"><button className="primary" onClick={importLegacy}>Перенести в этот аккаунт</button><button className="secondary" type="button" onClick={dismissLegacy}>Не переносить</button></div></section>}
     <div className="settingsTabs" role="tablist" aria-label="Раздел настроек">{([["habits", "Привычки"], ["program", "Программа"], ["telegram", "Telegram"], ["data", "Данные"]] as const).map(([id, label]) => <button key={id} role="tab" aria-selected={section === id} onClick={() => setSection(id)}>{label}</button>)}</div>
     {section === "telegram" && <TelegramSettings />}
     {section === "data" && <DataSettings />}
@@ -204,7 +205,7 @@ export default function SettingsPage() {
     <div hidden={section !== "program"}>
     <div className="settingsActions"><button className="secondary" onClick={addProgram}><Plus size={18} /> Новая программа</button>{template && <button className="secondary" onClick={removeProgram}><Trash2 size={18} /> Удалить программу</button>}</div>
     {template ? <>
-    <label>Программа<select value={template.id} onChange={(e) => setSelectedTemplateId(e.target.value)}>{sessionState?.workoutTemplates?.map((p) => <option value={p.id} key={p.id}>{p.title}</option>)}</select></label>
+    <label>Программа<AppSelect value={template.id} onChange={setSelectedTemplateId}>{sessionState?.workoutTemplates?.map((p) => <option value={p.id} key={p.id}>{p.title}</option>)}</AppSelect></label>
     <section className="panel settingsEditor">
       <label>Название программы<SettingsInput value={template.title} onCommit={(title) => { if (title.trim()) update((previous) => ({ ...previous, workoutTemplates: previous.workoutTemplates?.map((p) => p.id === template.id ? { ...p, title: title.trim() } : p) })); }} /></label>
       <div className="sectionHeading"><h2>Упражнения</h2><button className="secondary" onClick={addExercise}><Plus size={17} /> Добавить</button></div>
@@ -223,11 +224,12 @@ export default function SettingsPage() {
           <label>Группа мышц<SettingsInput value={exercise.muscleGroup} placeholder="Например, грудь" onCommit={(value) => editExercise(exercise.id, "muscleGroup", value)} /></label>
           <label>Оборудование<SettingsInput value={exercise.equipment} placeholder="Например, тренажёр" onCommit={(value) => editExercise(exercise.id, "equipment", value)} /></label>
           <label>Положение оборудования<SettingsInput value={exercise.equipmentPosition} placeholder="Необязательно" onCommit={(value) => editExercise(exercise.id, "equipmentPosition", value)} /></label>
-          <div className="setEditors">{logicalSets.map((logicalSet) => <div className="segmentEditor" key={logicalSet.key}><div className="segmentHeading"><strong>{logicalSet.label}</strong><button type="button" className="secondary dangerButton" onClick={() => removeLogicalSet(exercise.id, logicalSet.key, exercise.name, logicalSets.length <= 1)}>Удалить подход</button></div>{logicalSet.sets.map((set) => <div className="setPart" key={set.id}><span className="muted">{set.component === "compound-a" ? "Часть A" : set.component === "compound-b" ? "Часть B" : ""}</span><label>Вес<SettingsInput numeric="weight" value={set.weightKg} onCommit={(value) => editSet(exercise.id, set.id, "weightKg", value)} /></label><label>Режим<select value={set.weightMode ?? ""} onChange={(event) => editSet(exercise.id, set.id, "weightMode", event.target.value)}><option value="">Уточнить</option><option value="total">Общий вес</option><option value="per-hand">На сторону / гантель</option></select></label><label>Повторы<SettingsInput numeric="reps" value={set.reps} onCommit={(value) => editSet(exercise.id, set.id, "reps", value)} /></label></div>)}</div>)}</div>
+          <p className="fieldHint muted">У каждого подхода три поля: вес, как его считать и повторы. «Общий вес» — штанга или тренажёр целиком. «На сторону» — вес одной гантели, в объём он входит дважды. Удаление подхода меняет только план.</p>
+          <div className="setEditors">{logicalSets.map((logicalSet) => <div className="segmentEditor" key={logicalSet.key}><div className="segmentHeading"><strong>{logicalSet.label}</strong><button type="button" className="secondary dangerButton" onClick={() => removeLogicalSet(exercise.id, logicalSet.key, exercise.name, logicalSets.length <= 1)}>Удалить подход</button></div>{logicalSet.sets.map((set) => <div className="setPart" key={set.id}>{(set.component === "compound-a" || set.component === "compound-b") && <span className="muted">{set.component === "compound-a" ? "Часть A" : "Часть B"}</span>}<label>Вес<SettingsInput numeric="weight" value={set.weightKg} onCommit={(value) => editSet(exercise.id, set.id, "weightKg", value)} /></label><label>Режим<AppSelect value={set.weightMode ?? ""} onChange={(value) => editSet(exercise.id, set.id, "weightMode", value)}><option value="">Уточнить</option><option value="total">Общий вес</option><option value="per-hand">На сторону / гантель</option></AppSelect></label><label>Повторы<SettingsInput numeric="reps" value={set.reps} onCommit={(value) => editSet(exercise.id, set.id, "reps", value)} /></label></div>)}</div>)}</div>
           <div className="setEditorActions"><button className="secondary" onClick={() => addSet(exercise.id)}>Добавить подход</button>{paired ? <button className="secondary" onClick={() => splitCompound(exercise.id)}>Разделить пары</button> : exercise.sets.length >= 2 && exercise.sets.length % 2 === 0 && <button className="secondary" onClick={() => makeCompound(exercise.id)}>Сделать парами A/B</button>}</div>
           {paired && <p className="fieldHint muted">Сейчас подходы идут парами: сначала часть A, затем часть B. Отдых начинается после обеих.</p>}
           {!paired && exercise.sets.length >= 2 && exercise.sets.length % 2 === 0 && <p className="fieldHint muted">«Сделать парами A/B» объединит соседние подходы. Потом их можно снова разделить.</p>}
-          <label>Отдых<select value={exercise.restSec ?? 180} onChange={(event) => editExercise(exercise.id, "restSec", event.target.value)}><option value="180">180 сек</option><option value="240">240 сек</option></select></label>
+          <label>Отдых<AppSelect value={exercise.restSec ?? 180} onChange={(value) => editExercise(exercise.id, "restSec", value)}><option value="180">180 сек</option><option value="240">240 сек</option></AppSelect></label>
           <div className="exerciseToolbar">{([-1, 1] as const).map((direction) => <button key={direction} type="button" className="secondary" aria-label={direction === -1 ? "Переместить выше" : "Переместить ниже"} disabled={template.exercises.indexOf(exercise) + direction < 0 || template.exercises.indexOf(exercise) + direction >= template.exercises.length} onClick={() => update((previous) => ({ ...previous, workoutTemplates: previous.workoutTemplates?.map((p) => { if (p.id !== template.id) return p; const list = [...p.exercises]; const index = list.findIndex((e) => e.id === exercise.id); [list[index], list[index + direction]] = [list[index + direction], list[index]]; return { ...p, exercises: list }; }) }))}>{direction === -1 ? <ArrowUp size={18} /> : <ArrowDown size={18} />}{direction === -1 ? "Выше" : "Ниже"}</button>)}<button type="button" className="secondary dangerButton" onClick={() => removeExercise(exercise.id, exercise.name)}><Trash2 size={17} /> Удалить упражнение</button></div>
         </div></details>;
       })}

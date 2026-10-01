@@ -14,6 +14,14 @@ import { AppNav } from "@/components/app-nav";
 import { HabitEditor } from "@/components/habit-editor";
 import { DataSettings } from "@/components/data-settings";
 
+function setsWord(count: number) {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return "подход";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "подхода";
+  return "подходов";
+}
+
 export default function SettingsPage() {
   const { state, update, importLegacy, legacyState, storageError, syncStatus } = useTrackerState();
   const sessionState = state as SessionTrackerState | null;
@@ -85,10 +93,13 @@ export default function SettingsPage() {
     };
   });
 
-  const removeExercise = (exerciseId: string) => update((previous) => {
-    const next = previous as SessionTrackerState;
-    return { ...next, workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id !== template?.id ? item : { ...item, exercises: item.exercises.filter((exercise) => exercise.id !== exerciseId) }) };
-  });
+  const removeExercise = (exerciseId: string, name: string) => {
+    if (!window.confirm(`Удалить упражнение «${name}» из программы? Уже записанные тренировки останутся.`)) return;
+    update((previous) => {
+      const next = previous as SessionTrackerState;
+      return { ...next, workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id !== template?.id ? item : { ...item, exercises: item.exercises.filter((exercise) => exercise.id !== exerciseId) }) };
+    });
+  };
 
   const addSet = (exerciseId: string) => update((previous) => {
     const next = previous as SessionTrackerState;
@@ -111,18 +122,33 @@ export default function SettingsPage() {
     };
   });
 
-  const removeSet = (exerciseId: string) => update((previous) => {
+  const logicalKey = (set: ExerciseSet, index: number) => set.segmentId ?? (set.component && set.component !== "single" ? `pair-${Math.floor(index / 2)}` : set.id);
+  const removeLogicalSet = (exerciseId: string, key: string, name: string, onlyOne: boolean) => {
+    if (!window.confirm(onlyOne ? `Это последний подход. Удалить упражнение «${name}» из программы?` : `Удалить этот подход из «${name}»?`)) return;
+    update((previous) => {
+      const next = previous as SessionTrackerState;
+      return {
+        ...next,
+        workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id !== template?.id ? item : {
+          ...item,
+          exercises: onlyOne ? item.exercises.filter((exercise) => exercise.id !== exerciseId) : item.exercises.map((exercise) => {
+            if (exercise.id !== exerciseId) return exercise;
+            const sets = exercise.sets.filter((set, index) => logicalKey(set, index) !== key);
+            return { ...exercise, sets: sets.length ? sets : exercise.sets };
+          }),
+        }),
+      };
+    });
+  };
+  const splitCompound = (exerciseId: string) => update((previous) => {
     const next = previous as SessionTrackerState;
     return {
       ...next,
       workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id !== template?.id ? item : {
         ...item,
-        exercises: item.exercises.map((exercise) => {
-          if (exercise.id !== exerciseId || exercise.sets.length <= 1) return exercise;
-          const last = exercise.sets.at(-1);
-          const lastKey = last?.segmentId ?? (last?.component && last.component !== "single" ? `pair-${Math.floor((exercise.sets.length - 1) / 2)}` : last?.id);
-          const nextSets = exercise.sets.filter((set, index) => (set.segmentId ?? (set.component && set.component !== "single" ? `pair-${Math.floor(index / 2)}` : set.id)) !== lastKey);
-          return { ...exercise, sets: nextSets.length ? nextSets : exercise.sets };
+        exercises: item.exercises.map((exercise) => exercise.id !== exerciseId ? exercise : {
+          ...exercise,
+          sets: exercise.sets.map((set) => ({ ...set, component: undefined, segmentId: undefined })),
         }),
       }),
     };
@@ -173,7 +199,7 @@ export default function SettingsPage() {
     <div hidden={section !== "habits"}>
     <button className="secondary" onClick={addHabit}><Plus size={18} /> Добавить привычку</button>
 
-    <section className="settingsEditor"><div className="sectionHeading"><h2>Ритм дня</h2><span className="muted">{state.habits.filter((h) => !h.archived).length} действий</span></div><div className="settingsList">{state.habits.map((habit) => <HabitEditor key={habit.id} habit={habit} />)}</div></section>
+    <section className="settingsEditor"><div className="sectionHeading"><h2>Ритм дня</h2><span className="muted">{state.habits.filter((h) => !h.archived).length} действий</span></div><div className="settingsList">{[...state.habits].sort((a, b) => Number(Boolean(a.archived)) - Number(Boolean(b.archived))).map((habit, index, list) => <div key={habit.id}>{habit.archived && !list[index - 1]?.archived && <h3 className="archiveHeading">В архиве</h3>}<HabitEditor habit={habit} /></div>)}</div></section>
     </div>
     <div hidden={section !== "program"}>
     <div className="settingsActions"><button className="secondary" onClick={addProgram}><Plus size={18} /> Новая программа</button>{template && <button className="secondary" onClick={removeProgram}><Trash2 size={18} /> Удалить программу</button>}</div>
@@ -191,16 +217,18 @@ export default function SettingsPage() {
           if (existing) existing.sets.push(set);
           else logicalSets.push({ key, label: set.component ? `Подход ${logicalSets.length + 1}` : `Подход ${logicalSets.length + 1}`, sets: [set] });
         }
-        return <details className="exerciseDisclosure" key={exercise.id}><summary><span>{exercise.name}</span><small>{logicalSetCount} подхода · {(exercise.restSec ?? 180) / 60} мин отдыха</small></summary><div className="settingExercise">
+        const paired = exercise.sets.some((set) => set.component && set.component !== "single");
+        return <details className="exerciseDisclosure" key={exercise.id}><summary><span>{exercise.name}</span><small>{logicalSetCount} {setsWord(logicalSetCount)} · {(exercise.restSec ?? 180) / 60} мин отдыха</small></summary><div className="settingExercise">
           <label>Название<SettingsInput value={exercise.name} onCommit={(value) => editExercise(exercise.id, "name", value)} /></label>
           <label>Группа мышц<SettingsInput value={exercise.muscleGroup} placeholder="Например, грудь" onCommit={(value) => editExercise(exercise.id, "muscleGroup", value)} /></label>
           <label>Оборудование<SettingsInput value={exercise.equipment} placeholder="Например, тренажёр" onCommit={(value) => editExercise(exercise.id, "equipment", value)} /></label>
           <label>Положение оборудования<SettingsInput value={exercise.equipmentPosition} placeholder="Необязательно" onCommit={(value) => editExercise(exercise.id, "equipmentPosition", value)} /></label>
-          <div className="setEditors">{logicalSets.map((logicalSet) => <div className="segmentEditor" key={logicalSet.key}><strong>{logicalSet.label}</strong>{logicalSet.sets.map((set) => <div className="setPart" key={set.id}><span className="muted">{set.component === "compound-a" ? "A" : set.component === "compound-b" ? "B" : ""}</span><label>Вес<SettingsInput numeric="weight" value={set.weightKg} onCommit={(value) => editSet(exercise.id, set.id, "weightKg", value)} /></label><label>Режим<select value={set.weightMode ?? ""} onChange={(event) => editSet(exercise.id, set.id, "weightMode", event.target.value)}><option value="">Уточнить</option><option value="total">Общий вес</option><option value="per-hand">На сторону / гантель</option></select></label><label>Повторы<SettingsInput numeric="reps" value={set.reps} onCommit={(value) => editSet(exercise.id, set.id, "reps", value)} /></label></div>)}</div>)}</div>
-          <div className="setEditorActions"><span>{logicalSetCount} логич. подход{logicalSetCount === 1 ? "" : logicalSetCount < 5 ? "а" : "ов"}</span><button className="secondary" onClick={() => addSet(exercise.id)}>Добавить подход</button>{!exercise.sets.some((set) => set.component && set.component !== "single") && exercise.sets.length >= 2 && exercise.sets.length % 2 === 0 && <button className="secondary" onClick={() => makeCompound(exercise.id)}>Сделать парами A/B</button>}<button className="iconButton" onClick={() => removeSet(exercise.id)} disabled={logicalSetCount <= 1} aria-label={`Удалить последний подход ${exercise.name}`}><Trash2 size={17} /></button></div>
+          <div className="setEditors">{logicalSets.map((logicalSet) => <div className="segmentEditor" key={logicalSet.key}><div className="segmentHeading"><strong>{logicalSet.label}</strong><button type="button" className="secondary dangerButton" onClick={() => removeLogicalSet(exercise.id, logicalSet.key, exercise.name, logicalSets.length <= 1)}>Удалить подход</button></div>{logicalSet.sets.map((set) => <div className="setPart" key={set.id}><span className="muted">{set.component === "compound-a" ? "Часть A" : set.component === "compound-b" ? "Часть B" : ""}</span><label>Вес<SettingsInput numeric="weight" value={set.weightKg} onCommit={(value) => editSet(exercise.id, set.id, "weightKg", value)} /></label><label>Режим<select value={set.weightMode ?? ""} onChange={(event) => editSet(exercise.id, set.id, "weightMode", event.target.value)}><option value="">Уточнить</option><option value="total">Общий вес</option><option value="per-hand">На сторону / гантель</option></select></label><label>Повторы<SettingsInput numeric="reps" value={set.reps} onCommit={(value) => editSet(exercise.id, set.id, "reps", value)} /></label></div>)}</div>)}</div>
+          <div className="setEditorActions"><button className="secondary" onClick={() => addSet(exercise.id)}>Добавить подход</button>{paired ? <button className="secondary" onClick={() => splitCompound(exercise.id)}>Разделить пары</button> : exercise.sets.length >= 2 && exercise.sets.length % 2 === 0 && <button className="secondary" onClick={() => makeCompound(exercise.id)}>Сделать парами A/B</button>}</div>
+          {paired && <p className="fieldHint muted">Сейчас подходы идут парами: сначала часть A, затем часть B. Отдых начинается после обеих.</p>}
+          {!paired && exercise.sets.length >= 2 && exercise.sets.length % 2 === 0 && <p className="fieldHint muted">«Сделать парами A/B» объединит соседние подходы. Потом их можно снова разделить.</p>}
           <label>Отдых<select value={exercise.restSec ?? 180} onChange={(event) => editExercise(exercise.id, "restSec", event.target.value)}><option value="180">180 сек</option><option value="240">240 сек</option></select></label>
-          <button className="iconButton" onClick={() => removeExercise(exercise.id)} aria-label={`Удалить ${exercise.name}`}><Trash2 size={17} /></button>
-          <div className="settingsActions">{([-1, 1] as const).map((direction) => <button key={direction} className="iconButton" aria-label={direction === -1 ? "Переместить выше" : "Переместить ниже"} disabled={template.exercises.indexOf(exercise) + direction < 0 || template.exercises.indexOf(exercise) + direction >= template.exercises.length} onClick={() => update((previous) => ({ ...previous, workoutTemplates: previous.workoutTemplates?.map((p) => { if (p.id !== template.id) return p; const list = [...p.exercises]; const index = list.findIndex((e) => e.id === exercise.id); [list[index], list[index + direction]] = [list[index + direction], list[index]]; return { ...p, exercises: list }; }) }))}>{direction === -1 ? <ArrowUp size={18} /> : <ArrowDown size={18} />}</button>)}</div>
+          <div className="exerciseToolbar">{([-1, 1] as const).map((direction) => <button key={direction} type="button" className="secondary" aria-label={direction === -1 ? "Переместить выше" : "Переместить ниже"} disabled={template.exercises.indexOf(exercise) + direction < 0 || template.exercises.indexOf(exercise) + direction >= template.exercises.length} onClick={() => update((previous) => ({ ...previous, workoutTemplates: previous.workoutTemplates?.map((p) => { if (p.id !== template.id) return p; const list = [...p.exercises]; const index = list.findIndex((e) => e.id === exercise.id); [list[index], list[index + direction]] = [list[index + direction], list[index]]; return { ...p, exercises: list }; }) }))}>{direction === -1 ? <ArrowUp size={18} /> : <ArrowDown size={18} />}{direction === -1 ? "Выше" : "Ниже"}</button>)}<button type="button" className="secondary dangerButton" onClick={() => removeExercise(exercise.id, exercise.name)}><Trash2 size={17} /> Удалить упражнение</button></div>
         </div></details>;
       })}
     </section>

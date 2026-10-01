@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Download, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowRight, Download, Plus, Save, Settings2, Trash2 } from "lucide-react";
 import { useEffect, useState, type ChangeEvent } from "react";
 import { AppNav } from "@/components/app-nav";
 import { PrivatePhoto } from "@/components/private-photo";
@@ -72,11 +72,23 @@ export default function ProgressPage() {
     } catch (e) { setMessage(e instanceof Error ? e.message : "Фото не загружено."); }
     finally { setBusy(false); }
   }
-  return <main className="shell appPage"><header className="pageHeader"><div><p className="eyebrow">Показатели</p><h1>Прогресс</h1></div><button className="iconButton" onClick={exportState} disabled={busy} aria-label="Экспорт данных и фото" title="Экспорт данных и фото"><Download size={20} /></button></header>
+  async function removePhoto(photo: { id: string; name: string; storagePath?: string }) {
+    const remote = Boolean(photo.storagePath && userId && userId !== "demo");
+    const message = remote
+      ? `Убрать фото «${photo.name}» из журнала и удалить файл из хранилища? Вернуть его будет нельзя.`
+      : `Убрать фото «${photo.name}» из журнала? Отдельного файла в хранилище нет.`;
+    if (!window.confirm(message)) return;
+    if (remote && photo.storagePath) {
+      const { error } = await createClient().storage.from("progress-photos").remove([photo.storagePath]);
+      if (error) { setMessage("Файл в хранилище не удалился. Фото осталось в журнале. Проверьте соединение и повторите."); return; }
+    }
+    if (update((previous) => ({ ...previous, photos: previous.photos?.filter((item) => item.id !== photo.id) }))) setMessage(remote ? "Фото убрано из журнала, файл удалён из хранилища." : "Фото убрано из журнала.");
+  }
+  return <main className="shell appPage"><header className="pageHeader"><div><p className="eyebrow">Показатели</p><h1>Прогресс</h1></div><div className="headerActions"><Link className="iconButton" href="/settings" aria-label="Настройки"><Settings2 size={20} /></Link><button className="iconButton" onClick={exportState} disabled={busy} aria-label="Экспорт данных и фото" title="Экспорт данных и фото"><Download size={20} /></button></div></header>
     {storageError && <p className="storageMessage" role="alert">{storageError}</p>}{message && <p className="storageMessage" role="status">{message}</p>}
     <div className="summaryMetrics"><div><strong>{workouts.length}</strong><span>тренировок</span></div><div><strong>{volume.toLocaleString("ru-RU")}</strong><span>кг объём</span></div><div><strong>{state.completions.filter((c) => c.outcome !== "skipped").length}</strong><span>отметок</span></div></div>
     <section className="settingsEditor observationEditor"><h2>Самочувствие</h2><div className="formGrid"><label>Дата<input type="date" value={date} max={today} onChange={(e) => setDate(e.target.value)} /></label><label>Энергия, 0–10<input inputMode="decimal" value={energy} onChange={(e) => setEnergy(e.target.value)} /></label><label>Сон, часов<input inputMode="decimal" value={sleep} onChange={(e) => setSleep(e.target.value)} /></label><label>Масса, кг<input inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)} /></label><label>Самочувствие<select value={skin} onChange={(e) => setSkin(e.target.value as typeof skin)}><option value="unknown">Не указано</option><option value="better">Лучше</option><option value="same">Без изменений</option><option value="worse">Хуже</option></select></label></div><label>Заметка<textarea value={note} maxLength={4000} onChange={(e) => setNote(e.target.value)} rows={3} /></label><button className="primary" onClick={save}><Save size={18} />Сохранить отметку</button></section>
-    <section className="settingsEditor photoEditor"><div className="sectionHeading"><h2>Фото прогресса</h2><label className="secondary photoUpload"><Plus size={18} />{busy ? "Загрузка…" : "Добавить фото"}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={addPhoto} /></label></div><div className="photoGrid">{state.photos?.map((photo) => <figure key={photo.id}><PrivatePhoto path={photo.storagePath} dataUrl={photo.dataUrl} name={photo.name} /><figcaption><span>{photo.date}</span><button className="iconButton" aria-label={`Убрать фото ${photo.name}`} title="Убрать из журнала" onClick={() => { if (window.confirm("Убрать фото из журнала?")) update((previous) => ({ ...previous,photos:previous.photos?.filter((p) => p.id !== photo.id) })); }}><Trash2 size={17} /></button></figcaption></figure>)}</div></section>
-    <section className="settingsEditor"><h2>История отметок</h2>{[...state.observations].sort((a,b) => b.date.localeCompare(a.date)).map((o) => <article className="observationHistory" key={o.id}><button className="secondary" onClick={() => { setDate(o.date); window.scrollTo({ top:0,behavior:"smooth" }); }}>{o.date}</button><p>Энергия {o.energy}/10 · Сон {o.sleep} ч{o.weightKg == null ? "" : ` · ${o.weightKg} кг`}</p>{o.note && <p>{o.note}</p>}</article>)}</section>
+    <section className="settingsEditor photoEditor"><div className="sectionHeading"><h2>Фото прогресса</h2><label className="secondary photoUpload"><Plus size={18} />{busy ? "Загрузка…" : "Добавить фото"}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={addPhoto} /></label></div><div className="photoGrid">{state.photos?.map((photo) => <figure key={photo.id}><PrivatePhoto path={photo.storagePath} dataUrl={photo.dataUrl} name={photo.name} /><figcaption><span>{photo.date}</span><button className="iconButton dangerButton" aria-label={`Убрать фото ${photo.name}`} title="Убрать фото из журнала" onClick={() => void removePhoto(photo)}><Trash2 size={17} /></button></figcaption></figure>)}</div></section>
+    <section className="settingsEditor"><h2>История отметок</h2>{[...state.observations].sort((a,b) => b.date.localeCompare(a.date)).map((o) => <article className="observationHistory" key={o.id}><div className="observationActions"><button className="secondary" onClick={() => { setDate(o.date); window.scrollTo({ top:0,behavior:"smooth" }); }}>{o.date}</button><button className="secondary dangerButton" type="button" onClick={() => { if (window.confirm(`Удалить отметку за ${o.date}?`)) update((previous) => ({ ...previous, observations: previous.observations.filter((item) => item.id !== o.id) })); }}>Удалить отметку</button></div><p>Энергия {o.energy}/10 · Сон {o.sleep} ч{o.weightKg == null ? "" : ` · ${o.weightKg} кг`}</p>{o.note && <p>{o.note}</p>}</article>)}</section>
     <Link className="resumeBanner" href="/journal"><span><strong>Журнал тренировок</strong></span><ArrowRight size={20} /></Link><AppNav active="progress" /></main>;
 }

@@ -14,6 +14,55 @@ export type WorkoutSession = {
 
 export type SessionTrackerState = TrackerState & { workoutSessions?: WorkoutSession[]; activeSessionId?: string };
 
+function workoutIsActive(state: SessionTrackerState, workoutId: string) {
+  return state.activeWorkoutId === workoutId || Boolean(state.workoutSessions?.some((session) => session.workoutId === workoutId && session.status === "active"));
+}
+
+function replaceHistoricalWorkout(state: SessionTrackerState, workoutId: string, workout: Workout | null, retired: (entityId: string) => boolean): SessionTrackerState {
+  const workouts = workout ? state.workouts.map((item) => item.id === workoutId ? workout : item) : state.workouts.filter((item) => item.id !== workoutId);
+  const workoutSessions = workout
+    ? state.workoutSessions?.map((session) => {
+      if (session.workoutId !== workoutId || (session.status !== "completed" && session.status !== "partial")) return session;
+      const done = workout.exercises.length > 0 && workout.exercises.every((exercise) => exercise.sets.every((set) => set.completed));
+      return { ...session, status: done ? "completed" as const : "partial" as const };
+    })
+    : state.workoutSessions?.filter((session) => session.workoutId !== workoutId);
+  return {
+    ...state,
+    workouts,
+    workoutSessions,
+    outbox: state.outbox.map((command) => command.entityId && retired(command.entityId) && ["pending", "sending", "failed"].includes(command.status) ? { ...command, status: "cancelled" as const } : command),
+  };
+}
+
+export function removeHistoricalSet(state: SessionTrackerState, workoutId: string, exerciseId: string, setId: string): SessionTrackerState {
+  if (workoutIsActive(state, workoutId)) return state;
+  const workout = state.workouts.find((item) => item.id === workoutId);
+  const exercise = workout?.exercises.find((item) => item.id === exerciseId);
+  if (!workout || !exercise?.sets.some((set) => set.id === setId)) return state;
+  const sets = exercise.sets.filter((set) => set.id !== setId);
+  const exercises = sets.length ? workout.exercises.map((item) => item.id === exerciseId ? { ...item, sets } : item) : workout.exercises.filter((item) => item.id !== exerciseId);
+  return replaceHistoricalWorkout(state, workoutId, exercises.length ? { ...workout, exercises } : null, (entityId) => entityId === `${workoutId}:${exerciseId}:${setId}`);
+}
+
+export function removeHistoricalExercise(state: SessionTrackerState, workoutId: string, exerciseId: string): SessionTrackerState {
+  if (workoutIsActive(state, workoutId)) return state;
+  const workout = state.workouts.find((item) => item.id === workoutId);
+  const exercise = workout?.exercises.find((item) => item.id === exerciseId);
+  if (!workout || !exercise) return state;
+  const retired = new Set(exercise.sets.map((set) => `${workoutId}:${exerciseId}:${set.id}`));
+  const exercises = workout.exercises.filter((item) => item.id !== exerciseId);
+  return replaceHistoricalWorkout(state, workoutId, exercises.length ? { ...workout, exercises } : null, (entityId) => retired.has(entityId));
+}
+
+export function removeHistoricalWorkout(state: SessionTrackerState, workoutId: string): SessionTrackerState {
+  if (workoutIsActive(state, workoutId)) return state;
+  const workout = state.workouts.find((item) => item.id === workoutId);
+  if (!workout) return state;
+  const retired = new Set(workout.exercises.flatMap((exercise) => exercise.sets.map((set) => `${workoutId}:${exercise.id}:${set.id}`)));
+  return replaceHistoricalWorkout(state, workoutId, null, (entityId) => retired.has(entityId));
+}
+
 export function correctHistoricalSet(state: SessionTrackerState, workoutId: string, exerciseId: string, setId: string, patch: Pick<ExerciseSet, "weightKg" | "reps" | "weightMode" | "completed" | "note">): SessionTrackerState {
   if (state.activeWorkoutId === workoutId || state.workoutSessions?.some((session) => session.workoutId === workoutId && session.status === "active")) return state;
   const workout = state.workouts.find((workout) => workout.id === workoutId);

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Plus, Save, Undo2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Plus, Save, Settings2, Trash2, Undo2, X } from "lucide-react";
 import { useTrackerState } from "@/components/tracker-state";
 import { calculateWorkoutTotals, normalizeDecimalInput, type ExerciseSet, type WeightMode } from "@/lib/tracker";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { correctHistoricalSet, type SessionTrackerState } from "@/lib/workout-session";
+import { correctHistoricalSet, removeHistoricalExercise, removeHistoricalSet, removeHistoricalWorkout, type SessionTrackerState } from "@/lib/workout-session";
 
 type SetDraft = { weight: string; reps: string; mode: "" | WeightMode; completed: boolean; note: string };
 type Addition = { id: string; exerciseId: string; newExercise: boolean; name: string; draft: SetDraft };
@@ -26,6 +27,7 @@ function SetFields({ draft, change }: { draft: SetDraft; change: (patch: Partial
 }
 
 export default function JournalWorkoutPage({ params }: { params: Promise<{ sessionId: string }> }) {
+  const router = useRouter();
   const { state, update, storageError } = useTrackerState();
   const [routeSessionId, setRouteSessionId] = useState<string>();
   const [drafts, setDrafts] = useState<Record<string, SetDraft>>({});
@@ -94,9 +96,35 @@ export default function JournalWorkoutPage({ params }: { params: Promise<{ sessi
     if (!saved || !found) { setMessage("Добавление не сохранилось. Черновик остался в полях. В записи может быть не больше 100 упражнений и 100 подходов в упражнении."); return; }
     setAddition(undefined); setMessage("Запись добавлена на устройство.");
   }
+  function removeSet(exerciseId: string, setId: string, index: number) {
+    const exercise = workout?.exercises.find((item) => item.id === exerciseId);
+    if (!exercise) return;
+    const lastSet = exercise.sets.length <= 1;
+    const lastExercise = lastSet && workout!.exercises.length <= 1;
+    const message = lastExercise ? "Это последний подход в записи. Удалить всю тренировку из журнала?" : lastSet ? `Это последний подход. Удалить упражнение «${exercise.name}» из записи?` : `Удалить подход ${index + 1} из «${exercise.name}»? Объём пересчитается.`;
+    if (!window.confirm(message)) return;
+    const saved = update((previous) => removeHistoricalSet(previous as SessionTrackerState, workoutId, exerciseId, setId));
+    if (!saved) { setMessage("Удаление не сохранилось."); return; }
+    if (lastExercise) router.push("/journal");
+    else setMessage(lastSet ? "Упражнение удалено из записи." : "Подход удалён из записи.");
+  }
+  function removeExercise(exerciseId: string, name: string) {
+    const lastExercise = workout!.exercises.length <= 1;
+    if (!window.confirm(lastExercise ? "Это единственное упражнение. Удалить всю тренировку из журнала?" : `Удалить «${name}» из записи? Подходы этого упражнения исчезнут из объёма.`)) return;
+    const saved = update((previous) => removeHistoricalExercise(previous as SessionTrackerState, workoutId, exerciseId));
+    if (!saved) { setMessage("Удаление не сохранилось."); return; }
+    if (lastExercise) router.push("/journal");
+    else setMessage("Упражнение удалено из записи.");
+  }
+  function removeWorkout() {
+    if (!window.confirm(`Удалить тренировку «${workout!.title}» из журнала? Записанные подходы исчезнут из истории и из недельной цели.`)) return;
+    const saved = update((previous) => removeHistoricalWorkout(previous as SessionTrackerState, workoutId));
+    if (saved) router.push("/journal");
+    else setMessage("Удаление не сохранилось.");
+  }
   return <main className="shell appPage">
     <Link className="backLink" href="/journal"><ArrowLeft size={18} /> Журнал</Link>
-    <header className="pageHeader"><div><p className="eyebrow">{workout.date}</p><h1 style={{ overflowWrap: "anywhere" }}>{workout.title}</h1></div><strong>{totals.volumeKg.toLocaleString("ru-RU")} кг</strong></header>
+    <header className="pageHeader"><div><p className="eyebrow">{workout.date}</p><h1 style={{ overflowWrap: "anywhere" }}>{workout.title}</h1></div><div className="headerActions"><strong>{totals.volumeKg.toLocaleString("ru-RU")} кг</strong><Link className="iconButton" href="/settings" aria-label="Настройки"><Settings2 size={20} /></Link></div></header>
     {totals.unscoredSets > 0 && <p className="muted">В объём не включены {totals.unscoredSets} подходов с неизвестным весом, повторами или способом учёта.</p>}
     {storageError && <p className="storageMessage" role="alert">{storageError}</p>}{message && <p className="storageMessage" role="status">{message}</p>}
     {workout.exercises.map((exercise) => <section className="settingsEditor" key={exercise.id}>
@@ -106,12 +134,12 @@ export default function JournalWorkoutPage({ params }: { params: Promise<{ sessi
         return <form className="historySet segmentEditor" style={{ gridTemplateColumns: "minmax(0, 1fr)" }} key={set.id} onSubmit={(event) => saveSet(event, exercise.id, set.id)} aria-label={`${exercise.name}, подход ${index + 1}`}>
           <h3>Подход {index + 1}{set.component === "compound-a" ? " · первая часть" : set.component === "compound-b" ? " · вторая часть" : ""}</h3>
           <SetFields draft={draft} change={(patch) => setDrafts((previous) => ({ ...previous, [key]: { ...(previous[key] ?? draftOf(set)), ...patch } }))} />
-          <div className="settingsActions"><button className="secondary" type="submit" disabled={!drafts[key]}><Save size={17} />Сохранить исправление</button>{drafts[key] && <button className="secondary" type="button" onClick={() => clearDraft(key)}><Undo2 size={17} />Отменить правки</button>}</div>
+          <div className="settingsActions"><button className="secondary" type="submit" disabled={!drafts[key]}><Save size={17} />Сохранить исправление</button>{drafts[key] && <button className="secondary" type="button" onClick={() => clearDraft(key)}><Undo2 size={17} />Отменить правки</button>}<button className="secondary dangerButton" type="button" onClick={() => removeSet(exercise.id, set.id, index)}><Trash2 size={17} />Удалить подход</button></div>
         </form>;
       })}
-      <button className="secondary" onClick={() => beginAddition(exercise.id)}><Plus size={18} />Добавить записанный подход</button>
+      <div className="settingsActions"><button className="secondary" onClick={() => beginAddition(exercise.id)}><Plus size={18} />Добавить записанный подход</button><button className="secondary dangerButton" type="button" onClick={() => removeExercise(exercise.id, exercise.name)}><Trash2 size={17} />Удалить упражнение</button></div>
     </section>)}
-    <div className="settingsActions"><button className="secondary" onClick={() => beginAddition()}><Plus size={18} />Добавить упражнение в историю</button></div>
+    <div className="settingsActions"><button className="secondary" onClick={() => beginAddition()}><Plus size={18} />Добавить упражнение в историю</button><button className="secondary dangerButton" type="button" onClick={removeWorkout}><Trash2 size={17} />Удалить тренировку</button></div>
     {addition && <form ref={additionForm} className="settingsEditor" onSubmit={saveAddition} aria-label="Добавление записи в историю">
       <div className="sectionHeading"><h2>{addition.newExercise ? "Записанное упражнение" : workout.exercises.find((e) => e.id === addition.exerciseId)?.name}</h2><button type="button" className="iconButton" aria-label="Отменить добавление" title="Отменить добавление" onClick={() => setAddition(undefined)}><X size={18} /></button></div>
       {addition.newExercise && <label style={{ display: "grid", gap: 8, marginBottom: 16 }}>Название упражнения<input maxLength={200} value={addition.name} onChange={(event) => setAddition((previous) => previous ? { ...previous, name: event.target.value } : undefined)} /></label>}

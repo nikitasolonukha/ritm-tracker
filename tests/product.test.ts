@@ -6,7 +6,7 @@ import { changeHabit, habitAnchors, habitsForDate, sleepFromEvents, snoozeHabit 
 import { prepareWorkoutImport, withoutRepeatedImportFacts } from "../src/lib/import.ts";
 import { validateRegistration } from "../src/lib/auth.ts";
 import { isTrackerPayload } from "../src/lib/payload-validation.ts";
-import { correctHistoricalSet, finishWorkoutSession, startWorkoutSession } from "../src/lib/workout-session.ts";
+import { correctHistoricalSet, finishWorkoutSession, removeHistoricalExercise, removeHistoricalSet, removeHistoricalWorkout, startWorkoutSession } from "../src/lib/workout-session.ts";
 import { parseTelegramHabitCallback } from "../src/lib/telegram.ts";
 import { parseWorkoutNotes } from "../src/lib/tracker.ts";
 
@@ -163,6 +163,26 @@ test("offline historical undo cancels obsolete pending commands without creating
   assert.deepEqual(corrected.outbox.map((command) => command.status), ["cancelled", "cancelled"]);
   assert.equal(corrected.activeTimer, state.activeTimer);
   assert.equal(corrected.outbox.length, state.outbox.length);
+});
+test("historical deletion removes one set, then an exercise, then the workout, and leaves an active session untouched", () => {
+  const initial = createInitialState();
+  const workout = { id: "w", title: "Fixture", date: "2026-09-30", exercises: [
+    { id: "e", name: "Fixture", sets: [{ id: "s", weightKg: 45, reps: 8, weightMode: "total" as const, completed: true }, { id: "s2", weightKg: 45, reps: 8, weightMode: "total" as const, completed: true }] },
+    { id: "e2", name: "Second", sets: [{ id: "s3", weightKg: 20, reps: 10, weightMode: "total" as const, completed: false }] },
+  ] };
+  const pending = { id: "completion", type: "workout.set.completed" as const, entityId: "w:e:s", version: 1, status: "pending" as const, createdAt: "2026-09-30T09:00:00Z" };
+  const state = { ...initial, workouts: [workout], outbox: [pending], workoutSessions: [{ id: "session", workoutId: "w", templateId: "t", status: "partial" as const, startedAt: "2026-09-30T09:00:00Z", activeExerciseIndex: 0 }] };
+  const oneSet = removeHistoricalSet(state, "w", "e", "s");
+  assert.deepEqual(oneSet.workouts[0].exercises[0].sets.map((set) => set.id), ["s2"]);
+  assert.equal(oneSet.outbox[0].status, "cancelled");
+  assert.equal(removeHistoricalSet(oneSet, "w", "e", "missing"), oneSet);
+  const exerciseGone = removeHistoricalExercise(oneSet, "w", "e");
+  assert.deepEqual(exerciseGone.workouts[0].exercises.map((exercise) => exercise.id), ["e2"]);
+  const removed = removeHistoricalWorkout(exerciseGone, "w");
+  assert.equal(removed.workouts.length, 0);
+  assert.equal(removed.workoutSessions?.length, 0);
+  const active = { ...state, activeWorkoutId: "w", workoutSessions: [{ ...state.workoutSessions![0], status: "active" as const }] };
+  assert.equal(removeHistoricalWorkout(active, "w"), active);
 });
 test("server rejects malformed nested state before queue triggers", () => {
   const initial=createInitialState();

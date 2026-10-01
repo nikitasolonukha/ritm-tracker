@@ -482,6 +482,11 @@ function slug(value: string) {
     .replace(/^-|-$/g, "") || "item";
 }
 
+export function visibleCopy(value?: string | null) {
+  const text = value?.trim();
+  return text && text.toLowerCase() !== "настроить" ? text : "";
+}
+
 function hash(value: string) {
   let output = 0;
   for (let i = 0; i < value.length; i += 1) {

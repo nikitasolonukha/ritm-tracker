@@ -6,6 +6,7 @@ import { ArrowLeft, Clock, Dumbbell, Play } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppNav } from "@/components/app-nav";
 import { useTrackerState } from "@/components/tracker-state";
+import { visibleCopy } from "@/lib/tracker";
 import { startWorkoutSession, type SessionTrackerState } from "@/lib/workout-session";
 
 export default function TemplatePage({ params }: { params: Promise<{ templateId: string }> }) {
@@ -26,7 +27,7 @@ export default function TemplatePage({ params }: { params: Promise<{ templateId:
   };
   return <main className="shell appPage"><LinkBack /><header className="pageHeader"><div><p className="eyebrow">Программа</p><h1>{template.title}</h1><p className="muted">Проверь сохранённые рабочие веса перед стартом.</p></div><Dumbbell size={28} /></header>
     <Link className="secondary" href={`/settings?section=program&program=${template.id}`}>Редактировать программу</Link>
-    <section className="templateList">{template.exercises.map((exercise) => { const details = [exercise.muscleGroup, exercise.equipment, exercise.equipmentPosition].filter(Boolean).join(" · "); return <article className="templateExercise" key={exercise.id}><div><h2>{exercise.name}</h2><p>{details || exercise.settings || ""}</p></div><div className="templateStats">{exercise.sets.map((set,index) => <span key={set.id}>{index+1}: {set.weightKg ?? "—"} кг × {set.reps ?? "—"}{set.weightMode === "per-hand" ? " · на сторону" : set.weightMode === "total" ? " · общий" : " · режим не указан"}</span>)}<span><Clock size={14} /> {exercise.restSec ?? 180} сек отдых</span></div></article>; })}</section>
+    <section className="templateList">{template.exercises.map((exercise) => { const details = [exercise.muscleGroup, exercise.equipment, exercise.equipmentPosition].map((value) => visibleCopy(value)).filter(Boolean).join(" · "); const hint = visibleCopy(exercise.settings); return <article className="templateExercise" key={exercise.id}><div><h2>{exercise.name}</h2>{(details || hint) && <p>{details || hint}</p>}</div><div className="templateStats">{exercise.sets.map((set,index) => <span key={set.id}>{index+1}: {set.weightKg ?? "—"} кг × {set.reps ?? "—"}{set.weightMode === "per-hand" ? " · на сторону" : set.weightMode === "total" ? " · общий" : " · режим не указан"}</span>)}<span><Clock size={14} /> {exercise.restSec ?? 180} сек отдых</span></div></article>; })}</section>
     <button className="primary startWorkout" onClick={start} disabled={!template.exercises.length || template.exercises.some((e) => !e.sets.length)}><Play size={20} fill="currentColor" /> Начать тренировку</button><AppNav active="workouts" /></main>;
 }
 

@@ -70,6 +70,8 @@ button.dayCapsule { flex: 0 0 72px; min-width: 72px; border: 0; font: inherit; c
 .appPage:has(.globalRest) { padding-bottom: 200px; }
 .globalRest a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: auto; color: var(--text); text-decoration: none; }
 .photoPlaceholder { aspect-ratio: 1; display: grid; place-items: center; background: var(--surface-2); }
+.photoGrid figcaption { flex-wrap: wrap; }
+.photoGrid figcaption .secondary { flex: 1 1 120px; }
 .observationHistory { padding: 20px 0; border-top: 1px solid var(--line); }
 .observationHistory p { overflow-wrap: anywhere; }
 .outboxStatus { position: static; margin: 20px 0; background: transparent; border: 0; border-radius: 0; }

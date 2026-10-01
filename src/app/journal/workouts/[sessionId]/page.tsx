@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Save, Settings2, Trash2, Undo2, X } from "lucide-react";
 import { useTrackerState } from "@/components/tracker-state";
-import { calculateWorkoutTotals, normalizeDecimalInput, type ExerciseSet, type WeightMode } from "@/lib/tracker";
+import { calculateWorkoutTotals, formatLocalDate, normalizeDecimalInput, russianWord, type ExerciseSet, type WeightMode } from "@/lib/tracker";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { correctHistoricalSet, removeHistoricalExercise, removeHistoricalSet, removeHistoricalWorkout, type SessionTrackerState } from "@/lib/workout-session";
 
@@ -124,8 +124,8 @@ export default function JournalWorkoutPage({ params }: { params: Promise<{ sessi
   }
   return <main className="shell appPage">
     <Link className="backLink" href="/journal"><ArrowLeft size={18} /> Журнал</Link>
-    <header className="pageHeader"><div><p className="eyebrow">{workout.date}</p><h1 style={{ overflowWrap: "anywhere" }}>{workout.title}</h1></div><div className="headerActions"><strong>{totals.volumeKg.toLocaleString("ru-RU")} кг</strong><Link className="iconButton" href="/settings" aria-label="Настройки"><Settings2 size={20} /></Link></div></header>
-    {totals.unscoredSets > 0 && <p className="muted">В объём не включены {totals.unscoredSets} подходов с неизвестным весом, повторами или способом учёта.</p>}
+    <header className="pageHeader"><div><p className="eyebrow">{formatLocalDate(workout.date)}</p><h1 style={{ overflowWrap: "anywhere" }}>{workout.title}</h1></div><div className="headerActions"><strong>{totals.volumeKg.toLocaleString("ru-RU")} кг</strong><Link className="iconButton" href="/settings" aria-label="Настройки"><Settings2 size={20} /></Link></div></header>
+    {totals.unscoredSets > 0 && <p className="muted">Объём не считает {totals.unscoredSets} {russianWord(totals.unscoredSets, "подход", "подхода", "подходов")}: нет веса, повторов или способа учёта.</p>}
     {storageError && <p className="storageMessage" role="alert">{storageError}</p>}{message && <p className="storageMessage" role="status">{message}</p>}
     {workout.exercises.map((exercise) => <section className="settingsEditor" key={exercise.id}>
       <div className="sectionHeading"><h2 style={{ overflowWrap: "anywhere" }}>{exercise.name}</h2><span>{exercise.sets.filter((set) => set.completed).length}/{exercise.sets.length}</span></div>

@@ -6,9 +6,9 @@ import { changeHabit, habitAnchors, habitsForDate, sleepFromEvents, snoozeHabit 
 import { prepareWorkoutImport, withoutRepeatedImportFacts } from "../src/lib/import.ts";
 import { validateRegistration } from "../src/lib/auth.ts";
 import { isTrackerPayload } from "../src/lib/payload-validation.ts";
-import { correctHistoricalSet, finishWorkoutSession, removeHistoricalExercise, removeHistoricalSet, removeHistoricalWorkout, startWorkoutSession } from "../src/lib/workout-session.ts";
+import { correctHistoricalSet, finishWorkoutSession, latestTemplateRecordDate, removeHistoricalExercise, removeHistoricalSet, removeHistoricalWorkout, startWorkoutSession, type SessionTrackerState } from "../src/lib/workout-session.ts";
 import { parseTelegramHabitCallback } from "../src/lib/telegram.ts";
-import { parseWorkoutNotes } from "../src/lib/tracker.ts";
+import { formatLocalDate, parseWorkoutNotes, russianWord } from "../src/lib/tracker.ts";
 
 test("set separators never absorb reps into the following decimal weight", () => {
   for (const separator of [",", ", ", ";", "\n"]) {
@@ -164,6 +164,25 @@ test("offline historical undo cancels obsolete pending commands without creating
   assert.equal(corrected.activeTimer, state.activeTimer);
   assert.equal(corrected.outbox.length, state.outbox.length);
 });
+test("program record date follows the template and skips unconfirmed sets", () => {
+  const workout = (id: string, date: string, completed: boolean) => ({ id, date, title: "Same", exercises: [{ id: `${id}-e`, name: "Fixture", sets: [{ id: `${id}-s`, weightKg: completed ? 10 : null, reps: completed ? 8 : null, completed }] }] });
+  const state = {
+    workouts: [workout("old", "2026-09-01", true), workout("renamed", "2026-10-02", true), workout("empty", "2026-10-03", false)],
+    workoutSessions: [
+      { id: "a", workoutId: "old", templateId: "program", status: "completed", startedAt: "2026-09-01T10:00:00Z", activeExerciseIndex: 0 },
+      { id: "b", workoutId: "renamed", templateId: "program", status: "completed", startedAt: "2026-10-02T10:00:00Z", activeExerciseIndex: 0 },
+      { id: "c", workoutId: "empty", templateId: "program", status: "completed", startedAt: "2026-10-03T10:00:00Z", activeExerciseIndex: 0 },
+    ],
+  } as SessionTrackerState;
+  assert.equal(latestTemplateRecordDate(state, "program"), "2026-10-02");
+  assert.equal(latestTemplateRecordDate(state, "missing"), null);
+  assert.equal(formatLocalDate("2026-10-02"), "2 октября");
+  assert.equal(russianWord(1, "программа", "программы", "программ"), "программа");
+  assert.equal(russianWord(3, "упражнение", "упражнения", "упражнений"), "упражнения");
+  assert.equal(russianWord(11, "действие", "действия", "действий"), "действий");
+  assert.equal(russianWord(21, "действие", "действия", "действий"), "действие");
+});
+
 test("historical deletion removes one set, then an exercise, then the workout, and leaves an active session untouched", () => {
   const initial = createInitialState();
   const workout = { id: "w", title: "Fixture", date: "2026-09-30", exercises: [

@@ -487,6 +487,22 @@ export function visibleCopy(value?: string | null) {
   return text && text.toLowerCase() !== "настроить" ? text : "";
 }
 
+export function russianWord(count: number, one: string, few: string, many: string) {
+  const mod100 = Math.abs(count) % 100;
+  const mod10 = mod100 % 10;
+  if (mod100 > 10 && mod100 < 20) return many;
+  if (mod10 === 1) return one;
+  if (mod10 >= 2 && mod10 <= 4) return few;
+  return many;
+}
+
+export function formatLocalDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(`${value}T12:00:00Z`);
+  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) return value;
+  return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", timeZone: "UTC" }).format(date);
+}
+
 function hash(value: string) {
   let output = 0;
   for (let i = 0; i < value.length; i += 1) {

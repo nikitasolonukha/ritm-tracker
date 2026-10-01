@@ -1,4 +1,4 @@
-import { createRestTimerCommand, getLocalDate, type Workout } from "./tracker.ts";
+import { calculateWorkoutTotals, createRestTimerCommand, getLocalDate, type Workout } from "./tracker.ts";
 import type { TrackerState } from "./storage.ts";
 import type { ExerciseSet } from "./tracker.ts";
 
@@ -112,6 +112,16 @@ export function finishWorkoutSession(state: SessionTrackerState, sessionId: stri
     activeWorkoutId: state.activeWorkoutId === session.workoutId ? undefined : state.activeWorkoutId,
     activeTimer: state.activeWorkoutId === session.workoutId ? null : state.activeTimer,
   };
+}
+
+export function latestTemplateRecordDate(state: SessionTrackerState, templateId: string) {
+  const dates = (state.workoutSessions ?? [])
+    .filter((session) => session.templateId === templateId && (session.status === "completed" || session.status === "partial"))
+    .map((session) => state.workouts.find((workout) => workout.id === session.workoutId))
+    .filter((workout): workout is Workout => Boolean(workout && calculateWorkoutTotals(workout).completedSets > 0))
+    .map((workout) => workout.date)
+    .sort();
+  return dates.at(-1) ?? null;
 }
 
 export function cancelWorkoutSession(state: SessionTrackerState, sessionId: string, now = new Date()): SessionTrackerState {

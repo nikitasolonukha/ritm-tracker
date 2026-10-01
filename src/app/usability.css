@@ -49,16 +49,18 @@ a:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px soli
 .weekdayPicker label { display: flex; flex-direction: row; align-items: center; gap: 6px; padding: 10px 6px; }
 .weekdayPicker input, .checkLabel input { width: 20px; height: 20px; min-height: 20px; margin: 0; accent-color: var(--accent); }
 .habitEditor .checkLabel { display: flex; flex-direction: row; align-items: center; }
-.dailyAction { display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 12px; }
-.dailyTools { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
+.todayActions { display: grid; gap: 20px; }
+.dailyAction { display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 10px; }
+.dailyTools { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; margin: 0; }
+.dailyTools .secondary { flex: 0 0 auto; margin: 0; }
 .weekStrip { display: flex; width: 100%; min-width: 0; max-width: 100%; gap: 8px; overflow-x: auto; scrollbar-width: thin; margin: 0 0 24px; padding: 2px 0 8px; }
 button.dayCapsule { flex: 0 0 72px; min-width: 72px; border: 0; font: inherit; cursor: pointer; }
 .dayCapsule.selected:not(.today) { box-shadow: inset 0 0 0 2px var(--accent); }
 .templateStats { display: grid; gap: 8px; }
 .templateStats span { display: block; }
 .dailyAction.done .actionCard { opacity: .65; }
-.dailyAction .actionCard span { min-width: 0; overflow-wrap: anywhere; }
-.dailyAction .checkMark { flex-shrink: 0; }
+.dailyAction .actionCard > span:first-child { min-width: 0; flex: 1 1 auto; overflow-wrap: anywhere; }
+.dailyAction .checkMark { flex: 0 0 30px; width: 30px; height: 30px; min-width: 30px; border-radius: 50%; }
 .workWeight { gap: 16px; }
 .workoutSync { width: min(560px,100%); font-size: 13px; color: var(--muted); }
 .workoutTop > .secondary { width: auto; height: auto; min-height: 44px; padding: 10px 14px; }
@@ -91,12 +93,16 @@ button.dayCapsule { flex: 0 0 72px; min-width: 72px; border: 0; font: inherit; c
   }
   .pageHeader > div,
   .sectionHeading > h2,
-  .sectionHeading > span,
-  .resumeBanner span,
-  .actionCard span {
+  .resumeBanner > span:first-of-type {
     min-width: 0;
-    flex: 1 1 160px;
+    flex: 1 1 auto;
   }
+  .goalCard { display: grid; gap: 12px; margin: 28px 0 16px; }
+  .goalCard > div { display: grid; gap: 4px; min-width: 0; }
+  .goalCard p, .goalCard h2 { margin: 0; }
+  .resumeBanner { margin: 16px 0; }
+  .editLink { display: inline-flex; width: fit-content; margin: 0 0 16px; position: static; }
+  .templateList { margin-top: 4px; }
   .weekStrip { display: flex; grid-template-columns: none; }
   .setPart,
   .segmentEditor,

@@ -1,4 +1,6 @@
 /* Control and settings layout rules shared by all routes. */
+html { scrollbar-width: none; }
+html::-webkit-scrollbar { display: none; width: 0; height: 0; }
 button, input, select, textarea, a { -webkit-tap-highlight-color: transparent; }
 input, select, textarea { min-width: 0; max-width: 100%; font: inherit; font-size: 16px; }
 button, .primary, .secondary { white-space: normal; text-align: center; line-height: 1.35; }
@@ -53,8 +55,11 @@ a:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px soli
 .dailyAction { display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 10px; }
 .dailyTools { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; margin: 0; }
 .dailyTools .secondary { flex: 0 0 auto; margin: 0; }
-.weekStrip { display: flex; width: 100%; min-width: 0; max-width: 100%; gap: 8px; overflow-x: auto; scrollbar-width: thin; margin: 0 0 24px; padding: 2px 0 8px; }
-button.dayCapsule { flex: 0 0 72px; min-width: 72px; border: 0; font: inherit; cursor: pointer; }
+.weekStrip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); width: 100%; min-width: 0; max-width: 100%; gap: 6px; overflow: hidden; margin: 0 0 24px; padding: 0; scrollbar-width: none; }
+.weekStrip::-webkit-scrollbar { display: none; width: 0; height: 0; }
+button.dayCapsule { width: 100%; min-width: 0; min-height: 64px; padding: 8px 0; border: 0; font: inherit; cursor: pointer; }
+.dayCapsule span { font-size: 12px; }
+.dayCapsule strong { font-size: 16px; }
 .dayCapsule.selected:not(.today) { box-shadow: inset 0 0 0 2px var(--accent); }
 .templateStats { display: grid; gap: 8px; }
 .templateStats span { display: block; }
@@ -105,7 +110,7 @@ button.dayCapsule { flex: 0 0 72px; min-width: 72px; border: 0; font: inherit; c
   .resumeBanner { margin: 16px 0; }
   .editLink { display: inline-flex; width: fit-content; margin: 0 0 16px; position: static; }
   .templateList { margin-top: 4px; }
-  .weekStrip { display: flex; grid-template-columns: none; }
+  .weekStrip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); overflow: hidden; }
   .setPart,
   .segmentEditor,
   .historySet,

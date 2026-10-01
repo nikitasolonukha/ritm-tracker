@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Check, Clock, Dumbbell, Settings2, SkipForward, Undo2 } from "lucide-react";
+import { ArrowRight, Check, Clock, Dumbbell, SkipForward, Undo2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { AppNav } from "@/components/app-nav";
 import { useTrackerState } from "@/components/tracker-state";
@@ -44,7 +44,7 @@ export default function TodayPage() {
   const checkInDue = !lastObservation || (Date.parse(today) - Date.parse(lastObservation)) / 86_400_000 >= 3;
   const completedDays = [...new Set(state.completions.map((c) => c.localDate))].filter((date) => { const planned = habitsForDate(state.habits, date); return planned.length > 0 && planned.every((h) => state.completions.some((c) => c.habitId === h.id && c.localDate === date && c.outcome !== "skipped")); }).length;
   return <main className="shell appPage todayPage">
-    <header className="pageHeader"><div><p className="eyebrow">{new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(new Date(`${selectedDate}T12:00:00Z`))}</p><h1>{selectedDate === today ? "Сегодня" : "Выбранный день"}</h1></div><Link className="iconButton" href="/settings" aria-label="Настройки"><Settings2 size={20} /></Link></header>
+    <header className="pageHeader"><div><p className="eyebrow">{new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(new Date(`${selectedDate}T12:00:00Z`))}</p><h1>{selectedDate === today ? "Сегодня" : "Выбранный день"}</h1></div></header>
     {storageError && <p className="storageMessage" role="alert">{storageError}</p>}
     <section ref={weekRef} className="weekStrip" aria-label="Неделя">{dates.map((date) => <button type="button" className={`dayCapsule${date === today ? " today" : ""}${date === selectedDate ? " selected" : ""}`} aria-pressed={date === selectedDate} aria-label={new Intl.DateTimeFormat("ru-RU", { weekday: "long", day: "numeric", month: "long" }).format(new Date(`${date}T12:00:00Z`))} key={date} onClick={() => setSelectedDate(date)}><span>{new Intl.DateTimeFormat("ru-RU", { weekday: "short" }).format(new Date(`${date}T12:00:00Z`))}</span><strong>{date.slice(-2)}</strong>{state.completions.some((c) => c.localDate === date && c.outcome !== "skipped") && <i aria-label="Есть активность" />}</button>)}</section>
     {selectedDate !== today && <button className="secondary" type="button" onClick={() => setSelectedDate(today)}>Вернуться к сегодня</button>}

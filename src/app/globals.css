@@ -359,3 +359,37 @@ button.dayCapsule { display: grid; width: 100%; min-width: 0; min-height: 64px; 
 .bar small { color: var(--muted); font-size: 11px; white-space: nowrap; }
 .lastTime { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
 .exercisesLink { margin-bottom: 12px; }
+.settingsTabs.tabs3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.actionSection .settingsTabs { margin-bottom: 12px; }
+.calendar { margin: 12px 0 8px; padding: 12px; border-radius: var(--r); background: var(--card-sheen), var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.calendarHead { display: grid; grid-template-columns: var(--ctl) 1fr var(--ctl); align-items: center; gap: 8px; margin-bottom: 8px; }
+.calendarHead h2 { text-align: center; }
+.calendarGrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.calendarWeekday { padding: 4px 0; color: var(--muted); font-size: 12px; text-align: center; }
+.calendarDay { display: grid; justify-items: center; align-content: center; gap: 4px; min-height: 48px; padding: 4px 0; border: 0; border-radius: 12px; background: transparent; color: var(--text); font-variant-numeric: tabular-nums; }
+.calendarDay.outside { color: var(--muted); opacity: 0.45; }
+.calendarDay.future { color: var(--muted); }
+.calendarDay.closed { background: rgba(82, 214, 164, 0.14); }
+.calendarDay.today { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.calendarDay.selected { background: var(--accent-grad); color: var(--on-accent); font-weight: 700; }
+.calendarDay i { width: 6px; height: 6px; border-radius: 50%; }
+.trainedDot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.calendarDay i.trainedDot { width: 6px; height: 6px; }
+.calendarDay.selected i.trainedDot { background: var(--on-accent); }
+.calendarLegend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 12px 0 0; color: var(--muted); font-size: 13px; }
+.closedSwatch { display: inline-block; width: 12px; height: 12px; margin-left: 6px; border-radius: 4px; background: rgba(82, 214, 164, 0.4); }
+.calendarSummary { margin: 8px 0 0; font-size: 14px; }
+.dayHabits { display: grid; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.dayHabits li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 12px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.dayHabits li small { color: var(--muted); }
+.dayHabits li.done small { color: var(--ok); }
+.dayHabits li.skipped { opacity: 0.7; }
+.journalLinks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.journalLinks .historyCard { align-items: flex-start; flex-direction: column; justify-content: space-between; gap: 6px; }
+.journalLinks .historyCard h2 { font-size: 16px; }
+.journalLinks .historyCard > svg { align-self: flex-end; }
+.streakCard { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 14px 16px; border-radius: var(--r); background: var(--card-sheen), var(--surface); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); text-decoration: none; }
+.streakCard > svg:first-child { color: var(--accent); }
+.streakCard > span { display: grid; flex: 1; gap: 2px; min-width: 0; }
+.streakCard small { color: var(--muted); font-size: 13px; }
+.streakCard > svg:last-child { color: var(--muted); }

@@ -14,7 +14,7 @@ function isStaticAsset(request) {
 }
 
 function isPrivatePage(path) {
-  return ["/today", "/workouts", "/settings", "/progress", "/journal", "/journal/import", "/exercises"].includes(path)
+  return ["/today", "/workouts", "/settings", "/progress", "/journal", "/journal/import", "/exercises", "/calendar"].includes(path)
     || ["/workout/", "/workouts/templates/", "/journal/workouts/", "/exercises/"].some((prefix) => path.startsWith(prefix));
 }
 

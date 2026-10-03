@@ -5,11 +5,13 @@ import { ArrowRight, Download, Plus, Save, Trash2 } from "lucide-react";
 import { useEffect, useState, type ChangeEvent } from "react";
 import { AppNav } from "@/components/app-nav";
 import { AppSelect } from "@/components/app-select";
+import { BarChart, LineChart } from "@/components/charts";
 import { PrivatePhoto } from "@/components/private-photo";
 import { useTrackerState } from "@/components/tracker-state";
 import { HeaderAction, Notice, PageHeader, StatTile, useConfirm } from "@/components/ui";
 import { calculateWorkoutTotals, formatLocalDate, getLocalDate, normalizeDecimalInput, russianWord } from "@/lib/tracker";
 import { sleepFromEvents } from "@/lib/habits";
+import { observationSeries, weeklyVolume, type ObservationMetric } from "@/lib/stats";
 import { createClient } from "@/lib/supabase/client";
 
 async function blobDataUrl(blob: Blob): Promise<string> {
@@ -28,6 +30,8 @@ export default function ProgressPage() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const { confirm, dialog } = useConfirm();
+  const [metric, setMetric] = useState<ObservationMetric>("weightKg");
+  const [allHistory, setAllHistory] = useState(false);
   const observation = state?.observations.find((item) => item.date === date);
   const computedSleep = state ? sleepFromEvents(state.habits,state.completions,date) : undefined;
   useEffect(() => {
@@ -41,6 +45,9 @@ export default function ProgressPage() {
   const blocked = new Set((sessions.workoutSessions ?? []).filter((s) => s.status === "active" || s.status === "cancelled").map((s) => s.workoutId));
   const workouts = state.workouts.filter((w) => !blocked.has(w.id) && calculateWorkoutTotals(w).completedSets > 0);
   const volume = workouts.reduce((sum,w) => sum + calculateWorkoutTotals(w).volumeKg,0);
+  const metrics: Array<[ObservationMetric, string, string]> = [["weightKg", "Масса", "кг"], ["sleep", "Сон", "ч"], ["energy", "Энергия", "из 10"]];
+  const [, metricLabel, metricUnit] = metrics.find(([id]) => id === metric)!;
+  const volumeBars = weeklyVolume(workouts, today, 8);
   function save() {
     const e = normalizeDecimalInput(energy); const s = normalizeDecimalInput(sleep); const w = weight.trim() ? normalizeDecimalInput(weight) : undefined;
     if (e == null || e > 10 || s == null || s > 24 || (w !== undefined && (w == null || w <= 0 || w > 500)) || !date || date > today) { setMessage("Энергия: 0–10, сон: 0–24 ч, масса: больше 0 и до 500 кг. Укажите дату не позднее сегодня."); return; }
@@ -90,8 +97,17 @@ export default function ProgressPage() {
   return <main className="shell appPage"><PageHeader eyebrow="Показатели" title="Прогресс" actions={<HeaderAction onClick={exportState} icon={Download} label="Экспорт" ariaLabel="Экспорт данных и фото" />} />
     {storageError && <Notice tone="warning">{storageError}</Notice>}{message && <Notice tone={/не |Не |нужен|Выберите|Энергия:/.test(message) ? "warning" : "success"}>{message}</Notice>}
     <div className="summaryMetrics"><StatTile value={workouts.length} label={russianWord(workouts.length, "тренировка", "тренировки", "тренировок")} /><StatTile value={volume.toLocaleString("ru-RU")} label="кг объёма" /><StatTile value={state.completions.filter((c) => c.outcome !== "skipped").length} label={russianWord(state.completions.filter((c) => c.outcome !== "skipped").length, "отметка", "отметки", "отметок")} /></div>
+    <section className="actionSection">
+      <div className="sectionHeading"><h2>Объём по неделям</h2><span className="muted">кг</span></div>
+      <BarChart title="Объём по неделям" unit="кг" bars={volumeBars} emptyText="Объём появится после первой записанной тренировки." />
+    </section>
+    <section className="actionSection">
+      <div className="sectionHeading"><h2>Динамика</h2></div>
+      <div className="settingsTabs tabs3" role="tablist" aria-label="Показатель">{metrics.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={metric === id} onClick={() => setMetric(id)}>{label}</button>)}</div>
+      <LineChart title={metricLabel} unit={metricUnit} points={observationSeries(state.observations, metric)} emptyText={`Отметьте «${metricLabel.toLowerCase()}» хотя бы в два разных дня, чтобы увидеть график.`} />
+    </section>
     <section className="settingsEditor observationEditor"><h2>Отметка дня</h2><div className="formGrid"><label className="wide">Дата<input type="date" value={date} max={today} onChange={(e) => setDate(e.target.value)} /></label><label>Энергия, 0–10<input inputMode="decimal" value={energy} onChange={(e) => setEnergy(e.target.value)} /></label><label>Сон, часов<input inputMode="decimal" value={sleep} onChange={(e) => setSleep(e.target.value)} /></label><label>Масса, кг<input inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)} /></label><label className="wide">Самочувствие<AppSelect value={skin} onChange={(value) => setSkin(value as typeof skin)}><option value="unknown">Не указано</option><option value="better">Лучше</option><option value="same">Без изменений</option><option value="worse">Хуже</option></AppSelect></label></div><label>Заметка<textarea value={note} maxLength={4000} onChange={(e) => setNote(e.target.value)} rows={3} /></label><button className="primary" onClick={save}><Save size={18} />Сохранить отметку</button></section>
     <section className="settingsEditor photoEditor"><div className="sectionHeading"><h2>Фото прогресса</h2><label className="secondary photoUpload"><Plus size={18} />{busy ? "Загрузка…" : "Добавить фото"}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={addPhoto} /></label></div><div className="photoGrid">{state.photos?.map((photo) => <figure key={photo.id}><PrivatePhoto path={photo.storagePath} dataUrl={photo.dataUrl} name={photo.name} /><figcaption><span>{formatLocalDate(photo.date)}</span><button className="secondary dangerButton" aria-label={`Убрать фото ${photo.name}`} title="Убрать фото из журнала" onClick={() => void removePhoto(photo)}><Trash2 size={17} />Убрать</button></figcaption></figure>)}</div></section>
-    {state.observations.length > 0 && <section className="settingsEditor"><h2>История отметок</h2>{[...state.observations].sort((a,b) => b.date.localeCompare(a.date)).map((o) => <article className="observationHistory" key={o.id}><div className="observationActions"><button className="secondary" type="button" onClick={() => { setDate(o.date); window.scrollTo({ top:0,behavior:"smooth" }); }}>{formatLocalDate(o.date)}</button><button className="secondary dangerButton" type="button" onClick={async () => { if (await confirm(`Удалить отметку за ${formatLocalDate(o.date)}?`, { danger: true })) update((previous) => ({ ...previous, observations: previous.observations.filter((item) => item.id !== o.id) })); }}>Удалить отметку</button></div><p>Энергия {o.energy}/10 · Сон {o.sleep} ч{o.weightKg == null ? "" : ` · ${o.weightKg} кг`}</p>{o.note && <p className="observationNote">{o.note}</p>}</article>)}</section>}
+    {state.observations.length > 0 && <section className="settingsEditor"><h2>История отметок</h2>{[...state.observations].sort((a,b) => b.date.localeCompare(a.date)).slice(0, allHistory ? undefined : 5).map((o) => <article className="observationHistory" key={o.id}><div className="observationActions"><button className="secondary" type="button" onClick={() => { setDate(o.date); window.scrollTo({ top:0,behavior:"smooth" }); }}>{formatLocalDate(o.date)}</button><button className="secondary dangerButton" type="button" onClick={async () => { if (await confirm(`Удалить отметку за ${formatLocalDate(o.date)}?`, { danger: true })) update((previous) => ({ ...previous, observations: previous.observations.filter((item) => item.id !== o.id) })); }}>Удалить отметку</button></div><p>Энергия {o.energy}/10 · Сон {o.sleep} ч{o.weightKg == null ? "" : ` · ${o.weightKg} кг`}</p>{o.note && <p className="observationNote">{o.note}</p>}</article>)}{state.observations.length > 5 && <button className="secondary" type="button" onClick={() => setAllHistory((value) => !value)}>{allHistory ? "Свернуть" : `Показать все (${state.observations.length})`}</button>}</section>}
     <Link className="historyCard" href="/journal"><h2>Журнал тренировок</h2><ArrowRight size={20} /></Link><AppNav active="progress" />{dialog}</main>;
 }

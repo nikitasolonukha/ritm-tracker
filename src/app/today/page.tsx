@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Check, Clock, Dumbbell, Settings2, SkipForward, Undo2 } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, Clock, Dumbbell, Flame, Settings2, SkipForward, Undo2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { AppNav } from "@/components/app-nav";
 import { useTrackerState } from "@/components/tracker-state";
@@ -11,6 +11,7 @@ import type { HabitCompletion } from "@/lib/tracker";
 import type { TrackerState } from "@/lib/storage";
 import { calculateWorkoutTotals, getLocalDate, russianWord, visibleCopy } from "@/lib/tracker";
 import { changeHabit, habitsForDate, sleepFromEvents, snoozeHabit } from "@/lib/habits";
+import { habitStreaks } from "@/lib/streaks";
 
 type Habit = TrackerState["habits"][number];
 type Update = (change: (previous: TrackerState) => TrackerState) => boolean;
@@ -96,6 +97,7 @@ export default function TodayPage() {
   const lastObservation = state.observations.map((o) => o.date).sort().at(-1);
   const checkInDue = !lastObservation || (Date.parse(today) - Date.parse(lastObservation)) / 86_400_000 >= 3;
   const completedDays = [...new Set(state.completions.map((c) => c.localDate))].filter((date) => { const planned = habitsForDate(state.habits, date); return planned.length > 0 && planned.every((h) => isDone(h.id, date)); }).length;
+  const streaks = habitStreaks(state, today);
   const planTitle = selectedDate !== today ? "План на этот день" : resolved === habits.length ? "План дня закрыт" : "План дня";
   return <main className="shell appPage todayPage">
     <PageHeader
@@ -126,7 +128,7 @@ export default function TodayPage() {
     </section>
     {sleep != null && <p className="muted">Сон по отметкам: {sleep} ч.</p>}
     {checkInDue && <Link className="resumeBanner" href="/progress"><span><strong>Как самочувствие?</strong><small>Короткая отметка за сегодня</small></span><ArrowRight size={20} /></Link>}
-    {completedDays > 0 && <p className="muted">Полностью выполненных дней: {completedDays}. Следующая контрольная точка: {[14, 28, 60, 90].find((d) => d > completedDays) ?? Math.ceil((completedDays + 1) / 30) * 30}.</p>}
+    {(streaks.current > 0 || completedDays > 0) && <Link className="streakCard" href="/calendar"><Flame size={20} /><span><strong>{streaks.current > 0 ? `Серия: ${streaks.current} ${russianWord(streaks.current, "день", "дня", "дней")} подряд` : "Серия начнётся с закрытого дня"}</strong><small>Лучшая серия: {streaks.longest}. Всего закрытых дней: {completedDays}. Следующая контрольная точка: {[14, 28, 60, 90].find((d) => d > completedDays) ?? Math.ceil((completedDays + 1) / 30) * 30}.</small></span><CalendarDays size={18} /></Link>}
     <AppNav active="today" />
   </main>;
 }

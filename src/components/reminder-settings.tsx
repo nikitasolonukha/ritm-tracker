@@ -3,12 +3,14 @@
 import { Bell } from "lucide-react";
 import { AppSelect } from "./app-select";
 import { useTrackerState } from "./tracker-state";
+import { SettingsInput } from "./settings-input";
 import { Notice } from "./ui";
 import { habitAnchors, reminderStatus } from "@/lib/habits";
 import type { Habit } from "@/lib/tracker";
 
-const delayPresets = [0, 15, 30, 60, 90, 120];
-const delayLabel = (minutes: number) => minutes === 0 ? "Сразу" : minutes % 60 === 0 ? `${minutes / 60} ч` : `${minutes} мин`;
+const delayPresets = [0, 15, 30, 60, 90, 120, 180, 240];
+const maxDelay = 1440;
+const delayLabel = (minutes: number) => minutes === 0 ? "Сразу" : minutes < 60 ? `${minutes} мин` : minutes % 60 === 0 ? `${minutes / 60} ч` : `${Math.floor(minutes / 60)} ч ${minutes % 60} мин`;
 
 /** По умолчанию привязываем к ближайшему выше по списку приёму пищи, иначе к ближайшему действию выше, иначе к первому доступному. */
 function defaultAnchor(all: Habit[], anchors: Habit[], habitId: string): Habit | undefined {
@@ -35,7 +37,9 @@ export function ReminderSettings() {
         const after = Boolean(habit.afterHabitId);
         const anchors = habitAnchors(state.habits, habit.id);
         const delay = habit.delayMinutes ?? 0;
-        const presets = delayPresets.includes(delay) ? delayPresets : [...delayPresets, delay].sort((a, b) => a - b);
+        const hours = Math.floor(delay / 60);
+        const minutes = delay % 60;
+        const setDelay = (total: number) => edit(habit.id, { delayMinutes: Math.max(0, Math.min(maxDelay, Math.round(total))) });
         const anchorTitle = state.habits.find((item) => item.id === habit.afterHabitId)?.title ?? "другого действия";
         const summary = !enabled ? "выключено" : after ? `${delay === 0 ? "сразу" : `через ${delayLabel(delay)}`} после «${anchorTitle}»` : status === "ready" ? `каждый день в ${habit.time}` : "";
         return <li key={habit.id} className={`${status}${enabled ? " open" : ""}`}>
@@ -53,7 +57,12 @@ export function ReminderSettings() {
             {after ? <>
               <label className="fieldLabel">После какого действия<AppSelect value={habit.afterHabitId ?? ""} onChange={(value) => edit(habit.id, { afterHabitId: value })}>{anchors.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</AppSelect></label>
               <div className="delayChips" role="group" aria-label={`Через сколько напомнить: ${habit.title}`}>
-                {presets.map((minutes) => <button type="button" key={minutes} aria-pressed={delay === minutes} onClick={() => edit(habit.id, { delayMinutes: minutes })}>{delayLabel(minutes)}</button>)}
+                {delayPresets.map((preset) => <button type="button" key={preset} aria-pressed={delay === preset} onClick={() => setDelay(preset)}>{delayLabel(preset)}</button>)}
+              </div>
+              <div className="delayCustom" role="group" aria-label={`Своё время задержки: ${habit.title}`}>
+                <span className="delayCustomTitle">Своё время</span>
+                <label><SettingsInput numeric="reps" min={0} max={24} value={hours} onCommit={(value) => setDelay(Number(value) * 60 + minutes)} /><span>ч</span></label>
+                <label><SettingsInput numeric="reps" min={0} max={59} value={minutes} onCommit={(value) => setDelay(hours * 60 + Number(value))} /><span>мин</span></label>
               </div>
               <p className="fieldHint muted">Напоминание придёт после того, как вы отметите «{anchorTitle}» на экране «Сегодня»{delay > 0 ? `, спустя ${delayLabel(delay)}` : ""}.</p>
             </> : <label className="fieldLabel">Время (по Москве)<input className="reminderTime" type="time" aria-label={`Время напоминания: ${habit.title}`} value={habit.time ?? ""} onChange={(event) => edit(habit.id, { time: event.target.value })} /></label>}

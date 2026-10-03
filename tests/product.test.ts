@@ -247,3 +247,15 @@ test("workout totals count only exercises with a recorded set", () => {
   const totals = calculateWorkoutTotals({ id: "w", title: "Fixture", date: "2026-10-03", exercises: [{ id: "a", name: "A", sets: [set("a1", true), set("a2", false)] }, { id: "b", name: "B", sets: [set("b1", false)] }] });
   assert.deepEqual({ sets: totals.completedSets, exercises: totals.exercises, volume: totals.volumeKg }, { sets: 1, exercises: 1, volume: 320 });
 });
+
+test("a reminder needs a time or an anchor, workouts and archived habits never remind", async () => {
+  const { reminderStatus } = await import("../src/lib/habits.ts");
+  const base = { id: "h", title: "H", type: "habit" as const, schedule: "" };
+  assert.equal(reminderStatus(base), "off");
+  assert.equal(reminderStatus({ ...base, reminderEnabled: true }), "needs-time");
+  assert.equal(reminderStatus({ ...base, reminderEnabled: true, time: "25:00" }), "needs-time");
+  assert.equal(reminderStatus({ ...base, reminderEnabled: true, time: "08:30" }), "ready");
+  assert.equal(reminderStatus({ ...base, reminderEnabled: true, afterHabitId: "x" }), "ready");
+  assert.equal(reminderStatus({ ...base, reminderEnabled: true, time: "08:30", archived: true }), "off");
+  assert.equal(reminderStatus({ ...base, type: "workout", reminderEnabled: true, time: "08:30" }), "off");
+});

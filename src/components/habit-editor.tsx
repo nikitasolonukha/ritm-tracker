@@ -4,7 +4,7 @@ import { AppSelect } from "./app-select";
 import { SettingsInput } from "./settings-input";
 import { useTrackerState } from "./tracker-state";
 import { visibleCopy, type Habit } from "@/lib/tracker";
-import { habitAnchors } from "@/lib/habits";
+import { habitAnchors, reminderStatus } from "@/lib/habits";
 import { useConfirm } from "./ui";
 
 export function HabitEditor({ habit }: { habit: Habit }) {
@@ -27,6 +27,7 @@ export function HabitEditor({ habit }: { habit: Habit }) {
     {habit.afterHabitId ? <><label>После<AppSelect value={habit.afterHabitId} onChange={(value) => edit({ afterHabitId: value })}>{anchors.map((h) => <option key={h.id} value={h.id}>{h.title}</option>)}</AppSelect></label><label>Через, минут<SettingsInput numeric="reps" max={1440} value={habit.delayMinutes ?? 0} onCommit={(v) => edit({ delayMinutes: Number(v) })} /></label></> : <label>Время (Москва)<input type="time" value={habit.time ?? ""} onChange={(e) => edit({ time: e.target.value })} /></label>}
     <label>Подпись расписания<SettingsInput value={habit.schedule === "настроить" ? "" : habit.schedule} onCommit={(schedule) => edit({ schedule })} placeholder="Необязательно" /></label>
     <label className="checkLabel"><input type="checkbox" checked={habit.reminderEnabled ?? false} onChange={(e) => edit({ reminderEnabled: e.target.checked })} /> Напоминать в Telegram</label>
+    {reminderStatus(habit) === "needs-time" && <p className="fieldError" role="status">Укажите время выше или привяжите к другому действию, иначе напоминание не придёт.</p>}
     {habit.type === "workout" && <p className="fieldHint muted">Эта привычка не стоит в списке отметок. На экране «Сегодня» она открывает тренировки. В недельную цель попадают только записанные подходы.</p>}
     <div className="settingsActions"><button className="secondary" onClick={() => edit({ archived: !habit.archived })}>{habit.archived ? <RotateCcw size={18} /> : <Archive size={18} />}{habit.archived ? "Вернуть из архива" : "В архив"}</button><button className="secondary dangerButton" type="button" onClick={remove}><Trash2 size={18} /> Удалить привычку</button></div>
   </div>{dialog}</details>;

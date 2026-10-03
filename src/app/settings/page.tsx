@@ -10,6 +10,7 @@ import type { SessionTrackerState } from "@/lib/workout-session";
 import type { ExerciseSet } from "@/lib/tracker";
 import { SettingsInput } from "@/components/settings-input";
 import { TelegramSettings } from "@/components/telegram-settings";
+import { ReminderSettings } from "@/components/reminder-settings";
 import { AppNav } from "@/components/app-nav";
 import { HabitEditor } from "@/components/habit-editor";
 import { DataSettings } from "@/components/data-settings";
@@ -203,7 +204,7 @@ export default function SettingsPage() {
     <p className="muted" role="status">{syncStatus === "idle" ? "Изменения сохранены" : syncStatus === "syncing" || syncStatus === "dirty" ? "Сохраняем изменения…" : syncStatus === "loading" ? "Загружаем данные…" : "Изменения на этом устройстве"}</p>
     {legacyState && <section className="panel migrationNotice"><p className="eyebrow">На этом телефоне</p><h2>Есть записи до входа в аккаунт</h2><p>Это привычки, тренировки и отметки, которые остались в памяти телефона. Их можно скопировать сюда: то, что уже есть в аккаунте, не сотрётся. Незавершённая тренировка из старой копии текущую не заменит.</p><div className="settingsActions"><button className="primary" onClick={importLegacy}>Перенести в этот аккаунт</button><button className="secondary" type="button" onClick={dismissLegacy}>Не переносить</button></div></section>}
     <div className="settingsTabs" role="tablist" aria-label="Раздел настроек">{([["habits", "Привычки"], ["program", "Программа"], ["telegram", "Telegram"], ["data", "Данные"]] as const).map(([id, label]) => <button key={id} role="tab" aria-selected={section === id} onClick={() => setSection(id)}>{label}</button>)}</div>
-    {section === "telegram" && <TelegramSettings />}
+    {section === "telegram" && <><TelegramSettings /><ReminderSettings /></>}
     {section === "data" && <DataSettings />}
     <div hidden={section !== "habits"}>
     <button className="secondary" onClick={addHabit}><Plus size={18} /> Добавить привычку</button>

@@ -48,3 +48,10 @@ export function sleepFromEvents(habits: Habit[], completions: HabitCompletion[],
   const hours = (wakeAt - Date.parse(bedtime.completedAt)) / 3_600_000;
   return hours > 0 && hours <= 24 ? Math.round(hours * 10) / 10 : undefined;
 }
+
+/** Готово ли напоминание: серверный планировщик создаёт его только при заданном времени или привязке к другому действию. */
+export function reminderStatus(habit: Habit): "off" | "ready" | "needs-time" {
+  if (!habit.reminderEnabled || habit.archived || habit.type === "workout") return "off";
+  if (habit.afterHabitId) return "ready";
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(habit.time ?? "") ? "ready" : "needs-time";
+}

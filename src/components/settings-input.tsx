@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { commitDraftValue } from "@/lib/tracker";
 
-export function SettingsInput({ value, onCommit, numeric, placeholder, min = 0, max }: {
+export function SettingsInput({ value, onCommit, numeric, placeholder, min = 0, max, list }: {
   value: string | number | null | undefined;
   onCommit: (value: string) => void;
   numeric?: "weight" | "reps";
   placeholder?: string;
   min?: number;
   max?: number;
+  list?: string;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
   const [error, setError] = useState(false);
@@ -21,7 +22,7 @@ export function SettingsInput({ value, onCommit, numeric, placeholder, min = 0, 
     setDraft(null);
     setError(false);
   }
-  return <><input value={draft ?? value ?? ""} placeholder={placeholder} inputMode={numeric === "weight" ? "decimal" : numeric === "reps" ? "numeric" : "text"} aria-invalid={error || undefined}
+  return <><input value={draft ?? value ?? ""} placeholder={placeholder} list={list} inputMode={numeric === "weight" ? "decimal" : numeric === "reps" ? "numeric" : "text"} aria-invalid={error || undefined}
     onChange={(event) => { setDraft(event.target.value); setError(false); }} onBlur={commit}
     onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} />
     {error && <small className="fieldError" role="alert">{numeric === "weight" ? "Введите вес, например 12,5" : "Введите целое число повторений"}</small>}</>;

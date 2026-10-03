@@ -14,8 +14,8 @@ function isStaticAsset(request) {
 }
 
 function isPrivatePage(path) {
-  return ["/today", "/workouts", "/settings", "/progress", "/journal", "/journal/import"].includes(path)
-    || ["/workout/", "/workouts/templates/", "/journal/workouts/"].some((prefix) => path.startsWith(prefix));
+  return ["/today", "/workouts", "/settings", "/progress", "/journal", "/journal/import", "/exercises"].includes(path)
+    || ["/workout/", "/workouts/templates/", "/journal/workouts/", "/exercises/"].some((prefix) => path.startsWith(prefix));
 }
 
 async function loadActiveAccount() {

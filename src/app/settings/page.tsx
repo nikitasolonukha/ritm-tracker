@@ -15,6 +15,7 @@ import { HabitEditor } from "@/components/habit-editor";
 import { DataSettings } from "@/components/data-settings";
 import { AppSelect } from "@/components/app-select";
 import { HeaderAction, Notice, PageHeader, useConfirm } from "@/components/ui";
+import { buildExerciseLibrary } from "@/lib/exercises";
 
 function setsWord(count: number) {
   const mod10 = count % 10;
@@ -210,6 +211,7 @@ export default function SettingsPage() {
     <section className="settingsEditor"><div className="sectionHeading"><h2>Ритм дня</h2><span className="muted">{state.habits.filter((h) => !h.archived).length} действий</span></div><div className="settingsList">{[...state.habits].sort((a, b) => Number(Boolean(a.archived)) - Number(Boolean(b.archived))).map((habit, index, list) => <div key={habit.id}>{habit.archived && !list[index - 1]?.archived && <h3 className="archiveHeading">В архиве</h3>}<HabitEditor habit={habit} /></div>)}</div></section>
     </div>
     <div hidden={section !== "program"}>
+    <datalist id="exercise-names">{buildExerciseLibrary(state as SessionTrackerState).map((entry) => <option key={entry.key} value={entry.name} />)}</datalist>
     <div className="btnRow"><button className="secondary" aria-label="Новая программа" onClick={addProgram}><Plus size={18} /> Новая</button>{template && <button className="secondary dangerButton" aria-label="Удалить программу" onClick={removeProgram}><Trash2 size={18} /> Удалить</button>}</div>
     {template ? <>
     <label className="fieldLabel">Программа<AppSelect value={template.id} onChange={setSelectedTemplateId}>{sessionState?.workoutTemplates?.map((p) => <option value={p.id} key={p.id}>{p.title}</option>)}</AppSelect></label>
@@ -231,7 +233,7 @@ export default function SettingsPage() {
         const lastExercise = exerciseIndex === template.exercises.length - 1;
         const moveExercise = (direction: -1 | 1) => update((previous) => ({ ...previous, workoutTemplates: previous.workoutTemplates?.map((p) => { if (p.id !== template.id) return p; const list = [...p.exercises]; const index = list.findIndex((e) => e.id === exercise.id); [list[index], list[index + direction]] = [list[index + direction], list[index]]; return { ...p, exercises: list }; }) }));
         return <details className="exerciseDisclosure" key={exercise.id}><summary><span>{exercise.name}</span><small>{logicalSetCount} {setsWord(logicalSetCount)} · {(exercise.restSec ?? 180) / 60} мин отдыха</small></summary><div className="settingExercise">
-          <label>Название<SettingsInput value={exercise.name} onCommit={(value) => editExercise(exercise.id, "name", value)} /></label>
+          <label>Название<SettingsInput list="exercise-names" value={exercise.name} onCommit={(value) => editExercise(exercise.id, "name", value)} /></label>
           <div className="twoCols"><label>Группа мышц<SettingsInput value={exercise.muscleGroup} placeholder="Например, грудь" onCommit={(value) => editExercise(exercise.id, "muscleGroup", value)} /></label>
           <label>Оборудование<SettingsInput value={exercise.equipment} placeholder="Например, тренажёр" onCommit={(value) => editExercise(exercise.id, "equipment", value)} /></label></div>
           <label>Положение оборудования<SettingsInput value={exercise.equipmentPosition} placeholder="Необязательно" onCommit={(value) => editExercise(exercise.id, "equipmentPosition", value)} /></label>

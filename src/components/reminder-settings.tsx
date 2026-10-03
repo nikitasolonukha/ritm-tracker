@@ -21,12 +21,12 @@ export function ReminderSettings() {
     <ul className="reminderList">
       {habits.map((habit) => {
         const status = reminderStatus(habit);
-        return <li key={habit.id} className={status}>
+        return <li key={habit.id} className={`${status}${!habit.afterHabitId && habit.reminderEnabled ? " withTime" : ""}`}>
           <label className="reminderToggle">
             <input type="checkbox" aria-label={`Напоминание: ${habit.title}`} checked={habit.reminderEnabled ?? false} onChange={(event) => edit(habit.id, { reminderEnabled: event.target.checked })} />
             <span><strong>{habit.title}</strong>{habit.afterHabitId ? <small>после «{anchorTitle(habit) ?? "другого действия"}», через {habit.delayMinutes ?? 0} мин</small> : status === "needs-time" ? <small className="warn">нужно время</small> : status === "ready" ? <small>каждый день в {habit.time}</small> : <small>выключено</small>}</span>
           </label>
-          {!habit.afterHabitId && <input className="reminderTime" type="time" aria-label={`Время напоминания: ${habit.title}`} value={habit.time ?? ""} onChange={(event) => edit(habit.id, { time: event.target.value })} />}
+          {!habit.afterHabitId && habit.reminderEnabled && <input className="reminderTime" type="time" aria-label={`Время напоминания: ${habit.title}`} value={habit.time ?? ""} onChange={(event) => edit(habit.id, { time: event.target.value })} />}
         </li>;
       })}
     </ul>

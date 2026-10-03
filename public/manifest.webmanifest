@@ -4,8 +4,8 @@
   "description": "Личный трекер привычек, тренировок и наблюдений.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#111312",
-  "theme_color": "#111312",
+  "background_color": "#0a0b0f",
+  "theme_color": "#0a0b0f",
   "icons": [
     {
       "src": "/icon.svg",

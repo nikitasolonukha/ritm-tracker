@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Download, Plus, Save, Settings2, Trash2 } from "lucide-react";
+import { ArrowRight, Download, Plus, Save, Trash2 } from "lucide-react";
 import { useEffect, useState, type ChangeEvent } from "react";
 import { AppNav } from "@/components/app-nav";
 import { AppSelect } from "@/components/app-select";
 import { PrivatePhoto } from "@/components/private-photo";
 import { useTrackerState } from "@/components/tracker-state";
+import { HeaderAction, Notice, PageHeader, StatTile, useConfirm } from "@/components/ui";
 import { calculateWorkoutTotals, formatLocalDate, getLocalDate, normalizeDecimalInput, russianWord } from "@/lib/tracker";
 import { sleepFromEvents } from "@/lib/habits";
 import { createClient } from "@/lib/supabase/client";
@@ -26,6 +27,7 @@ export default function ProgressPage() {
   const [note, setNote] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const { confirm, dialog } = useConfirm();
   const observation = state?.observations.find((item) => item.date === date);
   const computedSleep = state ? sleepFromEvents(state.habits,state.completions,date) : undefined;
   useEffect(() => {
@@ -78,18 +80,18 @@ export default function ProgressPage() {
     const message = remote
       ? `Убрать фото «${photo.name}» из журнала и удалить файл из хранилища? Вернуть его будет нельзя.`
       : `Убрать фото «${photo.name}» из журнала? Отдельного файла в хранилище нет.`;
-    if (!window.confirm(message)) return;
+    if (!(await confirm(message, { danger: true, confirmLabel: "Убрать" }))) return;
     if (remote && photo.storagePath) {
       const { error } = await createClient().storage.from("progress-photos").remove([photo.storagePath]);
       if (error) { setMessage("Файл в хранилище не удалился. Фото осталось в журнале. Проверьте соединение и повторите."); return; }
     }
     if (update((previous) => ({ ...previous, photos: previous.photos?.filter((item) => item.id !== photo.id) }))) setMessage(remote ? "Фото убрано из журнала, файл удалён из хранилища." : "Фото убрано из журнала.");
   }
-  return <main className="shell appPage"><header className="pageHeader"><div><p className="eyebrow">Показатели</p><h1>Прогресс</h1></div><div className="headerActions"><Link className="iconButton" href="/settings" aria-label="Настройки"><Settings2 size={20} /></Link><button className="iconButton" onClick={exportState} disabled={busy} aria-label="Экспорт данных и фото" title="Экспорт данных и фото"><Download size={20} /></button></div></header>
-    {storageError && <p className="storageMessage" role="alert">{storageError}</p>}{message && <p className="storageMessage" role="status">{message}</p>}
-    <div className="summaryMetrics"><div><strong>{workouts.length}</strong><span>{russianWord(workouts.length, "тренировка", "тренировки", "тренировок")}</span></div><div><strong>{volume.toLocaleString("ru-RU")}</strong><span>кг объёма</span></div><div><strong>{state.completions.filter((c) => c.outcome !== "skipped").length}</strong><span>{russianWord(state.completions.filter((c) => c.outcome !== "skipped").length, "отметка", "отметки", "отметок")}</span></div></div>
-    <section className="settingsEditor observationEditor"><h2>Самочувствие</h2><div className="formGrid"><label className="wide">Дата<input type="date" value={date} max={today} onChange={(e) => setDate(e.target.value)} /></label><label>Энергия, 0–10<input inputMode="decimal" value={energy} onChange={(e) => setEnergy(e.target.value)} /></label><label>Сон, часов<input inputMode="decimal" value={sleep} onChange={(e) => setSleep(e.target.value)} /></label><label>Масса, кг<input inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)} /></label><label className="wide">Самочувствие<AppSelect value={skin} onChange={(value) => setSkin(value as typeof skin)}><option value="unknown">Не указано</option><option value="better">Лучше</option><option value="same">Без изменений</option><option value="worse">Хуже</option></AppSelect></label></div><label>Заметка<textarea value={note} maxLength={4000} onChange={(e) => setNote(e.target.value)} rows={3} /></label><button className="primary" onClick={save}><Save size={18} />Сохранить отметку</button></section>
+  return <main className="shell appPage"><PageHeader eyebrow="Показатели" title="Прогресс" actions={<HeaderAction onClick={exportState} icon={Download} label="Экспорт" ariaLabel="Экспорт данных и фото" />} />
+    {storageError && <Notice tone="warning">{storageError}</Notice>}{message && <Notice tone={/не |Не |нужен|Выберите|Энергия:/.test(message) ? "warning" : "success"}>{message}</Notice>}
+    <div className="summaryMetrics"><StatTile value={workouts.length} label={russianWord(workouts.length, "тренировка", "тренировки", "тренировок")} /><StatTile value={volume.toLocaleString("ru-RU")} label="кг объёма" /><StatTile value={state.completions.filter((c) => c.outcome !== "skipped").length} label={russianWord(state.completions.filter((c) => c.outcome !== "skipped").length, "отметка", "отметки", "отметок")} /></div>
+    <section className="settingsEditor observationEditor"><h2>Отметка дня</h2><div className="formGrid"><label className="wide">Дата<input type="date" value={date} max={today} onChange={(e) => setDate(e.target.value)} /></label><label>Энергия, 0–10<input inputMode="decimal" value={energy} onChange={(e) => setEnergy(e.target.value)} /></label><label>Сон, часов<input inputMode="decimal" value={sleep} onChange={(e) => setSleep(e.target.value)} /></label><label>Масса, кг<input inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)} /></label><label className="wide">Самочувствие<AppSelect value={skin} onChange={(value) => setSkin(value as typeof skin)}><option value="unknown">Не указано</option><option value="better">Лучше</option><option value="same">Без изменений</option><option value="worse">Хуже</option></AppSelect></label></div><label>Заметка<textarea value={note} maxLength={4000} onChange={(e) => setNote(e.target.value)} rows={3} /></label><button className="primary" onClick={save}><Save size={18} />Сохранить отметку</button></section>
     <section className="settingsEditor photoEditor"><div className="sectionHeading"><h2>Фото прогресса</h2><label className="secondary photoUpload"><Plus size={18} />{busy ? "Загрузка…" : "Добавить фото"}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={addPhoto} /></label></div><div className="photoGrid">{state.photos?.map((photo) => <figure key={photo.id}><PrivatePhoto path={photo.storagePath} dataUrl={photo.dataUrl} name={photo.name} /><figcaption><span>{formatLocalDate(photo.date)}</span><button className="secondary dangerButton" aria-label={`Убрать фото ${photo.name}`} title="Убрать фото из журнала" onClick={() => void removePhoto(photo)}><Trash2 size={17} />Убрать</button></figcaption></figure>)}</div></section>
-    {state.observations.length > 0 && <section className="settingsEditor"><h2>История отметок</h2>{[...state.observations].sort((a,b) => b.date.localeCompare(a.date)).map((o) => <article className="observationHistory" key={o.id}><div className="observationActions"><button className="secondary" type="button" onClick={() => { setDate(o.date); window.scrollTo({ top:0,behavior:"smooth" }); }}>{formatLocalDate(o.date)}</button><button className="secondary dangerButton" type="button" onClick={() => { if (window.confirm(`Удалить отметку за ${formatLocalDate(o.date)}?`)) update((previous) => ({ ...previous, observations: previous.observations.filter((item) => item.id !== o.id) })); }}>Удалить отметку</button></div><p>Энергия {o.energy}/10 · Сон {o.sleep} ч{o.weightKg == null ? "" : ` · ${o.weightKg} кг`}</p>{o.note && <p className="observationNote">{o.note}</p>}</article>)}</section>}
-    <Link className="historyCard" href="/journal"><h2>Журнал тренировок</h2><ArrowRight size={20} /></Link><AppNav active="progress" /></main>;
+    {state.observations.length > 0 && <section className="settingsEditor"><h2>История отметок</h2>{[...state.observations].sort((a,b) => b.date.localeCompare(a.date)).map((o) => <article className="observationHistory" key={o.id}><div className="observationActions"><button className="secondary" type="button" onClick={() => { setDate(o.date); window.scrollTo({ top:0,behavior:"smooth" }); }}>{formatLocalDate(o.date)}</button><button className="secondary dangerButton" type="button" onClick={async () => { if (await confirm(`Удалить отметку за ${formatLocalDate(o.date)}?`, { danger: true })) update((previous) => ({ ...previous, observations: previous.observations.filter((item) => item.id !== o.id) })); }}>Удалить отметку</button></div><p>Энергия {o.energy}/10 · Сон {o.sleep} ч{o.weightKg == null ? "" : ` · ${o.weightKg} кг`}</p>{o.note && <p className="observationNote">{o.note}</p>}</article>)}</section>}
+    <Link className="historyCard" href="/journal"><h2>Журнал тренировок</h2><ArrowRight size={20} /></Link><AppNav active="progress" />{dialog}</main>;
 }

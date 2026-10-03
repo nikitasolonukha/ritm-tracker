@@ -1,5 +1,6 @@
 "use client";
 
+import { Notice } from "@/components/ui";
 import Link from "next/link";
 import { KeyRound, LogIn } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
@@ -43,13 +44,13 @@ export default function UpdatePasswordPage() {
 
   return <main className="shell authShell"><section className="authPanel">
     <h1>Ритм</h1><h2>Новый пароль</h2>
-    {!isSupabaseConfigured && <p className="storageMessage">Сервис временно не настроен.</p>}
+    {!isSupabaseConfigured && <Notice tone="warning">Сервис временно не настроен.</Notice>}
     {isSupabaseConfigured && !checked && <p role="status">Проверяю ссылку…</p>}
-    {checked && !ready && <p className="storageMessage" role="alert">Ссылка восстановления недействительна или истекла.</p>}
+    {checked && !ready && <Notice tone="warning">Ссылка восстановления недействительна или истекла.</Notice>}
     <form method="post" onSubmit={submit} className="authForm">
       <label>Новый пароль<input type="password" name="password" value={password} onChange={(event) => setPassword(event.target.value)} required minLength={8} maxLength={128} autoComplete="new-password" disabled={busy || !ready} /></label>
       <label>Повторите пароль<input type="password" name="confirmation" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required minLength={8} maxLength={128} autoComplete="new-password" disabled={busy || !ready} /></label>
-      {error && <p className="storageMessage" role="alert">{error}</p>}{message && <p className="storageMessage" role="status">{message}</p>}
+      {error && <Notice tone="warning">{error}</Notice>}{message && <Notice tone="info">{message}</Notice>}
       <button className="primary" disabled={busy || !ready}><KeyRound size={18} />{busy ? "Сохраняю…" : "Сохранить пароль"}</button>
     </form>
     <Link className="secondary" href="/login"><LogIn size={18} />Вернуться ко входу</Link>

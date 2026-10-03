@@ -14,6 +14,7 @@ import { AppNav } from "@/components/app-nav";
 import { HabitEditor } from "@/components/habit-editor";
 import { DataSettings } from "@/components/data-settings";
 import { AppSelect } from "@/components/app-select";
+import { HeaderAction, Notice, PageHeader, useConfirm } from "@/components/ui";
 
 function setsWord(count: number) {
   const mod10 = count % 10;
@@ -25,6 +26,7 @@ function setsWord(count: number) {
 
 export default function SettingsPage() {
   const { state, update, importLegacy, dismissLegacy, legacyState, storageError, syncStatus } = useTrackerState();
+  const { confirm, dialog } = useConfirm();
   const sessionState = state as SessionTrackerState | null;
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>();
   const template = sessionState?.workoutTemplates?.find((t) => t.id === selectedTemplateId) ?? sessionState?.workoutTemplates?.[0];
@@ -36,7 +38,7 @@ export default function SettingsPage() {
     const id = `program-${crypto.randomUUID()}`;
     if (update((previous) => ({ ...previous, workoutTemplates: [...(previous.workoutTemplates ?? []), { id, title: "Новая программа", date: new Date().toISOString().slice(0, 10), exercises: [] }] }))) setSelectedTemplateId(id);
   };
-  const removeProgram = () => { if (template && window.confirm(`Удалить программу «${template.title}»? Записанные тренировки останутся.`)) update((previous) => ({ ...previous, workoutTemplates: previous.workoutTemplates?.filter((p) => p.id !== template.id) })); };
+  const removeProgram = async () => { if (template && await confirm(`Удалить программу «${template.title}»? Записанные тренировки останутся.`, { danger: true })) update((previous) => ({ ...previous, workoutTemplates: previous.workoutTemplates?.filter((p) => p.id !== template.id) })); };
 
   const editExercise = (exerciseId: string, field: string, value: string) => update((previous) => {
     const next = previous as SessionTrackerState;
@@ -99,8 +101,8 @@ export default function SettingsPage() {
     };
   });
 
-  const removeExercise = (exerciseId: string, name: string) => {
-    if (!window.confirm(`Удалить упражнение «${name}» из программы? Уже записанные тренировки останутся.`)) return;
+  const removeExercise = async (exerciseId: string, name: string) => {
+    if (!(await confirm(`Удалить упражнение «${name}» из программы? Уже записанные тренировки останутся.`, { danger: true }))) return;
     update((previous) => {
       const next = previous as SessionTrackerState;
       return { ...next, workoutTemplates: (next.workoutTemplates ?? []).map((item) => item.id !== template?.id ? item : { ...item, exercises: item.exercises.filter((exercise) => exercise.id !== exerciseId) }) };
@@ -129,8 +131,8 @@ export default function SettingsPage() {
   });
 
   const logicalKey = (set: ExerciseSet, index: number) => set.segmentId ?? (set.component && set.component !== "single" ? `pair-${Math.floor(index / 2)}` : set.id);
-  const removeLogicalSet = (exerciseId: string, key: string, name: string, onlyOne: boolean) => {
-    if (!window.confirm(onlyOne ? `Это последний подход. Удалить упражнение «${name}» из программы?` : `Удалить этот подход из «${name}»?`)) return;
+  const removeLogicalSet = async (exerciseId: string, key: string, name: string, onlyOne: boolean) => {
+    if (!(await confirm(onlyOne ? `Это последний подход. Удалить упражнение «${name}» из программы?` : `Удалить этот подход из «${name}»?`, { danger: true }))) return;
     update((previous) => {
       const next = previous as SessionTrackerState;
       return {
@@ -194,9 +196,9 @@ export default function SettingsPage() {
 
   return <main className="shell appPage">
     <Link className="backLink" href="/today"><ArrowLeft size={18} /> Сегодня</Link>
-    <header className="pageHeader"><div><p className="eyebrow">Аккаунт</p><h1>Настройки</h1></div><button className="secondary" onClick={signOut}><LogOut size={17} /> Выйти</button></header>
-    {signOutError && <p role="alert" className="storageMessage">{signOutError}</p>}
-    {storageError && <p className="storageMessage" role="alert">{storageError}</p>}
+    <PageHeader eyebrow="Аккаунт" title="Настройки" actions={<HeaderAction onClick={signOut} icon={LogOut} label="Выйти" />} />
+    {signOutError && <Notice tone="error">{signOutError}</Notice>}
+    {storageError && <Notice tone="warning">{storageError}</Notice>}
     <p className="muted" role="status">{syncStatus === "idle" ? "Изменения сохранены" : syncStatus === "syncing" || syncStatus === "dirty" ? "Сохраняем изменения…" : syncStatus === "loading" ? "Загружаем данные…" : "Изменения на этом устройстве"}</p>
     {legacyState && <section className="panel migrationNotice"><p className="eyebrow">На этом телефоне</p><h2>Есть записи до входа в аккаунт</h2><p>Это привычки, тренировки и отметки, которые остались в памяти телефона. Их можно скопировать сюда: то, что уже есть в аккаунте, не сотрётся. Незавершённая тренировка из старой копии текущую не заменит.</p><div className="settingsActions"><button className="primary" onClick={importLegacy}>Перенести в этот аккаунт</button><button className="secondary" type="button" onClick={dismissLegacy}>Не переносить</button></div></section>}
     <div className="settingsTabs" role="tablist" aria-label="Раздел настроек">{([["habits", "Привычки"], ["program", "Программа"], ["telegram", "Telegram"], ["data", "Данные"]] as const).map(([id, label]) => <button key={id} role="tab" aria-selected={section === id} onClick={() => setSection(id)}>{label}</button>)}</div>
@@ -208,7 +210,7 @@ export default function SettingsPage() {
     <section className="settingsEditor"><div className="sectionHeading"><h2>Ритм дня</h2><span className="muted">{state.habits.filter((h) => !h.archived).length} действий</span></div><div className="settingsList">{[...state.habits].sort((a, b) => Number(Boolean(a.archived)) - Number(Boolean(b.archived))).map((habit, index, list) => <div key={habit.id}>{habit.archived && !list[index - 1]?.archived && <h3 className="archiveHeading">В архиве</h3>}<HabitEditor habit={habit} /></div>)}</div></section>
     </div>
     <div hidden={section !== "program"}>
-    <div className="settingsActions"><button className="secondary" onClick={addProgram}><Plus size={18} /> Новая программа</button>{template && <button className="secondary" onClick={removeProgram}><Trash2 size={18} /> Удалить программу</button>}</div>
+    <div className="btnRow"><button className="secondary" aria-label="Новая программа" onClick={addProgram}><Plus size={18} /> Новая</button>{template && <button className="secondary dangerButton" aria-label="Удалить программу" onClick={removeProgram}><Trash2 size={18} /> Удалить</button>}</div>
     {template ? <>
     <label className="fieldLabel">Программа<AppSelect value={template.id} onChange={setSelectedTemplateId}>{sessionState?.workoutTemplates?.map((p) => <option value={p.id} key={p.id}>{p.title}</option>)}</AppSelect></label>
     <section className="panel settingsEditor">
@@ -256,5 +258,6 @@ export default function SettingsPage() {
     </> : <p className="muted">Добавьте свою первую программу.</p>}
     </div>
     <AppNav active="settings" />
+    {dialog}
   </main>;
 }

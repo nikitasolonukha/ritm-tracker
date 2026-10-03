@@ -346,8 +346,8 @@ test("real local multi-account product journey, storage isolation and offline re
     await expect(page.getByRole("heading", { name: "Тренировки", exact: true })).toBeVisible();
     if (await page.locator("a.resumeBanner").count()) {
       await page.locator("a.resumeBanner").click();
-      page.once("dialog", (dialog) => dialog.accept());
       await page.getByRole("button", { name: "Отменить", exact: true }).click();
+      await page.getByRole("dialog").getByRole("button", { name: "Отменить тренировку", exact: true }).click();
       await expect(page).toHaveURL(/\/workouts$/);
       await expect(page.getByRole("heading", { name: "Тренировки", exact: true })).toBeVisible();
       await expect(page.locator("a.resumeBanner")).toHaveCount(0);
@@ -496,8 +496,8 @@ test("real local multi-account product journey, storage isolation and offline re
     await page.goto(`${baseURL}/workouts/templates/${templateId}`);
     await expect(page.getByRole("heading", { name: programName, exact: true })).toBeVisible();
     await checkLayout(page, "program-preview");
-    page.once("dialog", (dialog) => dialog.accept());
     await page.getByRole("button", { name: "Начать тренировку", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Всё равно начать", exact: true }).click({ timeout: 1500 }).catch(() => undefined);
     await expect(page).toHaveURL(/\/workout\/[^/]+$/);
     sessionId = new URL(page.url()).pathname.split("/").at(-1)!;
     await expect(page.getByRole("heading", { name: exerciseName, exact: true })).toBeVisible();

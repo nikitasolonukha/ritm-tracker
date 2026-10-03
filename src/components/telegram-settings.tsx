@@ -1,5 +1,6 @@
 "use client";
 
+import { Notice } from "./ui";
 import { useCallback, useEffect, useState } from "react";
 import { ExternalLink, RefreshCw, Send, Unplug } from "lucide-react";
 
@@ -49,8 +50,8 @@ export function TelegramSettings() {
       : <button className={status === "connected" ? "secondary" : "primary"} disabled={busy} onClick={() => request("connect")}><Send size={18} />{busy ? "Подождите…" : status === "connected" ? "Переподключить Telegram" : "Подключить Telegram"}</button>}
     <div className="settingsActions"><button className="secondary" disabled={busy} onClick={refresh}><RefreshCw size={17} /> Проверить подключение</button>
       {link && <button className="secondary" disabled={busy} onClick={() => request("connect")}>Создать новую ссылку</button>}
-      {status === "connected" && <><button className="secondary" disabled={busy} onClick={() => request("test")}><Send size={17} /> Тестовое сообщение</button><button className="secondary" disabled={busy} onClick={() => request("disconnect")}><Unplug size={17} /> Отключить</button></>}
+      {status === "connected" && <><button className="secondary" disabled={busy} onClick={() => request("test")}><Send size={17} /> Тестовое сообщение</button><button className="secondary dangerButton" disabled={busy} onClick={() => request("disconnect")}><Unplug size={17} /> Отключить</button></>}
     </div>
-    {message && <p className="storageMessage" role="status">{message}</p>}
+    {message && <Notice tone="info">{message}</Notice>}
   </section>;
 }

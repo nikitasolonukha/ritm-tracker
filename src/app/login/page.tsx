@@ -1,5 +1,6 @@
 "use client";
 
+import { Notice } from "@/components/ui";
 import { Eye, EyeOff, KeyRound, LogIn, UserPlus } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
@@ -58,14 +59,14 @@ export default function LoginPage() {
 
   return <main className="shell authShell"><section className="authPanel">
     <h1>Ритм</h1><h2>Вход</h2>
-    {!isSupabaseConfigured && <p className="storageMessage" role="status">Сервис временно не настроен.</p>}
-    {notice && <p className="storageMessage" role="status">{notice}</p>}
+    {!isSupabaseConfigured && <Notice tone="info">Сервис временно не настроен.</Notice>}
+    {notice && <Notice tone="info">{notice}</Notice>}
     <noscript><p role="alert">Для входа нужен JavaScript. Включите его и обновите страницу.</p></noscript>
     <form method="post" onSubmit={submit} className="authForm" aria-busy={busy}>
       <label htmlFor="login-email">Email<input id="login-email" name="email" type="email" inputMode="email" value={email} onChange={(event) => { setEmail(event.target.value); setResetSent(false); }} required autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} maxLength={254} disabled={!hydrated || busy || !isSupabaseConfigured} /></label>
       <label htmlFor="login-password">Пароль<span className="passwordField"><input id="login-password" name="password" type={visible ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" maxLength={128} disabled={!hydrated || busy || !isSupabaseConfigured} /><button className="iconButton" type="button" aria-controls="login-password" aria-pressed={visible} aria-label={visible ? "Скрыть пароль" : "Показать пароль"} title={visible ? "Скрыть пароль" : "Показать пароль"} onClick={() => setVisible(!visible)}>{visible ? <EyeOff size={20} /> : <Eye size={20} />}</button></span></label>
-      {error && <p className="storageMessage" role="alert">{error}</p>}
-      {resetSent && <p className="storageMessage" role="status">Если аккаунт существует, письмо для восстановления отправлено. Проверьте почту, включая папку «Спам».</p>}
+      {error && <Notice tone="warning">{error}</Notice>}
+      {resetSent && <Notice tone="info">Если аккаунт существует, письмо для восстановления отправлено. Проверьте почту, включая папку «Спам».</Notice>}
       <button className="primary" disabled={!hydrated || busy || !isSupabaseConfigured}><LogIn size={18} /> {action === "login" ? "Вхожу…" : "Войти"}</button>
     </form>
     <button className="secondary" type="button" onClick={requestReset} disabled={!hydrated || busy || !isSupabaseConfigured}><KeyRound size={16} /> {action === "recovery" ? "Отправляю письмо…" : "Забыли пароль?"}</button>

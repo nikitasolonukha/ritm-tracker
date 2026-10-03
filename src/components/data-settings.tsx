@@ -1,5 +1,6 @@
 "use client";
 
+import { Notice } from "./ui";
 import { Download, FileCheck, Upload, X } from "lucide-react";
 import { useRef, useState, type ChangeEvent } from "react";
 import { useTrackerState } from "@/components/tracker-state";
@@ -103,8 +104,8 @@ export function DataSettings() {
     <div className="sectionHeading"><h2 id="data-settings-title">Резервная копия</h2></div>
     <div className="settingsActions"><button className="secondary" onClick={exportBackup} disabled={busy}><Download size={18} />{busy ? "Обрабатываю…" : "Скачать копию с фото"}</button></div>
     <div className="settingsActions"><input ref={fileInput} type="file" aria-label="Восстановить из JSON" hidden accept="application/json,.json" disabled={busy} onChange={chooseFile} /><button className="secondary" onClick={() => fileInput.current?.click()} disabled={busy}><Upload size={18} />Выбрать JSON-копию</button></div>
-    {error && <p className="storageMessage" role="alert">{error}</p>}
-    {message && <p className="storageMessage" role="status">{message}</p>}
+    {error && <Notice tone="warning">{error}</Notice>}
+    {message && <Notice tone="info">{message}</Notice>}
     {preview && <div className="settingsEditor">
       <div className="sectionHeading"><h3 style={{ overflowWrap: "anywhere" }}><FileCheck size={18} /> {fileName}</h3><button className="iconButton" aria-label="Отменить импорт" title="Отменить импорт" disabled={busy} onClick={clearPreview}><X size={18} /></button></div>
       <dl style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: "8px 16px" }}>{Object.entries(countLabels).map(([key, label]) => <div key={key} style={{ display: "contents" }}><dt>{label}</dt><dd style={{ margin: 0 }}>{preview.additions[key as keyof BackupCounts]}</dd></div>)}</dl>

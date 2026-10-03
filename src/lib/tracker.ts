@@ -203,7 +203,7 @@ export function calculateWorkoutTotals(workout: Workout | undefined) {
 
   return {
     completedSets,
-    exercises: workout.exercises.length,
+    exercises: workout.exercises.filter((exercise) => exercise.sets.some((set) => set.completed)).length,
     unscoredSets,
     volumeKg,
   };

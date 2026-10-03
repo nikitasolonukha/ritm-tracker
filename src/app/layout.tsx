@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { PwaRegistration } from "./pwa";
 import { TrackerProvider } from "@/components/tracker-state";
 import "./globals.css";
-import "./usability.css";
 
 export const metadata: Metadata = {
   title: "Ритм",

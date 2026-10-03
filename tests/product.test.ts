@@ -8,7 +8,7 @@ import { validateRegistration } from "../src/lib/auth.ts";
 import { isTrackerPayload } from "../src/lib/payload-validation.ts";
 import { correctHistoricalSet, finishWorkoutSession, latestTemplateRecordDate, removeHistoricalExercise, removeHistoricalSet, removeHistoricalWorkout, startWorkoutSession, type SessionTrackerState } from "../src/lib/workout-session.ts";
 import { parseTelegramHabitCallback } from "../src/lib/telegram.ts";
-import { formatLocalDate, parseWorkoutNotes, russianWord } from "../src/lib/tracker.ts";
+import { calculateWorkoutTotals, formatLocalDate, parseWorkoutNotes, russianWord } from "../src/lib/tracker.ts";
 
 test("set separators never absorb reps into the following decimal weight", () => {
   for (const separator of [",", ", ", ";", "\n"]) {
@@ -241,4 +241,9 @@ test("handled phone history stays hidden until that copy changes", () => {
   assert.equal(shouldShowLegacyOffer(true, "same", "same"), false);
   assert.equal(shouldShowLegacyOffer(true, "newer", "same"), true);
   assert.equal(shouldShowLegacyOffer(false, "same", undefined), false);
+});
+test("workout totals count only exercises with a recorded set", () => {
+  const set = (id: string, completed: boolean) => ({ id, weightKg: 40, reps: 8, weightMode: "total" as const, completed });
+  const totals = calculateWorkoutTotals({ id: "w", title: "Fixture", date: "2026-10-03", exercises: [{ id: "a", name: "A", sets: [set("a1", true), set("a2", false)] }, { id: "b", name: "B", sets: [set("b1", false)] }] });
+  assert.deepEqual({ sets: totals.completedSets, exercises: totals.exercises, volume: totals.volumeKg }, { sets: 1, exercises: 1, volume: 320 });
 });

@@ -76,6 +76,11 @@ export default function SettingsPage() {
     };
   });
 
+  const setExerciseMode = (exerciseId: string, value: string) => {
+    if (value === "mixed") return;
+    update((previous) => ({ ...previous, workoutTemplates: (previous.workoutTemplates ?? []).map((item) => item.id !== template?.id ? item : { ...item, exercises: item.exercises.map((exercise) => exercise.id !== exerciseId ? exercise : { ...exercise, sets: exercise.sets.map((set) => ({ ...set, weightMode: (value || undefined) as ExerciseSet["weightMode"] })) }) }) }));
+  };
+
   const addExercise = () => update((previous) => {
     const next = previous as SessionTrackerState;
     const id = `exercise-${Date.now()}`;
@@ -205,32 +210,46 @@ export default function SettingsPage() {
     <div hidden={section !== "program"}>
     <div className="settingsActions"><button className="secondary" onClick={addProgram}><Plus size={18} /> Новая программа</button>{template && <button className="secondary" onClick={removeProgram}><Trash2 size={18} /> Удалить программу</button>}</div>
     {template ? <>
-    <label>Программа<AppSelect value={template.id} onChange={setSelectedTemplateId}>{sessionState?.workoutTemplates?.map((p) => <option value={p.id} key={p.id}>{p.title}</option>)}</AppSelect></label>
+    <label className="fieldLabel">Программа<AppSelect value={template.id} onChange={setSelectedTemplateId}>{sessionState?.workoutTemplates?.map((p) => <option value={p.id} key={p.id}>{p.title}</option>)}</AppSelect></label>
     <section className="panel settingsEditor">
       <label>Название программы<SettingsInput value={template.title} onCommit={(title) => { if (title.trim()) update((previous) => ({ ...previous, workoutTemplates: previous.workoutTemplates?.map((p) => p.id === template.id ? { ...p, title: title.trim() } : p) })); }} /></label>
       <div className="sectionHeading"><h2>Упражнения</h2><button className="secondary" onClick={addExercise}><Plus size={17} /> Добавить</button></div>
-      {template.exercises.map((exercise) => {
-        const logicalSetCount = new Set(exercise.sets.map((set, index) => set.segmentId ?? (set.component && set.component !== "single" ? `pair-${Math.floor(index / 2)}` : `set-${index}`))).size;
-        const logicalSets: Array<{ key: string; label: string; sets: ExerciseSet[] }> = [];
+      {template.exercises.map((exercise, exerciseIndex) => {
+        const logicalSets: Array<{ key: string; sets: ExerciseSet[] }> = [];
         for (const [index, set] of exercise.sets.entries()) {
           const key = set.segmentId ?? (set.component && set.component !== "single" ? `pair-${Math.floor(index / 2)}` : set.id);
           const existing = logicalSets.find((item) => item.key === key);
           if (existing) existing.sets.push(set);
-          else logicalSets.push({ key, label: set.component ? `Подход ${logicalSets.length + 1}` : `Подход ${logicalSets.length + 1}`, sets: [set] });
+          else logicalSets.push({ key, sets: [set] });
         }
+        const logicalSetCount = logicalSets.length;
         const paired = exercise.sets.some((set) => set.component && set.component !== "single");
+        const modes = new Set(exercise.sets.map((set) => set.weightMode ?? ""));
+        const mixed = modes.size > 1;
+        const lastExercise = exerciseIndex === template.exercises.length - 1;
+        const moveExercise = (direction: -1 | 1) => update((previous) => ({ ...previous, workoutTemplates: previous.workoutTemplates?.map((p) => { if (p.id !== template.id) return p; const list = [...p.exercises]; const index = list.findIndex((e) => e.id === exercise.id); [list[index], list[index + direction]] = [list[index + direction], list[index]]; return { ...p, exercises: list }; }) }));
         return <details className="exerciseDisclosure" key={exercise.id}><summary><span>{exercise.name}</span><small>{logicalSetCount} {setsWord(logicalSetCount)} · {(exercise.restSec ?? 180) / 60} мин отдыха</small></summary><div className="settingExercise">
           <label>Название<SettingsInput value={exercise.name} onCommit={(value) => editExercise(exercise.id, "name", value)} /></label>
-          <label>Группа мышц<SettingsInput value={exercise.muscleGroup} placeholder="Например, грудь" onCommit={(value) => editExercise(exercise.id, "muscleGroup", value)} /></label>
-          <label>Оборудование<SettingsInput value={exercise.equipment} placeholder="Например, тренажёр" onCommit={(value) => editExercise(exercise.id, "equipment", value)} /></label>
+          <div className="twoCols"><label>Группа мышц<SettingsInput value={exercise.muscleGroup} placeholder="Например, грудь" onCommit={(value) => editExercise(exercise.id, "muscleGroup", value)} /></label>
+          <label>Оборудование<SettingsInput value={exercise.equipment} placeholder="Например, тренажёр" onCommit={(value) => editExercise(exercise.id, "equipment", value)} /></label></div>
           <label>Положение оборудования<SettingsInput value={exercise.equipmentPosition} placeholder="Необязательно" onCommit={(value) => editExercise(exercise.id, "equipmentPosition", value)} /></label>
-          <p className="fieldHint muted">У каждого подхода три поля: вес, как его считать и повторы. «Общий вес» — штанга или тренажёр целиком. «На сторону» — вес одной гантели, в объём он входит дважды. Удаление подхода меняет только план.</p>
-          <div className="setEditors">{logicalSets.map((logicalSet) => <div className="segmentEditor" key={logicalSet.key}><div className="segmentHeading"><strong>{logicalSet.label}</strong><button type="button" className="secondary dangerButton" onClick={() => removeLogicalSet(exercise.id, logicalSet.key, exercise.name, logicalSets.length <= 1)}>Удалить подход</button></div>{logicalSet.sets.map((set) => <div className="setPart" key={set.id}>{(set.component === "compound-a" || set.component === "compound-b") && <span className="muted">{set.component === "compound-a" ? "Часть A" : "Часть B"}</span>}<label>Вес<SettingsInput numeric="weight" value={set.weightKg} onCommit={(value) => editSet(exercise.id, set.id, "weightKg", value)} /></label><label>Режим<AppSelect value={set.weightMode ?? ""} onChange={(value) => editSet(exercise.id, set.id, "weightMode", value)}><option value="">Уточнить</option><option value="total">Общий вес</option><option value="per-hand">На сторону / гантель</option></AppSelect></label><label>Повторы<SettingsInput numeric="reps" value={set.reps} onCommit={(value) => editSet(exercise.id, set.id, "reps", value)} /></label></div>)}</div>)}</div>
-          <div className="setEditorActions"><button className="secondary" onClick={() => addSet(exercise.id)}>Добавить подход</button>{paired ? <button className="secondary" onClick={() => splitCompound(exercise.id)}>Разделить пары</button> : exercise.sets.length >= 2 && exercise.sets.length % 2 === 0 && <button className="secondary" onClick={() => makeCompound(exercise.id)}>Сделать парами A/B</button>}</div>
-          {paired && <p className="fieldHint muted">Сейчас подходы идут парами: сначала часть A, затем часть B. Отдых начинается после обеих.</p>}
-          {!paired && exercise.sets.length >= 2 && exercise.sets.length % 2 === 0 && <p className="fieldHint muted">«Сделать парами A/B» объединит соседние подходы. Потом их можно снова разделить.</p>}
-          <label>Отдых<AppSelect value={exercise.restSec ?? 180} onChange={(value) => editExercise(exercise.id, "restSec", value)}><option value="180">180 сек</option><option value="240">240 сек</option></AppSelect></label>
-          <div className="exerciseToolbar">{([-1, 1] as const).map((direction) => <button key={direction} type="button" className="secondary" aria-label={direction === -1 ? "Переместить выше" : "Переместить ниже"} disabled={template.exercises.indexOf(exercise) + direction < 0 || template.exercises.indexOf(exercise) + direction >= template.exercises.length} onClick={() => update((previous) => ({ ...previous, workoutTemplates: previous.workoutTemplates?.map((p) => { if (p.id !== template.id) return p; const list = [...p.exercises]; const index = list.findIndex((e) => e.id === exercise.id); [list[index], list[index + direction]] = [list[index + direction], list[index]]; return { ...p, exercises: list }; }) }))}>{direction === -1 ? <ArrowUp size={18} /> : <ArrowDown size={18} />}{direction === -1 ? "Выше" : "Ниже"}</button>)}<button type="button" className="secondary dangerButton" onClick={() => removeExercise(exercise.id, exercise.name)}><Trash2 size={17} /> Удалить упражнение</button></div>
+          <div className="twoCols"><label>Режим<AppSelect value={mixed ? "mixed" : [...modes][0] ?? ""} onChange={(value) => setExerciseMode(exercise.id, value)}><option value="">Уточнить</option><option value="total">Общий вес</option><option value="per-hand">На сторону</option>{mixed && <option value="mixed" disabled>Разный</option>}</AppSelect></label>
+          <label>Отдых<AppSelect value={exercise.restSec ?? 180} onChange={(value) => editExercise(exercise.id, "restSec", value)}><option value="180">180 сек</option><option value="240">240 сек</option></AppSelect></label></div>
+          <p className="fieldHint muted">«Общий вес» — штанга или тренажёр целиком. «На сторону» — вес одной гантели, в объём входит дважды.</p>
+          <div className="setEditors">{logicalSets.map((logicalSet, setNumber) => <div className="segmentEditor" key={logicalSet.key}>{logicalSet.sets.map((set, partIndex) => {
+            const caption = (text: string) => <span className={setNumber === 0 && partIndex === 0 ? undefined : "srOnly"}>{text}</span>;
+            const part = set.component === "compound-a" ? "A" : set.component === "compound-b" ? "B" : "";
+            return <div className={`setPart${mixed ? " withMode" : ""}`} key={set.id}>
+              <span className="setNo" aria-hidden="true">{partIndex === 0 || part ? `${setNumber + 1}${part}` : ""}</span>
+              <label>{caption("Вес")}<SettingsInput numeric="weight" placeholder="кг" value={set.weightKg} onCommit={(value) => editSet(exercise.id, set.id, "weightKg", value)} /></label>
+              <label>{caption("Повторы")}<SettingsInput numeric="reps" placeholder="раз" value={set.reps} onCommit={(value) => editSet(exercise.id, set.id, "reps", value)} /></label>
+              {partIndex === 0 ? <button type="button" className="iconButton dangerButton" aria-label={`Удалить подход ${setNumber + 1}`} title="Удалить подход" onClick={() => removeLogicalSet(exercise.id, logicalSet.key, exercise.name, logicalSets.length <= 1)}><Trash2 size={18} /></button> : <span />}
+              {mixed && <label className="setMode">{caption("Режим")}<AppSelect value={set.weightMode ?? ""} onChange={(value) => editSet(exercise.id, set.id, "weightMode", value)}><option value="">Уточнить</option><option value="total">Общий вес</option><option value="per-hand">На сторону</option></AppSelect></label>}
+            </div>;
+          })}</div>)}</div>
+          <div className="setEditorActions"><button className="secondary" onClick={() => addSet(exercise.id)}><Plus size={17} /> Подход</button>{paired ? <button className="secondary" onClick={() => splitCompound(exercise.id)}>Разделить пары</button> : exercise.sets.length >= 2 && exercise.sets.length % 2 === 0 && <button className="secondary" title="Соседние подходы станут парой: часть A, затем часть B, отдых после обеих" onClick={() => makeCompound(exercise.id)}>Сделать парами A/B</button>}</div>
+          {paired && <p className="fieldHint muted">Подходы идут парами: сначала часть A, затем часть B. Отдых — после обеих.</p>}
+          <div className="exerciseToolbar"><button type="button" className="iconButton" aria-label="Переместить выше" title="Выше" disabled={exerciseIndex === 0} onClick={() => moveExercise(-1)}><ArrowUp size={18} /></button><button type="button" className="iconButton" aria-label="Переместить ниже" title="Ниже" disabled={lastExercise} onClick={() => moveExercise(1)}><ArrowDown size={18} /></button><button type="button" className="secondary dangerButton" onClick={() => removeExercise(exercise.id, exercise.name)}><Trash2 size={17} /> Удалить упражнение</button></div>
         </div></details>;
       })}
     </section>

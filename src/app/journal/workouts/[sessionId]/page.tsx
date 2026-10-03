@@ -21,9 +21,9 @@ function parseDraft(draft: SetDraft): Pick<ExerciseSet, "weightKg" | "reps" | "w
 }
 function SetFields({ draft, change }: { draft: SetDraft; change: (patch: Partial<SetDraft>) => void }) {
   return <>
-    <div className="setPart"><label>Фактический вес, кг<input type="text" inputMode="decimal" autoComplete="off" maxLength={20} value={draft.weight} onChange={(event) => change({ weight: event.target.value })} /></label><label>Учёт веса<AppSelect value={draft.mode} onChange={(value) => change({ mode: value as SetDraft["mode"] })}><option value="">Неизвестно</option><option value="total">Общий вес</option><option value="per-hand">На сторону / одна гантель</option></AppSelect></label><label>Фактические повторы<input type="text" inputMode="numeric" autoComplete="off" maxLength={4} value={draft.reps} onChange={(event) => change({ reps: event.target.value })} /></label></div>
-    <label className="checkLabel" style={{ display: "flex", alignItems: "center", gap: 10, margin: "12px 0" }}><input type="checkbox" checked={draft.completed} onChange={(event) => change({ completed: event.target.checked })} />Подход выполнен</label>
-    <label style={{ display: "grid", gap: 8 }}>Заметка<input maxLength={4000} value={draft.note} onChange={(event) => change({ note: event.target.value })} /></label>
+    <div className="setPart"><label>Фактический вес, кг<input type="text" inputMode="decimal" autoComplete="off" maxLength={20} value={draft.weight} onChange={(event) => change({ weight: event.target.value })} /></label><label>Фактические повторы<input type="text" inputMode="numeric" autoComplete="off" maxLength={4} value={draft.reps} onChange={(event) => change({ reps: event.target.value })} /></label><label>Учёт веса<AppSelect value={draft.mode} onChange={(value) => change({ mode: value as SetDraft["mode"] })}><option value="">Неизвестно</option><option value="total">Общий вес</option><option value="per-hand">На сторону / одна гантель</option></AppSelect></label></div>
+    <label className="checkLabel"><input type="checkbox" checked={draft.completed} onChange={(event) => change({ completed: event.target.checked })} />Подход выполнен</label>
+    <label>Заметка<input maxLength={4000} value={draft.note} onChange={(event) => change({ note: event.target.value })} /></label>
   </>;
 }
 
@@ -128,18 +128,18 @@ export default function JournalWorkoutPage({ params }: { params: Promise<{ sessi
     <header className="pageHeader"><div><p className="eyebrow">{formatLocalDate(workout.date)}</p><h1 style={{ overflowWrap: "anywhere" }}>{workout.title}</h1></div><div className="headerActions"><strong>{totals.volumeKg.toLocaleString("ru-RU")} кг</strong><Link className="iconButton" href="/settings" aria-label="Настройки"><Settings2 size={20} /></Link></div></header>
     {totals.unscoredSets > 0 && <p className="muted">Объём не считает {totals.unscoredSets} {russianWord(totals.unscoredSets, "подход", "подхода", "подходов")}: нет веса, повторов или способа учёта.</p>}
     {storageError && <p className="storageMessage" role="alert">{storageError}</p>}{message && <p className="storageMessage" role="status">{message}</p>}
-    {workout.exercises.map((exercise) => <section className="settingsEditor" key={exercise.id}>
-      <div className="sectionHeading"><h2 style={{ overflowWrap: "anywhere" }}>{exercise.name}</h2><span>{exercise.sets.filter((set) => set.completed).length}/{exercise.sets.length}</span></div>
+    {workout.exercises.map((exercise, exerciseIndex) => <details className="settingsEditor historyExercise" key={exercise.id} open={exerciseIndex === 0 || exercise.sets.some((set) => set.completed)}>
+      <summary><h2>{exercise.name}</h2><span>{exercise.sets.filter((set) => set.completed).length}/{exercise.sets.length}</span></summary>
       {exercise.sets.map((set, index) => {
         const key = keyOf(exercise.id, set.id); const draft = drafts[key] ?? draftOf(set);
-        return <form className="historySet segmentEditor" style={{ gridTemplateColumns: "minmax(0, 1fr)" }} key={set.id} onSubmit={(event) => saveSet(event, exercise.id, set.id)} aria-label={`${exercise.name}, подход ${index + 1}`}>
+        return <form className="historySet" key={set.id} onSubmit={(event) => saveSet(event, exercise.id, set.id)} aria-label={`${exercise.name}, подход ${index + 1}`}>
           <h3>Подход {index + 1}{set.component === "compound-a" ? " · первая часть" : set.component === "compound-b" ? " · вторая часть" : ""}</h3>
           <SetFields draft={draft} change={(patch) => setDrafts((previous) => ({ ...previous, [key]: { ...(previous[key] ?? draftOf(set)), ...patch } }))} />
-          <div className="settingsActions"><button className="secondary" type="submit" disabled={!drafts[key]}><Save size={17} />Сохранить исправление</button>{drafts[key] && <button className="secondary" type="button" onClick={() => clearDraft(key)}><Undo2 size={17} />Отменить правки</button>}<button className="secondary dangerButton" type="button" onClick={() => removeSet(exercise.id, set.id, index)}><Trash2 size={17} />Удалить подход</button></div>
+          <div className="settingsActions"><button className="secondary" type="submit" disabled={!drafts[key]}><Save size={17} />Сохранить исправление</button>{drafts[key] && <button className="secondary" type="button" onClick={() => clearDraft(key)}><Undo2 size={17} />Отменить правки</button>}<button className="iconButton dangerButton" type="button" aria-label="Удалить подход" title="Удалить подход" onClick={() => removeSet(exercise.id, set.id, index)}><Trash2 size={18} /></button></div>
         </form>;
       })}
       <div className="settingsActions"><button className="secondary" onClick={() => beginAddition(exercise.id)}><Plus size={18} />Добавить записанный подход</button><button className="secondary dangerButton" type="button" onClick={() => removeExercise(exercise.id, exercise.name)}><Trash2 size={17} />Удалить упражнение</button></div>
-    </section>)}
+    </details>)}
     <div className="settingsActions"><button className="secondary" onClick={() => beginAddition()}><Plus size={18} />Добавить упражнение в историю</button><button className="secondary dangerButton" type="button" onClick={removeWorkout}><Trash2 size={17} />Удалить тренировку</button></div>
     {addition && <form ref={additionForm} className="settingsEditor" onSubmit={saveAddition} aria-label="Добавление записи в историю">
       <div className="sectionHeading"><h2>{addition.newExercise ? "Записанное упражнение" : workout.exercises.find((e) => e.id === addition.exerciseId)?.name}</h2><button type="button" className="iconButton" aria-label="Отменить добавление" title="Отменить добавление" onClick={() => setAddition(undefined)}><X size={18} /></button></div>

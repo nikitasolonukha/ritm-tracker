@@ -187,7 +187,10 @@ button.dayCapsule { display: grid; width: 100%; min-width: 0; min-height: 64px; 
 .summaryMetrics span { color: var(--muted); font-size: 13px; }
 .historyCard h2 { margin: 2px 0; font-size: 17px; }
 .historyCard p, .historyCard span { margin: 0; color: var(--muted); font-size: 14px; }
-.historySet { display: grid; gap: 12px; padding: 14px 0; border-top: 1px solid var(--line); }
+.historySet { display: grid; gap: 12px; padding: 16px 0; border-top: 1px solid var(--line); }
+.historySet .settingsActions { margin: 0; }
+.historySet .settingsActions > button { flex: 1 1 auto; }
+.historySet .checkLabel { margin: 0; }
 .historySet h3 { margin: 0; }
 .historySet .setPart { margin-top: 0; }
 
@@ -212,11 +215,15 @@ button.dayCapsule { display: grid; width: 100%; min-width: 0; min-height: 64px; 
 .setEditors { display: grid; gap: 8px; }
 .segmentEditor { display: grid; gap: 6px; }
 .segmentHeading { display: none; }
-.setPart { display: grid; grid-template-columns: 28px minmax(0, 1fr) minmax(0, 1fr) 44px; gap: 8px; align-items: end; }
-.setPart.withMode { grid-template-columns: 28px minmax(0, 1fr) minmax(0, 1fr) 44px; }
+.setPart { display: grid; gap: 8px; align-items: end; }
+.setEditors .setPart { grid-template-columns: 28px minmax(0, 1fr) minmax(0, 1fr) 44px; }
 .setPart .setNo { display: grid; height: 48px; place-items: center; color: var(--muted); font-size: 14px; font-weight: 600; }
 .setPart .setMode { grid-column: 2 / 4; }
-.setPart > .iconButton { grid-column: 4; }
+.setEditors .setPart > .iconButton { grid-column: 4; }
+.historySet .setPart, .importExercise .setPart { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.historySet .setPart > :nth-child(3) { grid-column: 1 / -1; }
+.importExercise .setPart { grid-template-columns: 28px repeat(2, minmax(0, 1fr)); }
+.importExercise .setPart > :nth-child(4), .importExercise .setPart > p { grid-column: 2 / 4; margin: 0; }
 .setEditorActions { display: flex; flex-wrap: wrap; gap: 8px; }
 .exerciseToolbar { display: flex; gap: 8px; }
 .exerciseToolbar .dangerButton { margin-left: auto; }
@@ -276,3 +283,10 @@ button.dayCapsule { display: grid; width: 100%; min-width: 0; min-height: 64px; 
 }
 .templateStats b { color: var(--text); font-weight: 600; }
 .templateStats em { font-style: normal; }
+.historyExercise > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 8px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.historyExercise > summary h2 { overflow-wrap: anywhere; }
+.historyExercise > summary span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.historySet .settingsActions > .iconButton { flex: 0 0 44px; }
+.historyExercise > summary::-webkit-details-marker { display: none; }
+.historyExercise > summary::after { content: ""; width: 8px; height: 8px; margin-left: 4px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); transition: transform 120ms; }
+.historyExercise[open] > summary::after { transform: rotate(-135deg); }

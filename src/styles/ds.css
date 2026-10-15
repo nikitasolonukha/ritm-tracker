@@ -322,3 +322,10 @@
 
 /* Подтверждение всегда поверх листов (лист правки подхода открыт, пока спрашиваем про удаление) */
 .dialogBackdrop { z-index: 80; }
+
+/* Карточка-форма */
+.formCard { display: grid; gap: var(--s-4); margin-top: var(--s-4); padding: var(--s-4); border-radius: var(--r); background: var(--card-sheen), var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.formCard > h2, .formCard .sectionHeading { margin: 0; }
+.formCard label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 600; }
+.formCard .btn.photoUpload { display: inline-flex; }
+.formCard .photoGrid:empty { display: none; }

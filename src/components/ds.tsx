@@ -43,7 +43,10 @@ const sectionTabs = [
 
 /** Разделы «Прогресса»: одна полоса вкладок на все четыре экрана. */
 export function ProgressTabs({ active }: { active: (typeof sectionTabs)[number]["id"] }) {
-  return <nav className="seg progressTabs" aria-label="Разделы прогресса">{sectionTabs.map((tab) => <Link key={tab.id} href={tab.href} aria-current={tab.id === active ? "page" : undefined}>{tab.label}</Link>)}</nav>;
+  const bar = useRef<HTMLElement>(null);
+  // Если вкладки не помещаются, активная остаётся на виду.
+  useEffect(() => { bar.current?.querySelector<HTMLElement>("[aria-current='page']")?.scrollIntoView({ inline: "center", block: "nearest" }); }, [active]);
+  return <nav ref={bar} className="progressTabs" aria-label="Разделы прогресса">{sectionTabs.map((tab) => <Link key={tab.id} href={tab.href} aria-current={tab.id === active ? "page" : undefined}>{tab.label}</Link>)}</nav>;
 }
 
 export function Chip({ pressed, onClick, children }: { pressed: boolean; onClick: () => void; children: ReactNode }) {

@@ -194,3 +194,28 @@ test("merged limits are checked, not only each independently valid file", () => 
   current.habits = Array.from({ length: 100 }, (_, n) => ({ id: `old-${n}`, title: "Fixture", type: "habit" as const, schedule: "" }));
   assert.throws(() => mergeBackup(current, parsed(incoming), "account-a"), /лимиты/);
 });
+
+test("data written by the newer app (pairs, extra sets, custom rest, backfilled marks, creation date) survives a backup round trip", () => {
+  const state = fixture();
+  const row = { id: "row", name: "Тяга одной рукой", restSec: 90, sets: [
+    { id: "a1", weightKg: 20, reps: 10, completed: true, weightMode: "total" as const, component: "compound-a" as const, segmentId: "pair-1" },
+    { id: "b1", weightKg: 20, reps: 9, completed: true, weightMode: "total" as const, component: "compound-b" as const, segmentId: "pair-1" },
+    { id: "w-row-extra-x-0", weightKg: 20, reps: 8, completed: true, weightMode: "total" as const, component: "compound-a" as const, segmentId: "pair-extra-x" },
+    { id: "w-row-extra-x-1", weightKg: 20, reps: 8, completed: true, weightMode: "total" as const, component: "compound-b" as const, segmentId: "pair-extra-x" },
+  ] };
+  const next = {
+    ...state,
+    habits: [{ ...state.habits[0], createdAt: "2026-09-20" }],
+    completions: [{ ...state.completions[0], backfilled: true }],
+    workouts: [{ ...state.workouts[0], exercises: [...state.workouts[0].exercises, row] }],
+  } as SessionTrackerState;
+  const document = createBackupDocument(next, "account-a", instant);
+  const restored = parseBackup(JSON.stringify(document));
+  assert.equal(restored.state.workouts[0].exercises[1].restSec, 90);
+  assert.equal(restored.state.workouts[0].exercises[1].sets.length, 4);
+  assert.equal(restored.state.habits[0].createdAt, "2026-09-20");
+  assert.equal(restored.state.completions[0].backfilled, true);
+  assert.throws(() => parsed({ ...next, workouts: [{ ...next.workouts[0], exercises: [{ ...row, restSec: 5000 }] }] }), /Структура/);
+  const merged = mergeBackup(fixture(), restored, "account-b");
+  assert.ok(merged.workouts.some((w) => w.exercises.some((e) => e.id === "row")));
+});

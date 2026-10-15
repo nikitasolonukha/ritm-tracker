@@ -201,3 +201,22 @@ test("the rest ends with a vibration and two beeps once, and the signal can be s
   await page.getByRole("button", { name: "Меню тренировки" }).click();
   await expect(page.getByRole("button", { name: /^Сигнал после отдыха: выключен/ })).toBeVisible();
 });
+
+test("the screen is kept awake during a workout and released afterwards", async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __locks: number; __released: number };
+    w.__locks = 0;
+    w.__released = 0;
+    Object.defineProperty(navigator, "wakeLock", {
+      configurable: true,
+      value: { request: async () => { w.__locks += 1; return { release: async () => { w.__released += 1; }, addEventListener() {} }; } },
+    });
+  });
+  await startFromToday(page);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __locks: number }).__locks)).toBe(1);
+  await page.getByRole("button", { name: "Меню тренировки" }).click();
+  await page.getByRole("button", { name: /^Отменить тренировку/ }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Отменить тренировку", exact: true }).click();
+  await expect(page).toHaveURL(/\/workouts$/);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __released: number }).__released)).toBeGreaterThanOrEqual(1);
+});

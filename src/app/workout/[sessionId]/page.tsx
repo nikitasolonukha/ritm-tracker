@@ -8,6 +8,7 @@ import { Button, Chip, IconButton, Segmented, Sheet, Stepper } from "@/component
 import { useTrackerState } from "@/components/tracker-state";
 import { ExercisePhoto } from "@/components/exercise-photo";
 import { useRestAlert } from "@/components/use-rest-alert";
+import { useWakeLock } from "@/components/use-wake-lock";
 import { Notice, useConfirm } from "@/components/ui";
 import { formatSets, lastPerformance } from "@/lib/exercises";
 import { createRestTimerCommand, formatLocalDate, restoreRestTimer, visibleCopy, type Exercise, type ExerciseSet } from "@/lib/tracker";
@@ -101,6 +102,7 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
   const sessionState = state as SessionTrackerState | null;
   const alertTimer = sessionState?.activeTimer;
   const { soundOn, setSoundOn, unlock } = useRestAlert(alertTimer ? `${alertTimer.sourceId}:${alertTimer.version}` : undefined, Boolean(alertTimer && restoreRestTimer(alertTimer, now).expired));
+  useWakeLock(Boolean(sessionState?.workoutSessions?.some((item) => item.id === routeSessionId && item.status === "active")));
   const session = sessionState?.workoutSessions?.find((item) => item.id === routeSessionId);
   const workout = session && sessionState?.workouts.find((item) => item.id === session.workoutId);
   const exercise: Exercise | undefined = workout ? workout.exercises[session!.activeExerciseIndex] ?? workout.exercises[0] : undefined;

@@ -287,3 +287,18 @@ test("a habit created today does not appear in earlier days", () => {
   assert.deepEqual(habitsForDate(habits, "2026-10-09").map((h) => h.id), ["old"]);
   assert.deepEqual(habitsForDate(habits, "2026-10-10").map((h) => h.id), ["old", "new"]);
 });
+
+test("the sync validator accepts everything the current app writes", () => {
+  const state = createInitialState("2026-10-16");
+  const withNew = {
+    ...state,
+    habits: [{ id: "h", title: "Привычка", type: "habit", schedule: "", createdAt: "2026-10-01", reminderEnabled: true, afterHabitId: undefined, delayMinutes: 90 }],
+    completions: [{ id: "c", habitId: "h", localDate: "2026-10-15", completedAt: "2026-10-15T09:00:00.000Z", source: "web", outcome: "completed", backfilled: true }],
+    workouts: [{ id: "w", date: "2026-10-16", title: "T", exercises: [{ id: "e", name: "Тяга одной рукой", restSec: 90, sets: [
+      { id: "a", weightKg: 20, reps: 10, completed: true, weightMode: "total", component: "compound-a", segmentId: "pair-extra-1" },
+      { id: "b", weightKg: 20, reps: 9, completed: true, weightMode: "total", component: "compound-b", segmentId: "pair-extra-1" },
+    ] }] }],
+  };
+  assert.equal(isTrackerPayload(withNew), true);
+  assert.equal(isTrackerPayload({ ...withNew, habits: [{ ...withNew.habits[0], title: "" }] }), false);
+});

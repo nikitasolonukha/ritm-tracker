@@ -168,6 +168,14 @@ export function commitDraftValue(raw: string | undefined, field: "weight" | "rep
   return value == null ? { status: "invalid" } : { status: "valid", value };
 }
 
+/**
+ * Единый ключ «логического подхода». Пара A/B (`compound-a`, `compound-b`) — один подход из двух частей,
+ * обычный подход — сам по себе. Ключ не зависит ни от веса, ни от повторов.
+ */
+export function logicalSetKey(set: Pick<ExerciseSet, "segmentId" | "component">, index: number): string {
+  return set.segmentId ?? (set.component && set.component !== "single" ? `pair-${Math.floor(index / 2)}` : `set-${index}`);
+}
+
 export function calculateExerciseVolume(sets: ExerciseSet[]): number {
   return sets.reduce((sum, set) => {
     if (!set.completed || set.weightKg == null || set.reps == null) {
@@ -182,15 +190,18 @@ export function calculateExerciseVolume(sets: ExerciseSet[]): number {
 
 export function calculateWorkoutTotals(workout: Workout | undefined) {
   let completedSets = 0;
+  let completedLogicalSets = 0;
   let unscoredSets = 0;
   let volumeKg = 0;
 
-  if (!workout) return { completedSets: 0, exercises: 0, unscoredSets: 0, volumeKg: 0 };
+  if (!workout) return { completedSets: 0, completedLogicalSets: 0, exercises: 0, unscoredSets: 0, volumeKg: 0 };
 
   for (const exercise of workout.exercises) {
-    for (const set of exercise.sets) {
+    const logicalDone = new Set<string>();
+    for (const [index, set] of exercise.sets.entries()) {
       if (!set.completed) continue;
       completedSets += 1;
+      logicalDone.add(logicalSetKey(set, index));
 
       if (set.weightKg == null || set.reps == null || (set.weightMode !== "total" && set.weightMode !== "per-hand")) {
         unscoredSets += 1;
@@ -199,10 +210,12 @@ export function calculateWorkoutTotals(workout: Workout | undefined) {
 
       volumeKg += calculateExerciseVolume([set]);
     }
+    completedLogicalSets += logicalDone.size;
   }
 
   return {
     completedSets,
+    completedLogicalSets,
     exercises: workout.exercises.filter((exercise) => exercise.sets.some((set) => set.completed)).length,
     unscoredSets,
     volumeKg,
@@ -271,19 +284,18 @@ export function completeWorkoutSet(
   commandId: string,
   nowIso: string,
 ): WorkoutSessionState {
-  if (state.commands.some((command) => command.id === commandId || command.entityId === `${state.workout.id}:${exerciseId}:${setId}`)) {
-    return state;
-  }
-
+  const entityId = `${state.workout.id}:${exerciseId}:${setId}`;
   const exercise = state.workout.exercises.find((item) => item.id === exerciseId);
   const target = exercise?.sets.find((set) => set.id === setId);
   if (!exercise || !target || target.completed) return state;
+  // A command without a completed set is stale (the set was reopened in the journal): record it again instead of getting stuck.
+  const staleCommands = state.commands.filter((command) => command.id === commandId || command.entityId === entityId);
 
   const restSec = exercise.restSec ?? (exercise.category === "working" && /груд|жим|спин|тя|блок/i.test(exercise.name) ? 240 : 180);
   const command: WorkoutCommand = {
     id: commandId,
     type: "workout.set.completed",
-    entityId: `${state.workout.id}:${exerciseId}:${setId}`,
+    entityId,
     payload: { exerciseId, setId, workoutId: state.workout.id },
     createdAt: nowIso,
     version: 1,
@@ -298,17 +310,14 @@ export function completeWorkoutSet(
     }),
   };
   const targetIndex = exercise.sets.findIndex((set) => set.id === setId);
-  const segmentKey = target.segmentId ?? (targetIndex >= 0 ? `pair-${Math.floor(targetIndex / 2)}` : "unknown");
+  const segmentKey = logicalSetKey(target, targetIndex);
   const pairedIncomplete = target.component === "compound-a" || target.component === "compound-b"
-    ? exercise.sets.some((set, index) => {
-      const key = set.segmentId ?? `pair-${Math.floor(index / 2)}`;
-      return key === segmentKey && set.component !== target.component && !set.completed;
-    })
+    ? exercise.sets.some((set, index) => logicalSetKey(set, index) === segmentKey && set.component !== target.component && !set.completed)
     : false;
 
   return {
     workout: nextWorkout,
-    commands: [...state.commands, command],
+    commands: [...state.commands.filter((item) => !staleCommands.includes(item)), command],
     activeTimer: pairedIncomplete ? state.activeTimer : {
       sourceId: command.entityId,
       startedAt: nowIso,

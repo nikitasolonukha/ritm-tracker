@@ -76,11 +76,11 @@ export function correctHistoricalSet(state: SessionTrackerState, workoutId: stri
   };
 }
 
-export function startWorkoutSession(state: SessionTrackerState, templateId: string, now = new Date()): { state: SessionTrackerState; sessionId: string } | null {
+export function startWorkoutSession(state: SessionTrackerState, templateId: string, now = new Date()): { state: SessionTrackerState; sessionId: string; resumed?: boolean } | null {
   const template = state.workoutTemplates?.find((item) => item.id === templateId) ?? state.workouts.find((item) => item.id === templateId);
   if (!template || !template.exercises.length || template.exercises.some((e) => !e.sets.length)) return null;
   const existing = state.workoutSessions?.find((item) => item.status === "active");
-  if (existing) return { state: { ...state, activeSessionId: existing.id }, sessionId: existing.id };
+  if (existing) return { state: { ...state, activeSessionId: existing.id }, sessionId: existing.id, resumed: true };
   const suffix = globalThis.crypto?.randomUUID?.() ?? `${now.getTime()}-${state.workouts.length}`;
   const sessionId = `session-${suffix}`;
   const workoutId = `workout-${sessionId}`;

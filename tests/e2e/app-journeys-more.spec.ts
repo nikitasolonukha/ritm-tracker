@@ -168,3 +168,36 @@ test("data tab: the journal downloads as CSV and the backup as JSON", async ({ p
   expect(text.startsWith("﻿Дата;Тренировка;Упражнение;Подход")).toBe(true);
   expect(text.split("\r\n").length).toBeGreaterThan(2);
 });
+
+test("the rest ends with a vibration and two beeps once, and the signal can be switched off", async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __vibrations: number; __beeps: number; AudioContext: unknown };
+    w.__vibrations = 0;
+    w.__beeps = 0;
+    Object.defineProperty(navigator, "vibrate", { value: () => { w.__vibrations += 1; return true; }, configurable: true });
+    w.AudioContext = class {
+      currentTime = 0;
+      destination = {};
+      resume() { return Promise.resolve(); }
+      createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect: (target: unknown) => target }; }
+      createOscillator() { w.__beeps += 1; return { type: "", frequency: { value: 0 }, connect: (target: unknown) => target, start() {}, stop() {} }; }
+    };
+  });
+  await page.clock.install();
+  await startFromToday(page);
+  await page.locator(".repsControl input").first().fill("8");
+  await page.getByRole("button", { name: /^Записать/ }).click();
+  await expect(page.locator(".restState")).toBeVisible();
+  await page.clock.runFor(5 * 60 * 1000);
+  await expect(page.locator(".restState")).toHaveCount(0);
+  const counts = await page.evaluate(() => { const w = window as unknown as { __vibrations: number; __beeps: number }; return { v: w.__vibrations, b: w.__beeps }; });
+  expect(counts).toEqual({ v: 1, b: 2 });
+
+  await page.getByRole("button", { name: "Меню тренировки" }).click();
+  await page.getByRole("button", { name: /^Сигнал после отдыха: включён/ }).click();
+  await expect(page.getByRole("button", { name: /^Сигнал после отдыха: выключен/ })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.reload();
+  await page.getByRole("button", { name: "Меню тренировки" }).click();
+  await expect(page.getByRole("button", { name: /^Сигнал после отдыха: выключен/ })).toBeVisible();
+});

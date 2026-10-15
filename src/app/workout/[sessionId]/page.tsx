@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, ChevronRight, Clock, History, MoreHorizontal, Play, Plus, SkipForward, Square, XCircle } from "lucide-react";
+import { ArrowLeft, Bell, BellOff, Check, ChevronRight, Clock, History, MoreHorizontal, Play, Plus, SkipForward, Square, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button, Chip, IconButton, Segmented, Sheet, Stepper } from "@/components/ds";
 import { useTrackerState } from "@/components/tracker-state";
 import { ExercisePhoto } from "@/components/exercise-photo";
+import { useRestAlert } from "@/components/use-rest-alert";
 import { Notice, useConfirm } from "@/components/ui";
 import { formatSets, lastPerformance } from "@/lib/exercises";
 import { createRestTimerCommand, formatLocalDate, restoreRestTimer, visibleCopy, type Exercise, type ExerciseSet } from "@/lib/tracker";
@@ -98,6 +99,8 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
   useEffect(() => { const id = window.setInterval(() => setNow(new Date().toISOString()), 1000); return () => window.clearInterval(id); }, []);
 
   const sessionState = state as SessionTrackerState | null;
+  const alertTimer = sessionState?.activeTimer;
+  const { soundOn, setSoundOn, unlock } = useRestAlert(alertTimer ? `${alertTimer.sourceId}:${alertTimer.version}` : undefined, Boolean(alertTimer && restoreRestTimer(alertTimer, now).expired));
   const session = sessionState?.workoutSessions?.find((item) => item.id === routeSessionId);
   const workout = session && sessionState?.workouts.find((item) => item.id === session.workoutId);
   const exercise: Exercise | undefined = workout ? workout.exercises[session!.activeExerciseIndex] ?? workout.exercises[0] : undefined;
@@ -177,6 +180,7 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
 
   const record = () => {
     if (!current) return;
+    unlock();
     const entries: Array<{ setId: string; reps: number }> = [];
     for (const part of current.parts) {
       if (part.set.completed) continue;
@@ -311,6 +315,7 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
     </div>
     <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title="Тренировка">
       <ul className="menuList">
+        <li><button type="button" className="menuItem" onClick={() => setSoundOn(!soundOn)} aria-pressed={soundOn}>{soundOn ? <Bell size={20} /> : <BellOff size={20} />}<span>Сигнал после отдыха: {soundOn ? "включён" : "выключен"}<small>Звук и вибрация, пока экран открыт</small></span></button></li>
         <li><button type="button" className="menuItem" onClick={addSet}><Plus size={20} /><span>Добавить подход<small>Ещё один подход в это упражнение</small></span></button></li>
         <li><button type="button" className="menuItem" onClick={askFinish}><Play size={20} /><span>Завершить досрочно<small>Невыполненные подходы не попадут в итог</small></span></button></li>
         <li><button type="button" className="menuItem danger" onClick={() => void cancel()}><XCircle size={20} /><span>Отменить тренировку<small>Подходы останутся в «Отменённых»</small></span></button></li>

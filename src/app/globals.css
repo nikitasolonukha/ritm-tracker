@@ -95,11 +95,10 @@ input, select, textarea { width: 100%; min-width: 0; min-height: 48px; padding: 
 textarea { min-height: 160px; padding: 12px 14px; resize: vertical; line-height: 1.45; }
 input[type="checkbox"], input[type="radio"] { width: 20px; min-height: 20px; height: 20px; margin: 0; accent-color: var(--accent); }
 select { appearance: none; color-scheme: dark; padding-right: 40px; background-color: var(--surface-2); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238f95a3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
-.fieldLabel, .settingsEditor label, .settingExercise label, .authForm label, .weightEditor label, .repsField, .observationEditor label, .formGrid label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 600; }
-.checkLabel, .weightScope label, .weekdayPicker label { display: flex !important; align-items: center; gap: 8px; }
+.fieldLabel, .settingsEditor label, .settingExercise label, .authForm label, .observationEditor label, .formGrid label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 600; }
+.checkLabel, .weekdayPicker label { display: flex !important; align-items: center; gap: 8px; }
 .fieldError { margin: 6px 0 0; color: var(--warning); font-size: 14px; }
 .fieldHint { margin: 0; font-size: 13px; }
-.storageMessage { margin: 0 0 12px; padding: 12px 14px; border: 1px solid rgba(245, 192, 101, 0.4); border-radius: var(--r); color: var(--warning); background: rgba(245, 192, 101, 0.08); }
 .appSelect { position: relative; min-width: 0; }
 .appSelect.desktop > select { display: none; }
 .appSelectButton { display: flex; width: 100%; min-height: 48px; align-items: center; justify-content: space-between; gap: 12px; padding: 0 14px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface-2); color: var(--text); text-align: left; }
@@ -109,10 +108,10 @@ select { appearance: none; color-scheme: dark; padding-right: 40px; background-c
 .appSelectMenu button[aria-selected="true"] { background: var(--accent-grad); color: var(--on-accent); }
 
 /* Карточки и ссылки-карточки */
-.resumeBanner, .programCard, .historyCard, .templateExercise, .summaryHero, .panel, .goalCard, .actionCard { border-radius: var(--r); background: var(--card-sheen), var(--surface); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); text-decoration: none; }
-.resumeBanner, .programCard, .historyCard, .actionCard { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; }
+.resumeBanner, .programCard, .historyCard, .summaryHero, .panel { border-radius: var(--r); background: var(--card-sheen), var(--surface); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); text-decoration: none; }
+.resumeBanner, .programCard, .historyCard { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; }
 .resumeBanner { min-height: 64px; margin: 12px 0 0; background: linear-gradient(135deg, rgba(255, 138, 61, 0.16), rgba(255, 138, 61, 0.05)), var(--surface); box-shadow: inset 0 0 0 1px rgba(255, 138, 61, 0.45); }
-.resumeBanner small, .programCard small, .actionCard small { display: block; margin-top: 2px; color: var(--muted); font-size: 13px; }
+.resumeBanner small, .programCard small { display: block; margin-top: 2px; color: var(--muted); font-size: 13px; }
 .resumeBanner strong, .programCard h3 { font-size: 16px; font-weight: 600; }
 .resumeBanner > span { min-width: 0; flex: 1; }
 .emptyState { display: grid; justify-items: start; gap: 10px; padding: 32px 0; color: var(--muted); }
@@ -136,21 +135,6 @@ button.dayCapsule { display: grid; width: 100%; min-width: 0; min-height: 64px; 
 .dayCapsule.today { background: var(--accent-grad); box-shadow: 0 8px 20px -8px rgba(255, 122, 61, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.35); color: var(--on-accent); }
 .dayCapsule.today strong { color: var(--on-accent); }
 .dayCapsule.selected:not(.today) { box-shadow: inset 0 0 0 1.5px var(--accent); }
-.todayActions { display: grid; gap: 8px; }
-.dailyAction { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
-.dailyAction .actionCard { min-height: 64px; border: 0; text-align: left; }
-.dailyAction .actionCard > span:first-child { display: grid; min-width: 0; gap: 2px; overflow-wrap: anywhere; }
-.dailyAction .actionCard strong { font-size: 16px; font-weight: 500; }
-.dailyAction.done .actionCard { opacity: 0.65; }
-.dailyTools { display: flex; gap: 8px; }
-.checkMark { display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--muted); }
-.dailyAction.done .checkMark { border-color: var(--ok); background: var(--ok); color: #04261a; }
-.goalCard { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 20px; padding: 16px; }
-.goalCard h2 { font-size: 18px; font-weight: 600; }
-.goalCard p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
-.goalSegments { display: flex; gap: 6px; width: 96px; flex: 0 0 96px; }
-.goalSegments span { height: 8px; flex: 1; border-radius: 999px; background: var(--surface-2); }
-.goalSegments .filled { background: var(--accent-grad); }
 
 /* Список программ и шаблон */
 .programList, .templateList, .historyList { display: grid; gap: 8px; }
@@ -159,14 +143,8 @@ button.dayCapsule { display: grid; width: 100%; min-width: 0; min-height: 64px; 
 .programCard p { margin: 2px 0 0; color: var(--muted); }
 .programCard > svg { margin-left: auto; }
 .programIcon { display: grid; width: 44px; height: 44px; flex: 0 0 44px; place-items: center; border-radius: 12px; background: var(--accent-soft); color: var(--accent); }
-.templateExercise { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; }
-.templateExercise h2 { font-size: 16px; }
-.templateExercise p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
-.templateStats { display: grid; justify-items: end; gap: 2px; color: var(--muted); font-size: 14px; text-align: right; font-variant-numeric: tabular-nums; }
-.templateStats span { display: flex; align-items: center; gap: 6px; }
 .startBar { position: sticky; z-index: 5; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 8px); margin-top: 16px; }
 .startWorkout { width: 100%; box-shadow: 0 0 0 8px var(--bg); }
-.editLink { width: fit-content; margin: 0 0 12px; }
 
 /* Итог и история */
 .summaryHero { display: grid; gap: 6px; padding: 20px 16px; }
@@ -205,7 +183,6 @@ button.dayCapsule { display: grid; width: 100%; min-width: 0; min-height: 64px; 
 .weekdayPicker label { min-height: 44px; }
 .setEditors { display: grid; gap: 8px; }
 .segmentEditor { display: grid; gap: 6px; }
-.segmentHeading { display: none; }
 .setPart { display: grid; gap: 8px; align-items: end; }
 .setEditors .setPart { grid-template-columns: 28px minmax(0, 1fr) minmax(0, 1fr) var(--ctl); }
 .setPart .setNo { display: grid; height: 48px; place-items: center; color: var(--muted); font-size: 14px; font-weight: 600; }
@@ -294,17 +271,14 @@ button.dayCapsule { display: grid; width: 100%; min-width: 0; min-height: 64px; 
 /* Компьютер: боковая навигация */
 @media (min-width: 900px) {
   .shell { margin-left: 260px; width: min(calc(100% - 300px), 720px); max-width: none; padding-bottom: 48px; }
-  .authShell, .workoutMode { margin-left: auto; }
+  .authShell { margin-left: auto; }
   .appPage:has(.globalRest) { padding-bottom: 120px; }
   .bottomNav { top: 24px; right: auto; bottom: 24px; left: 24px; display: flex; width: 208px; height: auto; flex-direction: column; gap: 4px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r); }
   .bottomNav a { display: flex; min-height: 48px; align-items: center; justify-content: flex-start; gap: 12px; padding: 0 12px; border-radius: 10px; font-size: 15px; }
   .bottomNav a.active { background: var(--surface-2); }
   .globalRest { left: calc(50% + 130px); right: auto; width: min(640px, calc(100% - 320px)); bottom: 24px; transform: translateX(-50%); }
   .startBar { bottom: 16px; }
-  .weightEditor { position: static; }
 }
-.templateStats b { color: var(--text); font-weight: 600; }
-.templateStats em { font-style: normal; }
 .historyExercise > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 8px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
 .historyExercise > summary h2 { overflow-wrap: anywhere; }
 .historyExercise > summary span { color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -312,8 +286,6 @@ button.dayCapsule { display: grid; width: 100%; min-width: 0; min-height: 64px; 
 .historyExercise > summary::-webkit-details-marker { display: none; }
 .historyExercise > summary::after { content: ""; width: 8px; height: 8px; margin-left: 4px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); transition: transform 120ms; }
 .historyExercise[open] > summary::after { transform: rotate(-135deg); }
-.secondary.accentOutline { border-color: rgba(255, 138, 61, 0.55); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
-.volumeBadge { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .settingsActions > .secondary, .settingsActions > .primary { flex: 1 1 160px; }
 .panel.settingsEditor { display: grid; gap: 12px; margin-top: 12px; padding: 16px; }
 .panel.settingsEditor .sectionHeading { margin: 4px 0 0; }
@@ -339,9 +311,6 @@ button.dayCapsule { display: grid; width: 100%; min-width: 0; min-height: 64px; 
 .bar { display: flex; flex: 1; flex-direction: column; justify-content: end; align-items: center; gap: 6px; height: 100%; min-width: 0; }
 .bar span { width: 100%; border-radius: 6px 6px 3px 3px; background: var(--accent-grad); }
 .bar small { color: var(--muted); font-size: 11px; white-space: nowrap; }
-.lastTime { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
-.exercisesLink { margin-bottom: 12px; }
-.settingsTabs.tabs3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .actionSection .settingsTabs { margin-bottom: 12px; }
 .calendar { margin: 12px 0 8px; padding: 12px; border-radius: var(--r); background: var(--card-sheen), var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
 .calendarHead { display: grid; grid-template-columns: var(--ctl) 1fr var(--ctl); align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -366,15 +335,6 @@ button.dayCapsule { display: grid; width: 100%; min-width: 0; min-height: 64px; 
 .dayHabits li small { color: var(--muted); }
 .dayHabits li.done small { color: var(--ok); }
 .dayHabits li.skipped { opacity: 0.7; }
-.journalLinks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-.journalLinks .historyCard { align-items: flex-start; flex-direction: column; justify-content: space-between; gap: 6px; }
-.journalLinks .historyCard h2 { font-size: 16px; }
-.journalLinks .historyCard > svg { align-self: flex-end; }
-.streakCard { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 14px 16px; border-radius: var(--r); background: var(--card-sheen), var(--surface); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); text-decoration: none; }
-.streakCard > svg:first-child { color: var(--accent); }
-.streakCard > span { display: grid; flex: 1; gap: 2px; min-width: 0; }
-.streakCard small { color: var(--muted); font-size: 13px; }
-.streakCard > svg:last-child { color: var(--muted); }
 .reminderSettings { margin-top: 24px; }
 .reminderList { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
 .reminderList li { display: grid; gap: 10px; padding: 10px 12px; border-radius: var(--r); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }

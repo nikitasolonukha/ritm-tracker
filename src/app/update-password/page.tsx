@@ -1,6 +1,6 @@
 "use client";
 
-import { Notice } from "@/components/ui";
+import { AuthBrand, Notice } from "@/components/ui";
 import Link from "next/link";
 import { KeyRound, LogIn } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
@@ -43,7 +43,7 @@ export default function UpdatePasswordPage() {
   }
 
   return <main className="shell authShell"><section className="authPanel">
-    <h1>Ритм</h1><h2>Новый пароль</h2>
+    <AuthBrand /><h2>Новый пароль</h2>
     {!isSupabaseConfigured && <Notice tone="warning">Сервис временно не настроен.</Notice>}
     {isSupabaseConfigured && !checked && <p role="status">Проверяю ссылку…</p>}
     {checked && !ready && <Notice tone="warning">Ссылка восстановления недействительна или истекла.</Notice>}

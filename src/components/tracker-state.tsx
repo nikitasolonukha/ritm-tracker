@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
-import { backupSyncConflict, clearSyncWriteIntent, migrateState, readLegacyOffer, readOutboxAcks, readStateSafely, readSyncCheckpoint, readSyncWriteIntent, shouldShowLegacyOffer, writeLegacyOffer, writeSyncCheckpoint, writeSyncWriteIntent, writeOutboxAck, writeState, type TrackerState } from "@/lib/storage";
+import { backupSyncConflict, clearSyncWriteIntent, getStorageKey, migrateState, readLegacyOffer, readOutboxAcks, readStateSafely, readSyncCheckpoint, readSyncWriteIntent, shouldShowLegacyOffer, writeLegacyOffer, writeSyncCheckpoint, writeSyncWriteIntent, writeOutboxAck, writeState, type TrackerState } from "@/lib/storage";
 import { acknowledgeSavedHabits, confirmedSyncWrite, decideLostPutResponse, decideSyncDirection, prepareSyncPayload, syncFingerprint, type SyncWriteIntent } from "@/lib/sync";
 import { mergeBackup, previewBackup } from "@/lib/backup";
 import { setServiceWorkerAccount } from "@/lib/pwa";
@@ -13,6 +13,9 @@ type SyncConflict = { local: TrackerState; remote: TrackerState; remoteRevision:
 export type SyncStatus = "idle" | "loading" | "dirty" | "syncing" | "offline" | "conflict" | "error";
 type TrackerStore = { state: TrackerState | null; update: (mutator: (state: TrackerState) => TrackerState) => boolean; importLegacy: () => boolean; dismissLegacy: () => void; resolveSyncConflict: (choice: "local" | "remote") => boolean; retrySync: () => void; syncConflict?: SyncConflict; legacyState?: TrackerState; userId?: string; storageError?: string; syncStatus: SyncStatus };
 const TrackerContext = createContext<TrackerStore | null>(null);
+
+/** The server refused the content itself, so repeating the same request cannot help. */
+class SyncRejected extends Error {}
 
 async function request(input: string, init: RequestInit = {}) {
   const response = await fetch(input, { ...init, cache: "no-store", signal: AbortSignal.timeout(10_000) });
@@ -45,14 +48,30 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
   const debounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const acks = useRef(new Set<string>());
   const legacyAllowed = useRef(false);
+  const rejected = useRef(false);
+  const lastRaw = useRef<string | null>(null);
   useEffect(() => { if (userId && !demoMode) setServiceWorkerAccount(userId); }, [pathname, userId, demoMode]);
 
   function persist(next: TrackerState) {
     const result = writeState(next, account.current);
     if (!result.ok) { setStorageError("Не удалось сохранить на устройстве. Освободите место или экспортируйте данные."); return false; }
     current.current = next;
+    try { lastRaw.current = window.localStorage.getItem(getStorageKey(account.current)); } catch { /* the in-memory copy stays authoritative */ }
     setState(next);
     return true;
+  }
+  /** Another tab or the installed app may have written newer data: adopt it before changing anything. */
+  function refreshFromStorage() {
+    const id = account.current;
+    if (!id || !ready.current) return;
+    let raw: string | null = null;
+    try { raw = window.localStorage.getItem(getStorageKey(id)); } catch { return; }
+    if (raw === null || raw === lastRaw.current) return;
+    const loaded = readStateSafely(id);
+    if (loaded.status !== "loaded") return;
+    lastRaw.current = raw;
+    current.current = loaded.state;
+    setState(loaded.state);
   }
   function checkpoint(snapshot: TrackerState, revision: number) {
     const fingerprint = syncFingerprint(snapshot);
@@ -162,6 +181,7 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
           return;
         }
         if (put) {
+          if (put.status === 400 || put.status === 422) throw new SyncRejected("Сервер не принял эти данные. Всё сохранено на устройстве: скачайте копию в Профиле, раздел «Данные», пока причину не устранят.");
           if (!put.ok) throw new Error("Сохранение на сервере не подтверждено. Локальная копия сохранена.");
           savedRevision = (await put.json()).revision;
         }
@@ -180,7 +200,8 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
       } while (again.current && !blocked.current && alive.current);
       if (alive.current && account.current === syncAccount) { setSyncStatus("idle"); setStorageError(undefined); }
     } catch (error) {
-      if (alive.current && account.current === syncAccount) { setSyncStatus("offline"); setStorageError(error instanceof Error ? error.message : "Нет связи. Локальные данные сохранены."); }
+      if (error instanceof SyncRejected) rejected.current = true;
+      if (alive.current && account.current === syncAccount) { setSyncStatus(error instanceof SyncRejected ? "error" : "offline"); setStorageError(error instanceof Error ? error.message : "Нет связи. Локальные данные сохранены."); }
     } finally { running.current = false; }
   }
   function queueSync() {
@@ -217,13 +238,16 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
         local.state = { ...local.state, habits: [], workoutTemplates: [] };
       }
       current.current = local.state;
+      try { lastRaw.current = window.localStorage.getItem(getStorageKey(id)); } catch { /* ignore */ }
       setState(local.state);
       ready.current = true;
       setSyncStatus(demoMode ? "idle" : navigator.onLine ? "loading" : "offline");
       if (!demoMode) await sync();
     }
     void initialize().catch(() => { if (alive.current) { setSyncStatus("error"); setStorageError("Не удалось открыть аккаунт. Проверьте соединение."); } });
-    const recover = () => { if (document.visibilityState === "visible" && navigator.onLine) void sync(); };
+    const recover = () => { if (document.visibilityState === "visible" && navigator.onLine && !rejected.current) void sync(); };
+    const onStorage = (event: StorageEvent) => { if (account.current && event.key === getStorageKey(account.current)) refreshFromStorage(); };
+    window.addEventListener("storage", onStorage);
     window.addEventListener("online", recover);
     document.addEventListener("visibilitychange", recover);
     const poll = setInterval(recover, 30_000);
@@ -234,17 +258,19 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
         window.location.assign("/login");
       }
     }).data.subscription;
-    return () => { alive.current = false; ready.current = false; subscription?.unsubscribe(); clearInterval(poll); clearTimeout(debounce.current); window.removeEventListener("online", recover); document.removeEventListener("visibilitychange", recover); };
+    return () => { alive.current = false; ready.current = false; subscription?.unsubscribe(); clearInterval(poll); clearTimeout(debounce.current); window.removeEventListener("online", recover); window.removeEventListener("storage", onStorage); document.removeEventListener("visibilitychange", recover); };
   // The worker reads refs so rapid actions and recovery use the latest account snapshot.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demoMode]);
 
   function update(mutator: (state: TrackerState) => TrackerState) {
     if (!ready.current || !current.current) return false;
+    refreshFromStorage();
     const next=mutator(current.current);
     if (next===current.current) return true;
     if (!persist(next)) return false;
     empty.current = false;
+    rejected.current = false;
     if (!demoMode) { setSyncStatus(blocked.current ? "conflict" : "dirty"); queueSync(); }
     return true;
   }
@@ -281,7 +307,7 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
     queueSync();
     return true;
   }
-  return { state, update, importLegacy, dismissLegacy, resolveSyncConflict, retrySync: () => { if (!blocked.current) void sync(); }, syncConflict, legacyState, userId, storageError, syncStatus };
+  return { state, update, importLegacy, dismissLegacy, resolveSyncConflict, retrySync: () => { rejected.current = false; if (!blocked.current) void sync(); }, syncConflict, legacyState, userId, storageError, syncStatus };
 }
 
 export function TrackerProvider({ children, demoMode = false }: { children: React.ReactNode; demoMode?: boolean }) {

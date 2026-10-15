@@ -259,3 +259,22 @@ test("a reminder needs a time or an anchor, workouts and archived habits never r
   assert.equal(reminderStatus({ ...base, reminderEnabled: true, time: "08:30", archived: true }), "off");
   assert.equal(reminderStatus({ ...base, type: "workout", reminderEnabled: true, time: "08:30" }), "off");
 });
+
+test("a mark for an earlier day is backfilled at noon and ignored by sleep maths", async () => {
+  const { changeHabit: change, sleepFromEvents: sleepOf } = await import("../src/lib/habits.ts");
+  const habits = [
+    { id: "wake", title: "Подъём", type: "sleep" as const, schedule: "", eventRole: "wake" as const },
+    { id: "bed", title: "Лёг спать", type: "sleep" as const, schedule: "", eventRole: "bedtime" as const },
+  ];
+  const base = { ...createInitialState("2026-10-16"), habits };
+  const now = new Date("2026-10-16T11:00:00.000Z");
+  const past = change(base, "wake", "2026-10-15", "completed", now);
+  const mark = past.completions.find((c) => c.habitId === "wake")!;
+  assert.equal(mark.completedAt, "2026-10-15T09:00:00.000Z");
+  assert.equal(mark.backfilled, true);
+  const today = change(base, "wake", "2026-10-16", "completed", now);
+  assert.equal(today.completions[0].completedAt, now.toISOString());
+  assert.equal(today.completions[0].backfilled, undefined);
+  const withBed = change(past, "bed", "2026-10-14", "completed", now);
+  assert.equal(sleepOf(habits, withBed.completions, "2026-10-15"), undefined);
+});

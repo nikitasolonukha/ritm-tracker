@@ -5,7 +5,7 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import { AppNav } from "@/components/app-nav";
 import { AppSelect } from "@/components/app-select";
 import { BarChart, LineChart } from "@/components/charts";
-import { Button, ProgressTabs, Segmented } from "@/components/ds";
+import { Button, IconButton, ProgressTabs, Segmented } from "@/components/ds";
 import { PrivatePhoto } from "@/components/private-photo";
 import { useTrackerState } from "@/components/tracker-state";
 import { HeaderAction, Notice, PageHeader, StatTile, useConfirm } from "@/components/ui";
@@ -109,6 +109,17 @@ export default function ProgressPage() {
     </section>
     <section className="settingsEditor observationEditor"><h2>Отметка дня</h2><div className="formGrid"><label className="wide">Дата<input type="date" value={date} max={today} onChange={(e) => setDate(e.target.value)} /></label><label>Энергия, 0–10<input inputMode="decimal" value={energy} onChange={(e) => setEnergy(e.target.value)} /></label><label>Сон, часов<input inputMode="decimal" value={sleep} onChange={(e) => setSleep(e.target.value)} /></label><label>Масса, кг<input inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)} /></label><label className="wide">Самочувствие<AppSelect value={skin} onChange={(value) => setSkin(value as typeof skin)}><option value="unknown">Не указано</option><option value="better">Лучше</option><option value="same">Без изменений</option><option value="worse">Хуже</option></AppSelect></label></div><label>Заметка<textarea value={note} maxLength={4000} onChange={(e) => setNote(e.target.value)} rows={3} /></label><Button variant="primary" size="lg" block icon={Save} onClick={save}>Сохранить отметку</Button></section>
     <section className="settingsEditor photoEditor"><div className="sectionHeading"><h2>Фото прогресса</h2><label className="secondary photoUpload"><Plus size={18} />{busy ? "Загрузка…" : "Добавить фото"}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={addPhoto} /></label></div><div className="photoGrid">{state.photos?.map((photo) => <figure key={photo.id}><PrivatePhoto path={photo.storagePath} dataUrl={photo.dataUrl} name={photo.name} /><figcaption><span>{formatLocalDate(photo.date)}</span><button className="secondary dangerButton" aria-label={`Убрать фото ${photo.name}`} title="Убрать фото из журнала" onClick={() => void removePhoto(photo)}><Trash2 size={17} />Убрать</button></figcaption></figure>)}</div></section>
-    {state.observations.length > 0 && <section className="settingsEditor"><h2>История отметок</h2>{[...state.observations].sort((a,b) => b.date.localeCompare(a.date)).slice(0, allHistory ? undefined : 5).map((o) => <article className="observationHistory" key={o.id}><div className="observationActions"><button className="secondary" type="button" onClick={() => { setDate(o.date); window.scrollTo({ top:0,behavior:"smooth" }); }}>{formatLocalDate(o.date)}</button><button className="secondary dangerButton" type="button" onClick={async () => { if (await confirm(`Удалить отметку за ${formatLocalDate(o.date)}?`, { danger: true })) update((previous) => ({ ...previous, observations: previous.observations.filter((item) => item.id !== o.id) })); }}>Удалить отметку</button></div><p>Энергия {o.energy}/10 · Сон {o.sleep} ч{o.weightKg == null ? "" : ` · ${o.weightKg} кг`}</p>{o.note && <p className="observationNote">{o.note}</p>}</article>)}{state.observations.length > 5 && <button className="secondary" type="button" onClick={() => setAllHistory((value) => !value)}>{allHistory ? "Свернуть" : `Показать все (${state.observations.length})`}</button>}</section>}
+    {state.observations.length > 0 && <section className="actionSection">
+      <div className="sectionHeading"><h2>История отметок</h2><span className="muted">{state.observations.length}</span></div>
+      <div className="obsList">{[...state.observations].sort((a, b) => b.date.localeCompare(a.date)).slice(0, allHistory ? undefined : 5).map((o) => <article className="obsCard" key={o.id}>
+        <button type="button" className="obsMain" aria-label={`Открыть отметку за ${formatLocalDate(o.date)}`} onClick={() => { setDate(o.date); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+          <strong>{formatLocalDate(o.date)}</strong>
+          <span>Энергия {o.energy}/10 · Сон {o.sleep} ч{o.weightKg == null ? "" : ` · ${o.weightKg} кг`}</span>
+          {o.note && <small>{o.note}</small>}
+        </button>
+        <IconButton plain label={`Удалить отметку за ${formatLocalDate(o.date)}`} icon={Trash2} size={20} onClick={async () => { if (await confirm(`Удалить отметку за ${formatLocalDate(o.date)}?`, { danger: true })) update((previous) => ({ ...previous, observations: previous.observations.filter((item) => item.id !== o.id) })); }} />
+      </article>)}</div>
+      {state.observations.length > 5 && <Button block onClick={() => setAllHistory((value) => !value)}>{allHistory ? "Свернуть" : `Показать все (${state.observations.length})`}</Button>}
+    </section>}
     <AppNav active="progress" />{dialog}</main>;
 }

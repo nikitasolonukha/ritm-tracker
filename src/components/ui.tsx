@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Dumbbell, Info } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type ComponentType, type ReactNode } from "react";
 
 type IconType = ComponentType<{ size?: number }>;
@@ -69,4 +69,9 @@ function ConfirmDialog({ request, onAnswer }: { request: ConfirmRequest; onAnswe
       </div>
     </div>
   </div>;
+}
+
+/** Шапка экранов входа: знак и название продукта. */
+export function AuthBrand() {
+  return <div className="authBrand"><span className="authLogo"><Dumbbell size={28} /></span><h1>Ритм</h1><p>Тренировки и привычки в одном ритме</p></div>;
 }

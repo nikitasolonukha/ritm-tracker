@@ -1,6 +1,6 @@
-const PUBLIC_CACHE = "ritm-public-v3";
+const PUBLIC_CACHE = "ritm-public-v4";
 const META_CACHE = "ritm-pwa-meta-v1";
-const ACCOUNT_CACHE_PREFIX = "ritm-account-v3-";
+const ACCOUNT_CACHE_PREFIX = "ritm-account-v4-";
 const ACCOUNT_MARKER = "/__ritm_active_account__";
 const PUBLIC_SHELL = ["/login", "/manifest.webmanifest", "/icon.svg"];
 let activeAccountId;
@@ -29,7 +29,12 @@ async function saveActiveAccount(userId) {
   await meta.put(ACCOUNT_MARKER, new Response(userId, { headers: { "Content-Type": "text/plain" } }));
 }
 
+async function ensureActiveAccount() {
+  if (activeAccountId === undefined) await loadActiveAccount();
+}
+
 async function clearActiveAccount() {
+  await ensureActiveAccount();
   const oldAccount = activeAccountId;
   activeAccountId = undefined;
   await caches.delete(META_CACHE);
@@ -44,7 +49,16 @@ async function offlineResponse() {
 }
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(PUBLIC_CACHE).then((cache) => cache.addAll(PUBLIC_SHELL)));
+  // A signed-in user is redirected away from /login: such a redirected response must not be cached for navigation.
+  event.waitUntil((async () => {
+    const cache = await caches.open(PUBLIC_CACHE);
+    await Promise.all(PUBLIC_SHELL.map(async (path) => {
+      try {
+        const response = await fetch(path, { cache: "reload" });
+        if (response.ok && !response.redirected) await cache.put(path, response);
+      } catch { /* the shell is refreshed on the next online visit */ }
+    }));
+  })());
   self.skipWaiting();
 });
 
@@ -83,6 +97,7 @@ self.addEventListener("fetch", (event) => {
   if (!isNavigation && !isAsset) return;
 
   event.respondWith((async () => {
+    await ensureActiveAccount();
     try {
       const response = await fetch(event.request);
       if (!response.ok) return response;

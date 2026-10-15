@@ -30,6 +30,8 @@ export async function PUT(request: NextRequest) {
     const remote = await supabase.from("tracker_state").select("payload, version, updated_at").eq("user_id", user.id).maybeSingle();
     return NextResponse.json({ error: "revision_conflict", revision: Number.isInteger(revision) ? revision : remote.data?.version ?? null, remote: remote.data?.payload ?? null }, { status: 409 });
   }
+  // 22023 means the database rejected the content itself: retrying the same data can never succeed.
+  if (error?.code === "22023") return NextResponse.json({ error: "rejected_payload" }, { status: 422 });
   if (error) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
   return NextResponse.json(data ?? { saved: true });
 }

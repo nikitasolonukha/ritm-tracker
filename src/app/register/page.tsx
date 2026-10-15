@@ -1,6 +1,6 @@
 "use client";
 
-import { Notice } from "@/components/ui";
+import { AuthBrand, Notice } from "@/components/ui";
 import Link from "next/link";
 import { Eye, EyeOff, LogIn, UserPlus } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -44,7 +44,7 @@ export default function RegisterPage() {
   }
 
   return <main className="shell authShell"><section className="authPanel">
-    <h1>Ритм</h1><h2>Создать аккаунт</h2>
+    <AuthBrand /><h2>Создать аккаунт</h2>
     {!isSupabaseConfigured && <Notice tone="info">Сервис временно не настроен.</Notice>}
     {created && <Notice tone="info">Аккаунт создан. Подтверждение почты не требуется.</Notice>}
     <noscript><p role="alert">Для регистрации нужен JavaScript. Включите его и обновите страницу.</p></noscript>

@@ -1,4 +1,4 @@
-import { applyHabitCompletion, getHabitCommandIdentity, type Habit, type HabitCompletion } from "./tracker.ts";
+import { applyHabitCompletion, getHabitCommandIdentity, getLocalDate, type Habit, type HabitCompletion } from "./tracker.ts";
 import type { TrackerState } from "./storage.ts";
 
 export function habitsForDate(habits: Habit[], localDate: string): Habit[] {
@@ -27,8 +27,11 @@ export function changeHabit(state: TrackerState, habitId: string, date: string, 
   const entityId = `habit:${habitId}:${date}`;
   const version = state.outbox.filter((item) => item.entityId === entityId).length + 1;
   const command = getHabitCommandIdentity(habitId, date, action === "cancelled" ? "cancelled" : "completed", version);
+  // A mark for an earlier day must not look like something that happened now: reminders that follow it and sleep maths would be wrong.
+  const backfilled = action !== "cancelled" && date < getLocalDate(now);
+  const completedAt = backfilled ? `${date}T09:00:00.000Z` : now.toISOString();
   const completions = action === "cancelled" ? state.completions.filter((item) => !(item.habitId === habitId && item.localDate === date))
-    : applyHabitCompletion(state.completions.filter((item) => !(item.habitId === habitId && item.localDate === date)), { id: `completion-${habitId}-${date}`, habitId, localDate: date, completedAt: now.toISOString(), source: "web", outcome: action });
+    : applyHabitCompletion(state.completions.filter((item) => !(item.habitId === habitId && item.localDate === date)), { id: `completion-${habitId}-${date}`, habitId, localDate: date, completedAt, source: "web", outcome: action, ...(backfilled ? { backfilled: true } : {}) });
   return { ...state, completions, outbox: [...state.outbox, { id: command.id, entityId, type: action === "cancelled" ? "habit.cancelled" : "habit.completed", createdAt: now.toISOString(), version, status: "pending", payload: { habitId, localDate: date, action } }] };
 }
 export function snoozeHabit(state: TrackerState, habitId: string, date: string, now = new Date()): TrackerState {
@@ -40,10 +43,10 @@ export function snoozeHabit(state: TrackerState, habitId: string, date: string, 
 export function sleepFromEvents(habits: Habit[], completions: HabitCompletion[], date: string): number | undefined {
   const wakeIds = new Set(habits.filter((h) => h.eventRole === "wake").map((h) => h.id));
   const sleepIds = new Set(habits.filter((h) => h.eventRole === "bedtime").map((h) => h.id));
-  const wake = completions.filter((c) => c.localDate === date && wakeIds.has(c.habitId) && c.outcome !== "skipped").at(-1);
+  const wake = completions.filter((c) => c.localDate === date && wakeIds.has(c.habitId) && c.outcome !== "skipped" && !c.backfilled).at(-1);
   if (!wake) return;
   const wakeAt = Date.parse(wake.completedAt);
-  const bedtime = completions.filter((c) => sleepIds.has(c.habitId) && c.outcome !== "skipped" && Date.parse(c.completedAt) < wakeAt).sort((a,b) => Date.parse(b.completedAt) - Date.parse(a.completedAt))[0];
+  const bedtime = completions.filter((c) => sleepIds.has(c.habitId) && c.outcome !== "skipped" && !c.backfilled && Date.parse(c.completedAt) < wakeAt).sort((a,b) => Date.parse(b.completedAt) - Date.parse(a.completedAt))[0];
   if (!bedtime) return;
   const hours = (wakeAt - Date.parse(bedtime.completedAt)) / 3_600_000;
   return hours > 0 && hours <= 24 ? Math.round(hours * 10) / 10 : undefined;

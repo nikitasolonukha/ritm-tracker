@@ -44,6 +44,8 @@ export type HabitCompletion = {
   localDate: string;
   source: "web" | "telegram";
   outcome?: "completed" | "skipped";
+  /** Отмечено задним числом: `completedAt` — условный полдень того дня, а не настоящее время события. */
+  backfilled?: boolean;
 };
 
 export type Habit = {

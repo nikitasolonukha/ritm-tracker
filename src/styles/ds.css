@@ -234,3 +234,26 @@
 .sheetForm label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 600; }
 .sheetForm .checkLabel { display: flex; }
 .summaryBadge svg { color: var(--on-accent); }
+
+/* Вход */
+.authBrand { display: grid; justify-items: start; gap: var(--s-2); margin-bottom: var(--s-3); }
+.authLogo { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 18px; background: var(--accent-grad); color: var(--on-accent); box-shadow: var(--shadow-accent); }
+.authBrand h1 { font-size: 40px; font-weight: 800; letter-spacing: -0.03em; }
+.authBrand p { margin: 0; color: var(--muted); }
+
+/* Нижняя навигация */
+.bottomNav { background: rgba(8, 9, 12, 0.88); }
+.bottomNav a { gap: 4px; font-size: 11px; letter-spacing: 0.01em; }
+.bottomNav .navIcon { width: 58px; height: 30px; border-radius: var(--r-pill); transition: background-color 160ms, color 160ms; }
+.bottomNav a.active .navIcon { background: var(--accent-soft); color: var(--accent); }
+.bottomNav a.active { color: var(--text); }
+@media (min-width: 900px) { .bottomNav .navIcon { width: 36px; height: 36px; border-radius: 12px; } .bottomNav a.active .navIcon { background: var(--accent-soft); } }
+
+/* История отметок */
+.obsList { display: grid; gap: var(--s-2); margin-bottom: var(--s-3); }
+.obsCard { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; border-radius: var(--r); background: var(--card-sheen), var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.obsMain { display: grid; gap: 2px; min-width: 0; padding: var(--s-3) var(--s-4); border: 0; background: transparent; color: var(--text); text-align: left; }
+.obsMain strong { font-size: var(--fs-md); }
+.obsMain span { color: var(--muted); font-size: var(--fs-sm); }
+.obsMain small { overflow: hidden; color: var(--muted); font-size: var(--fs-sm); text-overflow: ellipsis; white-space: nowrap; }
+.progressTabs > a { padding: 0 4px; font-size: 13px; }

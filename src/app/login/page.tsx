@@ -1,6 +1,6 @@
 "use client";
 
-import { Notice } from "@/components/ui";
+import { AuthBrand, Notice } from "@/components/ui";
 import { Eye, EyeOff, KeyRound, LogIn, UserPlus } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
@@ -58,7 +58,7 @@ export default function LoginPage() {
   }
 
   return <main className="shell authShell"><section className="authPanel">
-    <h1>Ритм</h1><h2>Вход</h2>
+    <AuthBrand /><h2>Вход</h2>
     {!isSupabaseConfigured && <Notice tone="info">Сервис временно не настроен.</Notice>}
     {notice && <Notice tone="info">{notice}</Notice>}
     <noscript><p role="alert">Для входа нужен JavaScript. Включите его и обновите страницу.</p></noscript>

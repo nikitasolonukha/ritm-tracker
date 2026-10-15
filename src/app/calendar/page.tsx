@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Dumbbell, Flame } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Dumbbell, Flame } from "lucide-react";
 import { useState } from "react";
 import { AppNav } from "@/components/app-nav";
 import { useTrackerState } from "@/components/tracker-state";
+import { ProgressTabs } from "@/components/ds";
 import { PageHeader, StatTile } from "@/components/ui";
 import { habitsForDate } from "@/lib/habits";
 import { habitStreaks, monthGrid, trainedDateSet, weeklyGoalStreak } from "@/lib/streaks";
@@ -34,8 +35,8 @@ export default function CalendarPage() {
   const monthTrainings = monthDays.filter((c) => c.trained).length;
   const monthClosed = monthDays.filter((c) => c.closed).length;
   return <main className="shell appPage">
-    <Link className="backLink" href="/journal"><ArrowLeft size={18} />Журнал</Link>
     <PageHeader eyebrow="История по дням" title="Календарь" />
+    <ProgressTabs active="calendar" />
     <div className="summaryMetrics">
       <StatTile value={streaks.current} label={russianWord(streaks.current, "день подряд", "дня подряд", "дней подряд")} />
       <StatTile value={streaks.longest} label="лучшая серия" />
@@ -73,6 +74,6 @@ export default function CalendarPage() {
         : !dayWorkouts.length && <p className="muted">В этот день ничего не запланировано.</p>}
       {streaks.current >= 2 && selected === today && <p className="recordLine"><Flame size={16} /> Серия закрытых дней: {streaks.current}. Не прерывайте её.</p>}
     </section>
-    <AppNav active="journal" />
+    <AppNav active="progress" />
   </main>;
 }

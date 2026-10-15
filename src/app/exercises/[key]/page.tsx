@@ -26,7 +26,7 @@ export default function ExercisePage() {
   const records = getExerciseRecords(sessions);
   const series = getExerciseSeries(sessions);
   const back = <Link className="backLink" href="/exercises"><ArrowLeft size={18} />Упражнения</Link>;
-  if (!entry) return <main className="shell appPage">{back}<EmptyState title="Упражнение не найдено">Оно могло быть переименовано или удалено из программ.</EmptyState><AppNav active="journal" /></main>;
+  if (!entry) return <main className="shell appPage">{back}<EmptyState title="Упражнение не найдено">Оно могло быть переименовано или удалено из программ.</EmptyState><AppNav active="progress" /></main>;
   const kg = (value: number) => value.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
   return <main className="shell appPage">
     {back}
@@ -52,6 +52,6 @@ export default function ExercisePage() {
         </div>
       </section>
     </>}
-    <AppNav active="journal" />
+    <AppNav active="progress" />
   </main>;
 }

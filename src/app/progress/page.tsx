@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowRight, Download, Plus, Save, Trash2 } from "lucide-react";
+import { Download, Plus, Save, Trash2 } from "lucide-react";
 import { useEffect, useState, type ChangeEvent } from "react";
 import { AppNav } from "@/components/app-nav";
 import { AppSelect } from "@/components/app-select";
 import { BarChart, LineChart } from "@/components/charts";
+import { Button, ProgressTabs, Segmented } from "@/components/ds";
 import { PrivatePhoto } from "@/components/private-photo";
 import { useTrackerState } from "@/components/tracker-state";
 import { HeaderAction, Notice, PageHeader, StatTile, useConfirm } from "@/components/ui";
@@ -95,6 +95,7 @@ export default function ProgressPage() {
     if (update((previous) => ({ ...previous, photos: previous.photos?.filter((item) => item.id !== photo.id) }))) setMessage(remote ? "Фото убрано из журнала, файл удалён из хранилища." : "Фото убрано из журнала.");
   }
   return <main className="shell appPage"><PageHeader eyebrow="Показатели" title="Прогресс" actions={<HeaderAction onClick={exportState} icon={Download} label="Экспорт" ariaLabel="Экспорт данных и фото" />} />
+    <ProgressTabs active="overview" />
     {storageError && <Notice tone="warning">{storageError}</Notice>}{message && <Notice tone={/не |Не |нужен|Выберите|Энергия:/.test(message) ? "warning" : "success"}>{message}</Notice>}
     <div className="summaryMetrics"><StatTile value={workouts.length} label={russianWord(workouts.length, "тренировка", "тренировки", "тренировок")} /><StatTile value={volume.toLocaleString("ru-RU")} label="кг объёма" /><StatTile value={state.completions.filter((c) => c.outcome !== "skipped").length} label={russianWord(state.completions.filter((c) => c.outcome !== "skipped").length, "отметка", "отметки", "отметок")} /></div>
     <section className="actionSection">
@@ -103,11 +104,11 @@ export default function ProgressPage() {
     </section>
     <section className="actionSection">
       <div className="sectionHeading"><h2>Динамика</h2></div>
-      <div className="settingsTabs tabs3" role="tablist" aria-label="Показатель">{metrics.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={metric === id} onClick={() => setMetric(id)}>{label}</button>)}</div>
+      <div className="metricPicker"><Segmented<ObservationMetric> label="Показатель" value={metric} onChange={setMetric} options={metrics.map(([id, label]) => ({ value: id, label }))} /></div>
       <LineChart title={metricLabel} unit={metricUnit} points={observationSeries(state.observations, metric)} emptyText={`Отметьте «${metricLabel.toLowerCase()}» хотя бы в два разных дня, чтобы увидеть график.`} />
     </section>
-    <section className="settingsEditor observationEditor"><h2>Отметка дня</h2><div className="formGrid"><label className="wide">Дата<input type="date" value={date} max={today} onChange={(e) => setDate(e.target.value)} /></label><label>Энергия, 0–10<input inputMode="decimal" value={energy} onChange={(e) => setEnergy(e.target.value)} /></label><label>Сон, часов<input inputMode="decimal" value={sleep} onChange={(e) => setSleep(e.target.value)} /></label><label>Масса, кг<input inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)} /></label><label className="wide">Самочувствие<AppSelect value={skin} onChange={(value) => setSkin(value as typeof skin)}><option value="unknown">Не указано</option><option value="better">Лучше</option><option value="same">Без изменений</option><option value="worse">Хуже</option></AppSelect></label></div><label>Заметка<textarea value={note} maxLength={4000} onChange={(e) => setNote(e.target.value)} rows={3} /></label><button className="primary" onClick={save}><Save size={18} />Сохранить отметку</button></section>
+    <section className="settingsEditor observationEditor"><h2>Отметка дня</h2><div className="formGrid"><label className="wide">Дата<input type="date" value={date} max={today} onChange={(e) => setDate(e.target.value)} /></label><label>Энергия, 0–10<input inputMode="decimal" value={energy} onChange={(e) => setEnergy(e.target.value)} /></label><label>Сон, часов<input inputMode="decimal" value={sleep} onChange={(e) => setSleep(e.target.value)} /></label><label>Масса, кг<input inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)} /></label><label className="wide">Самочувствие<AppSelect value={skin} onChange={(value) => setSkin(value as typeof skin)}><option value="unknown">Не указано</option><option value="better">Лучше</option><option value="same">Без изменений</option><option value="worse">Хуже</option></AppSelect></label></div><label>Заметка<textarea value={note} maxLength={4000} onChange={(e) => setNote(e.target.value)} rows={3} /></label><Button variant="primary" size="lg" block icon={Save} onClick={save}>Сохранить отметку</Button></section>
     <section className="settingsEditor photoEditor"><div className="sectionHeading"><h2>Фото прогресса</h2><label className="secondary photoUpload"><Plus size={18} />{busy ? "Загрузка…" : "Добавить фото"}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={addPhoto} /></label></div><div className="photoGrid">{state.photos?.map((photo) => <figure key={photo.id}><PrivatePhoto path={photo.storagePath} dataUrl={photo.dataUrl} name={photo.name} /><figcaption><span>{formatLocalDate(photo.date)}</span><button className="secondary dangerButton" aria-label={`Убрать фото ${photo.name}`} title="Убрать фото из журнала" onClick={() => void removePhoto(photo)}><Trash2 size={17} />Убрать</button></figcaption></figure>)}</div></section>
     {state.observations.length > 0 && <section className="settingsEditor"><h2>История отметок</h2>{[...state.observations].sort((a,b) => b.date.localeCompare(a.date)).slice(0, allHistory ? undefined : 5).map((o) => <article className="observationHistory" key={o.id}><div className="observationActions"><button className="secondary" type="button" onClick={() => { setDate(o.date); window.scrollTo({ top:0,behavior:"smooth" }); }}>{formatLocalDate(o.date)}</button><button className="secondary dangerButton" type="button" onClick={async () => { if (await confirm(`Удалить отметку за ${formatLocalDate(o.date)}?`, { danger: true })) update((previous) => ({ ...previous, observations: previous.observations.filter((item) => item.id !== o.id) })); }}>Удалить отметку</button></div><p>Энергия {o.energy}/10 · Сон {o.sleep} ч{o.weightKg == null ? "" : ` · ${o.weightKg} кг`}</p>{o.note && <p className="observationNote">{o.note}</p>}</article>)}{state.observations.length > 5 && <button className="secondary" type="button" onClick={() => setAllHistory((value) => !value)}>{allHistory ? "Свернуть" : `Показать все (${state.observations.length})`}</button>}</section>}
-    <Link className="historyCard" href="/journal"><h2>Журнал тренировок</h2><ArrowRight size={20} /></Link><AppNav active="progress" />{dialog}</main>;
+    <AppNav active="progress" />{dialog}</main>;
 }

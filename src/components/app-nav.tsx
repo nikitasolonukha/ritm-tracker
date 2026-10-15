@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarDays, Clock, Dumbbell, Home, LineChart, SkipForward } from "lucide-react";
+import { Clock, Dumbbell, Home, LineChart, SkipForward, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createRestTimerCommand, restoreRestTimer, russianWord } from "@/lib/tracker";
 import type { SessionTrackerState } from "@/lib/workout-session";
@@ -24,7 +24,7 @@ export function AppNav({ active }: { active: string }) {
     ["today", "/today", "Сегодня", Home],
     ["workouts", "/workouts", "Тренировки", Dumbbell],
     ["progress", "/progress", "Прогресс", LineChart],
-    ["journal", "/journal", "Журнал", CalendarDays],
+    ["settings", "/settings", "Профиль", UserRound],
   ] as const;
   return <>
     {rest && !rest.expired && activeSession && <div className="globalRest"><Link href={`/workout/${activeSession.id}`}><Clock size={18} />Отдых · {Math.floor(rest.remainingSec/60)}:{String(rest.remainingSec%60).padStart(2,"0")}</Link><button className="secondary" onClick={() => timerAction("reschedule")}>+30 с</button><button className="iconButton" onClick={() => timerAction("cancel")} aria-label="Пропустить текущий отдых" title="Пропустить отдых"><SkipForward size={18} /></button></div>}

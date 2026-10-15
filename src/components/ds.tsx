@@ -34,6 +34,18 @@ export function Segmented<T extends string>({ value, onChange, options, label }:
   return <div className="seg" role="group" aria-label={label}>{options.map((option) => <button type="button" key={option.value} aria-pressed={value === option.value} disabled={option.disabled} onClick={() => onChange(option.value)}>{option.label}</button>)}</div>;
 }
 
+const sectionTabs = [
+  { id: "overview", href: "/progress", label: "Обзор" },
+  { id: "journal", href: "/journal", label: "Журнал" },
+  { id: "calendar", href: "/calendar", label: "Календарь" },
+  { id: "exercises", href: "/exercises", label: "Упражнения" },
+] as const;
+
+/** Разделы «Прогресса»: одна полоса вкладок на все четыре экрана. */
+export function ProgressTabs({ active }: { active: (typeof sectionTabs)[number]["id"] }) {
+  return <nav className="seg progressTabs" aria-label="Разделы прогресса">{sectionTabs.map((tab) => <Link key={tab.id} href={tab.href} aria-current={tab.id === active ? "page" : undefined}>{tab.label}</Link>)}</nav>;
+}
+
 export function Chip({ pressed, onClick, children }: { pressed: boolean; onClick: () => void; children: ReactNode }) {
   return <button type="button" className="chip" aria-pressed={pressed} onClick={onClick}>{children}</button>;
 }

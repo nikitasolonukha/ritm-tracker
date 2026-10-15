@@ -363,7 +363,7 @@ test("real local multi-account product journey, storage isolation and offline re
     await page.getByRole("button", { name: "Добавить", exact: true }).click();
     const exercise = page.locator("details.exerciseDisclosure").filter({ has: page.locator("summary", { hasText: "Новое упражнение" }) }).last();
     await exercise.locator("summary").click();
-    await commit(exercise.getByRole("textbox", { name: "Название", exact: true }), exerciseName);
+    await commit(exercise.getByLabel("Название", { exact: true }), exerciseName);
     const editor = page.locator("details.exerciseDisclosure").filter({ has: page.locator("summary", { hasText: exerciseName }) });
     await commit(editor.getByRole("textbox", { name: "Группа мышц", exact: true }), "Грудь");
     await commit(editor.getByRole("textbox", { name: "Оборудование", exact: true }), "Cable machine");

@@ -288,3 +288,10 @@
 .importCard h2 { font-size: var(--fs-lg); }
 .importBar { position: sticky; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 8px); z-index: 5; display: grid; gap: var(--s-2); margin-top: var(--s-4); padding: var(--s-3); border-radius: var(--r); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-strong), var(--shadow-pop); }
 .importBar p { margin: 0; color: var(--muted); font-size: var(--fs-sm); }
+
+/* Длинные строки не должны раздвигать карточки списков за экран */
+.historyList, .programList, .templateList, .habitList, .obsList, .resultList { grid-template-columns: minmax(0, 1fr); }
+.historyCard, .programCard { min-width: 0; max-width: 100%; }
+.historyCard > div { flex: 1 1 0; min-width: 0; }
+.historyCard h2 { overflow-wrap: anywhere; }
+.historyExercises { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

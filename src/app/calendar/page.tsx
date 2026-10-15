@@ -67,7 +67,7 @@ export default function CalendarPage() {
     <section className="actionSection">
       <div className="sectionHeading"><h2>{formatLocalDate(selected)}</h2>{selected === today && <span className="muted">сегодня</span>}</div>
       {dayWorkouts.map((workout) => { const totals = calculateWorkoutTotals(workout); return <Link className="historyCard" href={`/journal/workouts/${workout.id}`} key={workout.id}>
-        <div><span><Dumbbell size={14} /> Тренировка</span><h2>{workout.title}</h2><p>{totals.completedSets} {russianWord(totals.completedSets, "подход", "подхода", "подходов")} · {totals.volumeKg.toLocaleString("ru-RU")} кг</p></div><ArrowRight size={20} />
+        <div><span><Dumbbell size={14} /> Тренировка</span><h2>{workout.title}</h2><p>{totals.completedLogicalSets} {russianWord(totals.completedLogicalSets, "подход", "подхода", "подходов")} · {totals.volumeKg.toLocaleString("ru-RU")} кг</p></div><ArrowRight size={20} />
       </Link>; })}
       {dayHabits.length > 0 ? <ul className="dayHabits">{dayHabits.map(({ habit, mark }) => <li key={habit.id} className={mark ? (mark.outcome === "skipped" ? "skipped" : "done") : ""}><span>{habit.title}</span><small>{mark ? (mark.outcome === "skipped" ? "пропущено" : "выполнено") : selected > today ? "впереди" : "не отмечено"}</small></li>)}</ul>
         : !dayWorkouts.length && <p className="muted">В этот день ничего не запланировано.</p>}

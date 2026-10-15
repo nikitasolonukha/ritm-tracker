@@ -86,7 +86,7 @@ export default function TodayPage() {
   const monday = noonUtc(today);
   monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
   const weekStart = monday.toISOString().slice(0, 10);
-  const sessions = (sessionState.workoutSessions ?? []).filter((s) => s.status === "completed" && state.workouts.some((w) => w.id === s.workoutId && calculateWorkoutTotals(w).completedSets > 0));
+  const sessions = (sessionState.workoutSessions ?? []).filter((s) => (s.status === "completed" || s.status === "partial") && state.workouts.some((w) => w.id === s.workoutId && calculateWorkoutTotals(w).completedSets > 0));
   const finished = sessions.filter((s) => state.workouts.some((w) => w.id === s.workoutId && w.date >= weekStart && w.date <= today)).length;
   const dates = Array.from({ length: 7 }, (_, index) => { const date = noonUtc(today); date.setUTCDate(date.getUTCDate() - 6 + index); return date.toISOString().slice(0, 10); });
   const activeDates = new Set(state.completions.filter((c) => c.outcome !== "skipped").map((c) => c.localDate));

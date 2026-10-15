@@ -2,165 +2,273 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, ChevronRight, Clock, Pencil, Play } from "lucide-react";
+import { ArrowLeft, Check, ChevronRight, Clock, MoreHorizontal, Play, SkipForward, Square, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { Button, Chip, IconButton, Segmented, Sheet, Stepper } from "@/components/ds";
 import { useTrackerState } from "@/components/tracker-state";
 import { Notice, useConfirm } from "@/components/ui";
-import { completeWorkoutSet, createRestTimerCommand, formatLocalDate, restoreRestTimer, visibleCopy } from "@/lib/tracker";
 import { formatSets, lastPerformance } from "@/lib/exercises";
+import { createRestTimerCommand, formatLocalDate, restoreRestTimer, visibleCopy, type Exercise, type ExerciseSet } from "@/lib/tracker";
 import { cancelWorkoutSession, finishWorkoutSession, type SessionTrackerState } from "@/lib/workout-session";
+import { currentLogicalSet, goToExercise, logicalSets, parseRepsInput, parseWeightInput, recordLogicalSet, setSetWeight, type WeightScope } from "@/lib/workout-flow";
+
+const WEIGHT_STEP = 2.5;
+const formatTime = (value: number) => `${Math.floor(value / 60).toString().padStart(2, "0")}:${(value % 60).toString().padStart(2, "0")}`;
+const kgText = (value: number | null | undefined) => (value == null ? "—" : String(value));
+const unitOf = (set: ExerciseSet) => set.weightMode === "per-hand" ? "кг на сторону" : set.weightMode === "total" ? "кг общий вес" : "кг";
+
+type PartEditorProps = {
+  set: ExerciseSet;
+  label: "A" | "B" | null;
+  reps: string;
+  weightEditing: boolean;
+  weightText: string;
+  onWeightStep: (delta: number) => void;
+  onWeightStartEdit: () => void;
+  onWeightText: (value: string) => void;
+  onWeightCommit: () => void;
+  onRepsText: (value: string) => void;
+  onRepsStep: (delta: number) => void;
+};
+
+function PartEditor({ set, label, reps, weightEditing, weightText, onWeightStep, onWeightStartEdit, onWeightText, onWeightCommit, onRepsText, onRepsStep }: PartEditorProps) {
+  const repsNumber = Number(reps || 0);
+  return <div className={`wkPart${label ? "" : " single"}`}>
+    {label ? <div className="wkPartLabel"><span className="wkPartBadge">{label}</span>{label === "A" ? "Первая часть" : "Вторая часть"}</div> : null}
+    <div className="wkFields">
+      <div className="wkField workWeight">
+        <span className="wkFieldName">Вес</span>
+        <Stepper minusLabel={`Уменьшить вес${label ? ` ${label}` : ""}`} plusLabel={`Увеличить вес${label ? ` ${label}` : ""}`} minusDisabled={(set.weightKg ?? 0) <= 0} onMinus={() => onWeightStep(-WEIGHT_STEP)} onPlus={() => onWeightStep(WEIGHT_STEP)}>
+          {weightEditing
+            ? <input autoFocus aria-label={`Вес${label ? ` ${label}` : ""}`} inputMode="decimal" value={weightText} onChange={(event) => onWeightText(event.target.value)} onBlur={onWeightCommit} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} />
+            : <button type="button" className="stepperValueBtn" aria-label={`Ввести вес${label ? ` ${label}` : ""} числом`} onClick={onWeightStartEdit}><strong>{kgText(set.weightKg)}</strong></button>}
+          <small>{unitOf(set)}</small>
+        </Stepper>
+      </div>
+      <div className="wkField">
+        <span className="wkFieldName">Повторы</span>
+        <div className="repsControl">
+          <Stepper minusLabel={`Уменьшить повторы${label ? ` ${label}` : ""}`} plusLabel={`Увеличить повторы${label ? ` ${label}` : ""}`} minusDisabled={repsNumber <= 1} plusDisabled={repsNumber >= 100} onMinus={() => onRepsStep(-1)} onPlus={() => onRepsStep(1)}>
+            <input autoComplete="off" aria-label={`Фактические повторы${label ? ` ${label}` : ""}`} inputMode="numeric" value={reps} placeholder={`${set.reps ?? "—"}`} onChange={(event) => onRepsText(event.target.value)} />
+            <small>план: {set.reps ?? "не задан"}</small>
+          </Stepper>
+        </div>
+      </div>
+    </div>
+  </div>;
+}
 
 export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const router = useRouter();
   const { state, update, userId, syncStatus, storageError } = useTrackerState();
   const { confirm, dialog } = useConfirm();
-  const [now, setNow] = useState(() => new Date().toISOString());
-  const [reps, setReps] = useState("");
-  const [repsTouched, setRepsTouched] = useState(false);
-  const [error, setError] = useState("");
-  const [confirmFinish, setConfirmFinish] = useState(false);
-  const [confirmEarly, setConfirmEarly] = useState(false);
-  const [finishError, setFinishError] = useState("");
-  const [weightEditorOpen, setWeightEditorOpen] = useState(false);
-  const [weightDraft, setWeightDraft] = useState("");
-  const [rememberWeight, setRememberWeight] = useState(false);
-  const [weightScope, setWeightScope] = useState<"current" | "remaining">("remaining");
   const [routeSessionId, setRouteSessionId] = useState<string>();
-  const draftKeyRef = useRef<string | undefined>(undefined);
-  const draftStorageKeyRef = useRef<string | undefined>(undefined);
-  const weightDialogRef = useRef<HTMLDivElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
-  const weightTriggerRef = useRef<HTMLButtonElement>(null);
+  const [now, setNow] = useState(() => new Date().toISOString());
+  const [reps, setReps] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState(false);
+  const [error, setError] = useState("");
+  const [scope, setScope] = useState<WeightScope>("this");
+  const [remember, setRemember] = useState(false);
+  const [editingWeightId, setEditingWeightId] = useState<string | null>(null);
+  const [weightText, setWeightText] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [finishOpen, setFinishOpen] = useState(false);
+  const initKey = useRef<string | undefined>(undefined);
+  const tabsRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => { void params.then(({ sessionId }) => setRouteSessionId(sessionId)); }, [params]);
   useEffect(() => { const id = window.setInterval(() => setNow(new Date().toISOString()), 1000); return () => window.clearInterval(id); }, []);
-  useEffect(() => {
-    if (!state || !routeSessionId) return;
-    const session = (state as SessionTrackerState).workoutSessions?.find((item) => item.id === routeSessionId);
-    const workout = session && state.workouts.find((item) => item.id === session.workoutId);
-    const exercise = workout && workout.exercises[session?.activeExerciseIndex ?? 0];
-    const set = exercise?.sets.find((item) => !item.completed);
-    const draftKey = `${routeSessionId}:${exercise?.id ?? "none"}:${set?.id ?? "complete"}`;
-    if (draftKeyRef.current === draftKey) return;
-    draftKeyRef.current = draftKey;
-    const storageKey = `ritm-workout-draft:${userId}:${draftKey}`;
-    draftStorageKeyRef.current = storageKey;
-    let storedDraft: string | null = null;
-    try { storedDraft = window.localStorage.getItem(storageKey); } catch { /* private mode can deny storage */ }
-    setReps(storedDraft ?? set?.repsDraft ?? (set?.reps == null ? "" : String(set.reps)));
-    setRepsTouched(false);
-    setWeightDraft(set?.weightKg == null ? "" : String(set.weightKg));
-    setWeightEditorOpen(false);
-  }, [state, routeSessionId, userId]);
-  useEffect(() => {
-    if (!repsTouched || !draftStorageKeyRef.current) return;
-    try { window.localStorage.setItem(draftStorageKeyRef.current, reps); } catch { /* local state remains the fallback */ }
-  }, [reps, repsTouched]);
-  useEffect(() => {
-    if (!weightEditorOpen) return;
-    previousFocusRef.current = weightTriggerRef.current ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { setWeightEditorOpen(false); return; }
-      if (event.key !== "Tab" || !weightDialogRef.current) return;
-      const focusable = Array.from(weightDialogRef.current.querySelectorAll<HTMLElement>("button, input, [tabindex]:not([tabindex='-1'])")).filter((item) => !item.hasAttribute("disabled"));
-      if (!focusable.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    window.setTimeout(() => weightDialogRef.current?.querySelector<HTMLInputElement>("input")?.focus(), 0);
-    return () => { window.removeEventListener("keydown", closeOnEscape); previousFocusRef.current?.focus(); };
-  }, [weightEditorOpen]);
-  if (!state) return <main className="workoutMode"><p className="muted">Восстанавливаю тренировку…</p></main>;
-  const sessionState = state as SessionTrackerState;
-  const session = sessionState.workoutSessions?.find((item) => item.id === routeSessionId);
-  const workout = session && sessionState.workouts.find((item) => item.id === session.workoutId);
-  if (!session || !workout) return <main className="workoutMode"><p>Сессия не найдена.</p><Link className="secondary" href="/workouts">Вернуться к программам</Link></main>;
-  if (session.status !== "active") return <main className="workoutMode"><p>Эта сессия уже закрыта.</p><Link className="secondary" href={`/workout/${session.id}/summary`}>Открыть результат</Link></main>;
-  const exercise = workout.exercises[session.activeExerciseIndex] ?? workout.exercises[0];
-  const previous = lastPerformance(state as SessionTrackerState, exercise.name, workout.id);
-  const setIndex = exercise?.sets.findIndex((set) => !set.completed) ?? -1;
-  const currentSet = setIndex >= 0 ? exercise.sets[setIndex] : undefined;
-  const logicalSetKey = (set: NonNullable<typeof currentSet>, index: number) => set.segmentId ?? (set.component && set.component !== "single" ? `pair-${Math.floor(index / 2)}` : `set-${index}`);
-  const logicalSetKeys = exercise?.sets.map(logicalSetKey) ?? [];
-  const logicalSets = [...new Set(logicalSetKeys)];
-  const currentLogicalIndex = currentSet && setIndex >= 0 ? logicalSets.indexOf(logicalSetKeys[setIndex] ?? "") : -1;
-  const rest = sessionState.activeTimer ? restoreRestTimer(sessionState.activeTimer, now) : null;
-  const restSetId = sessionState.activeTimer?.sourceId?.split(":").at(-1);
-  const restSet = restSetId ? exercise.sets.find((set) => set.id === restSetId) : undefined;
-  const elapsed = Math.max(0, Math.floor((Date.parse(now) - Date.parse(session.startedAt)) / 1000));
-  const completeExercise = Boolean(exercise && exercise.sets.length > 0 && exercise.sets.every((set) => set.completed));
-  const record = () => {
-    if (!currentSet || !exercise) return;
-    const raw = reps.trim();
-    if (!raw) { setError("Введи фактическое число повторений."); return; }
-    const value = Number(raw);
-    if (!Number.isInteger(value) || value < 1 || value > 100) { setError("Укажи целое число повторений от 1 до 100."); return; }
-    setError("");
-    const saved = update((previous) => {
-      const next = previous as SessionTrackerState;
-      const activeWorkout = next.workouts.find((item) => item.id === workout.id);
-      if (!activeWorkout) return previous;
-      if (activeWorkout.exercises.find((e) => e.id===exercise.id)?.sets.find((s) => s.id===currentSet.id)?.completed) return previous;
-      const prepared = { ...activeWorkout, exercises: activeWorkout.exercises.map((item) => item.id !== exercise.id ? item : { ...item, sets: item.sets.map((set) => set.id === currentSet.id ? { ...set, reps: value, repsDraft: undefined } : set) }) };
-      const result = completeWorkoutSet({ workout: prepared, commands: next.workoutCommands ?? [], activeTimer: next.activeTimer }, exercise.id, currentSet.id, `session-${session.id}-${currentSet.id}`, new Date().toISOString());
-      const entityId = `${workout.id}:${exercise.id}:${currentSet.id}`;
-      const dueAt = result.activeTimer?.sourceId === entityId ? result.activeTimer.endsAt : undefined;
-      const outboxId = `out-${session.id}-${currentSet.id}`;
-      const alreadyQueued = next.outbox.some((item) => item.id === outboxId);
-      return { ...next, workouts: next.workouts.map((item) => item.id === workout.id ? result.workout : item), workoutCommands: result.commands, activeTimer: result.activeTimer, outbox: alreadyQueued ? next.outbox : [...next.outbox, { id: outboxId, entityId, type: "workout.set.completed", createdAt: new Date().toISOString(), status: "pending", version: dueAt ? result.activeTimer?.version ?? 1 : 1, payload: { sessionId: session.id, dueAt, expiresAt: dueAt ? new Date(new Date(dueAt).getTime() + 120000).toISOString() : undefined, message: `Ритм: отдых завершен после ${exercise.name}. Открой тренировку для следующего шага.` } }] };
-    });
-    if (saved) {
-      if (draftStorageKeyRef.current) { try { window.localStorage.removeItem(draftStorageKeyRef.current); } catch { /* ignore storage cleanup errors */ } }
-      setReps(""); setRepsTouched(false);
-    } else setError("Не удалось сохранить подход. Черновик оставлен, повтори действие.");
-  };
-  const changeRestTimer = (action: "reschedule" | "cancel") => update((previous) => {
-    const next = previous as SessionTrackerState;
-    const timer = next.activeTimer;
-    const nowIso = new Date().toISOString();
-    if (!timer) return previous;
-    const mutation = createRestTimerCommand(timer, action, nowIso, `Ритм: отдых завершен после ${exercise.name}. Открой тренировку для следующего шага.`);
-    if (!mutation) return previous;
-    const nextOutbox = next.outbox.map((item) => item.entityId === timer.sourceId && ["timer.rescheduled", "timer.cancelled"].includes(item.type) && item.status === "pending" ? { ...item, status: "cancelled" as const } : item);
-    return {
-      ...next,
-      activeTimer: mutation.timer,
-      outbox: [...nextOutbox, mutation.command],
-    };
-  });
-  const nextExercise = () => update((previous) => ({ ...(previous as SessionTrackerState), workoutSessions: ((previous as SessionTrackerState).workoutSessions ?? []).map((item) => item.id === session.id ? { ...item, activeExerciseIndex: Math.min(item.activeExerciseIndex + 1, workout.exercises.length - 1) } : item) }));
-  const commitFinish = () => { const saved = update((previous) => finishWorkoutSession(previous as SessionTrackerState, session.id)); if (saved) router.push(`/workout/${session.id}/summary`); };
-  const finish = () => { if (!workout.exercises.some((e) => e.sets.some((set) => set.completed))) { setFinishError("Пока нет записанных подходов. Запишите подход или отмените тренировку."); return; } if (!confirmFinish) { setFinishError(""); setConfirmFinish(true); return; } commitFinish(); };
-  const finishEarly = () => { if (!workout.exercises.some((e) => e.sets.some((set) => set.completed))) { setFinishError("Пока нет записанных подходов. Запишите подход или отмените тренировку."); return; } if (!confirmEarly) { setFinishError(""); setConfirmEarly(true); return; } commitFinish(); };
-  const cancel = async () => { if (!(await confirm("Записанные подходы сохранятся, но занятие не попадёт в недельную цель.", { title: "Отменить тренировку?", danger: true, confirmLabel: "Отменить тренировку", cancelLabel: "Продолжить" }))) return; const saved = update((previous) => cancelWorkoutSession(previous as SessionTrackerState, session.id)); if (saved) router.push("/workouts"); };
-  const collapse = () => { const saved = repsTouched ? update((previous) => ({ ...previous, workouts: previous.workouts.map((item) => item.id !== workout.id ? item : { ...item, exercises: item.exercises.map((itemExercise) => itemExercise.id !== exercise.id ? itemExercise : { ...itemExercise, sets: itemExercise.sets.map((set) => set.id === currentSet?.id ? { ...set, repsDraft: reps } : set) }) }) })) : true; if (saved) router.push("/workouts"); };
-  const saveWeight = () => {
-    const rawWeight = weightDraft.trim();
-    const value = Number(rawWeight.replace(",", "."));
-    if (!currentSet || !rawWeight || !Number.isFinite(value) || value < 0) { setError("Укажи корректный вес."); return; }
-    const saved = update((previous) => {
-      const next = previous as SessionTrackerState;
-      const currentIndex = exercise.sets.findIndex((set) => set.id === currentSet.id);
-      const component = currentSet.component;
-      const appliesToSet = (set: NonNullable<typeof currentSet>, index: number) => set.id === currentSet.id || (weightScope === "remaining" && index >= currentIndex && (!component || set.component === component));
-      return { ...next, workouts: next.workouts.map((item) => item.id !== workout.id ? item : { ...item, exercises: item.exercises.map((itemExercise) => itemExercise.id !== exercise.id ? itemExercise : { ...itemExercise, sets: itemExercise.sets.map((set, index) => appliesToSet(set, index) ? { ...set, weightKg: value } : set) }) }), workoutTemplates: rememberWeight ? (next.workoutTemplates ?? []).map((item) => item.id !== session.templateId ? item : { ...item, exercises: item.exercises.map((itemExercise) => itemExercise.id !== exercise.id ? itemExercise : { ...itemExercise, sets: itemExercise.sets.map((set) => !component || set.component === component ? { ...set, weightKg: value } : set) }) }) : next.workoutTemplates };
-    });
-    if (saved) { setError(""); setWeightEditorOpen(false); }
-  };
-  return <main className="workoutMode"><header className="workoutTop"><button className="iconButton" aria-label="Свернуть" onClick={collapse}><ArrowLeft size={20} /></button><span className="workoutTimer"><Clock size={16} /> {formatTime(elapsed)}</span><button className="secondary" onClick={cancel}>Отменить</button></header>
-    <p className="workoutSync" role="status">{syncStatus === "idle" ? "Сохранено" : syncStatus === "syncing" || syncStatus === "dirty" ? "На устройстве · отправляем на сервер" : "На устройстве · нет подтверждения сервера"}</p>
-    {storageError && <Notice tone="warning">{storageError}</Notice>}
-    <div className="workoutProgress"><span>Упражнение {session.activeExerciseIndex + 1} из {workout.exercises.length}</span><span>{completeExercise ? "Готово" : `Подход ${Math.max(1, currentLogicalIndex + 1)} из ${logicalSets.length}`}</span></div>
-    <section className="activeExercise"><h1>{exercise.name}</h1>{previous && <p className="lastTime">В прошлый раз ({formatLocalDate(previous.date)}): {formatSets(previous.sets)}</p>}{visibleCopy(exercise.settings) && <p className="muted">{visibleCopy(exercise.settings)}</p>}
-      {rest && !rest.expired && <div className="restState"><span>Отдых</span><strong>{formatTime(rest.remainingSec)}</strong><small>Записано: {restSet?.weightKg != null ? `${restSet.weightKg} кг × ` : ""}{restSet?.reps ?? "—"}</small><small>{completeExercise ? (session.activeExerciseIndex < workout.exercises.length - 1 ? "Следующее упражнение готово" : "Программа почти завершена") : `Далее — подход ${Math.min(currentLogicalIndex + 1, logicalSets.length)} из ${logicalSets.length}`}</small><div className="restBar"><span style={{ width: `${Math.max(0, Math.min(100, (rest.remainingSec / (sessionState.activeTimer?.durationSec || 1)) * 100))}%` }} /></div><div className="restActions"><button className="secondary" onClick={() => changeRestTimer("reschedule")}>+30 секунд</button><button className="secondary" onClick={() => changeRestTimer("cancel")}><Play size={16} /> Пропустить отдых</button></div></div>}
-      {(!rest || rest.expired) && !completeExercise && <div className="setState"><div className="setSegments" aria-label="Подходы">{logicalSets.map((key, index) => { const group = exercise.sets.filter((item, itemIndex) => logicalSetKeys[itemIndex] === key); const done = group.every((item) => item.completed); return <span className={done ? "done" : index === currentLogicalIndex ? "current" : ""} key={key}>{index + 1}</span>; })}</div><div className="workWeight">{currentSet?.weightKg != null && <strong>{currentSet.weightKg}</strong>}<span>{currentSet?.weightKg == null ? "Вес не указан" : currentSet?.weightMode === "per-hand" ? "кг на сторону" : currentSet?.weightMode === "total" ? "кг общий вес" : "кг"}</span><button ref={weightTriggerRef} className={`${currentSet?.weightKg == null ? "secondary accentOutline" : "secondary"} weightEditButton`} onClick={() => setWeightEditorOpen((value) => !value)}><Pencil size={16} />{currentSet?.weightKg == null ? "Указать вес" : "Изменить"}</button></div>{weightEditorOpen && <div ref={weightDialogRef} className="weightEditor" role="dialog" aria-modal="true" aria-label="Изменить рабочий вес"><h2>Рабочий вес</h2><label>Вес<input inputMode="decimal" value={weightDraft} onChange={(event) => setWeightDraft(event.target.value)} /></label><fieldset className="weightScope"><legend>Применить</legend><label><input type="radio" checked={weightScope === "current"} onChange={() => setWeightScope("current")} /> Только этот подход</label><label><input type="radio" checked={weightScope === "remaining"} onChange={() => setWeightScope("remaining")} /> Этот и оставшиеся</label></fieldset><label className="checkLabel"><input type="checkbox" checked={rememberWeight} onChange={(event) => setRememberWeight(event.target.checked)} /> Запомнить для следующих тренировок</label><div className="weightEditorActions"><button className="secondary" onClick={() => setWeightEditorOpen(false)}>Отмена</button><button className="primary" onClick={saveWeight}>Сохранить</button></div></div>}<label className="repsField">Фактические повторения<div className="repsControl"><button type="button" aria-label="Уменьшить" onClick={() => { setRepsTouched(true); setReps(String(Math.max(0, Number(reps || 0) - 1))); }}>−</button><input autoComplete="off" inputMode="numeric" value={reps} onChange={(event) => { setRepsTouched(true); setReps(event.target.value); }} placeholder={`${currentSet?.reps ?? "—"}`} /><button type="button" aria-label="Увеличить" onClick={() => { setRepsTouched(true); setReps(String(Math.min(100, Number(reps || 0) + 1))); }}>+</button></div><small>План: {currentSet?.reps ?? "не задан"}</small></label>{error && <p className="fieldError" role="alert">{error}</p>}<button className="primary lg recordButton" onClick={record}><Check size={20} /> Записать {reps || "повторения"}</button></div>}
-      {completeExercise && <div className="completeState"><Check size={28} /><h2>Упражнение завершено</h2>{session.activeExerciseIndex < workout.exercises.length - 1 ? <button className="primary" onClick={nextExercise}>Следующее упражнение <ChevronRight size={20} /></button> : <button className="primary" onClick={finish}>{confirmFinish ? "Подтвердить завершение" : "Завершить тренировку"}</button>}</div>}
-    </section>
-    {!completeExercise && <div className="earlyFinish">{finishError && <p className="fieldError" role="alert">{finishError}</p>}{confirmEarly ? <><p>Незаписанные подходы не попадут в результат. В недельной цели останутся только уже записанные подходы.</p><div className="finishActions"><button className="secondary" type="button" onClick={() => { setConfirmEarly(false); setFinishError(""); }}>Продолжить занятие</button><button className="secondary dangerButton" type="button" onClick={finishEarly}>Подтвердить завершение</button></div></> : <button className="secondary" type="button" onClick={finishEarly}>Завершить досрочно</button>}</div>}
-    {dialog}
-    </main>;
-}
 
-function formatTime(value: number) { return `${Math.floor(value / 60).toString().padStart(2, "0")}:${(value % 60).toString().padStart(2, "0")}`; }
+  const sessionState = state as SessionTrackerState | null;
+  const session = sessionState?.workoutSessions?.find((item) => item.id === routeSessionId);
+  const workout = session && sessionState?.workouts.find((item) => item.id === session.workoutId);
+  const exercise: Exercise | undefined = workout ? workout.exercises[session!.activeExerciseIndex] ?? workout.exercises[0] : undefined;
+  const groups = exercise ? logicalSets(exercise) : [];
+  const current = exercise ? currentLogicalSet(exercise) : undefined;
+  const currentKey = session && exercise ? `${session.id}:${exercise.id}:${current?.key ?? "done"}` : undefined;
+  const draftPrefix = `ritm-workout-draft:${userId}:`;
+
+  // Новый подход на экране: подтягиваем черновики повторов и сбрасываем «только для этого подхода».
+  useEffect(() => {
+    if (!currentKey || initKey.current === currentKey) return;
+    initKey.current = currentKey;
+    const next: Record<string, string> = {};
+    for (const part of current?.parts ?? []) {
+      let stored: string | null = null;
+      try { stored = window.localStorage.getItem(`${draftPrefix}${part.set.id}`); } catch { /* private mode */ }
+      next[part.set.id] = stored ?? part.set.repsDraft ?? (part.set.reps == null ? "" : String(part.set.reps));
+    }
+    setReps(next); setTouched(false); setError(""); setScope("this"); setRemember(false); setEditingWeightId(null);
+  }, [currentKey, current, draftPrefix]);
+
+  useEffect(() => {
+    if (!touched) return;
+    for (const [setId, value] of Object.entries(reps)) { try { window.localStorage.setItem(`${draftPrefix}${setId}`, value); } catch { /* local state is the fallback */ } }
+  }, [reps, touched, draftPrefix]);
+
+  useEffect(() => {
+    const active = tabsRef.current?.querySelector<HTMLElement>("[aria-current='true']");
+    active?.scrollIntoView({ inline: "center", block: "nearest" });
+  }, [session?.activeExerciseIndex]);
+
+  if (!state || !sessionState) return <main className="wk"><p className="muted">Восстанавливаю тренировку…</p></main>;
+  if (!session || !workout || !exercise) return <main className="wk"><p>Сессия не найдена.</p><Link className="btn btn-secondary" href="/workouts">Вернуться к программам</Link></main>;
+  if (session.status !== "active") return <main className="wk"><p>Эта сессия уже закрыта.</p><Link className="btn btn-secondary" href={`/workout/${session.id}/summary`}>Открыть результат</Link></main>;
+
+  const previous = lastPerformance(sessionState, exercise.name, workout.id);
+  const exerciseDone = groups.length > 0 && groups.every((group) => group.completed);
+  const isLastExercise = session.activeExerciseIndex >= workout.exercises.length - 1;
+  const hasRecorded = workout.exercises.some((item) => item.sets.some((set) => set.completed));
+  const rest = sessionState.activeTimer && sessionState.activeTimer.sourceId?.startsWith(`${workout.id}:`) ? restoreRestTimer(sessionState.activeTimer, now) : null;
+  const restSetId = sessionState.activeTimer?.sourceId?.split(":").at(-1);
+  const restSet = restSetId ? workout.exercises.flatMap((item) => item.sets).find((set) => set.id === restSetId) : undefined;
+  const elapsed = Math.max(0, Math.floor((Date.parse(now) - Date.parse(session.startedAt)) / 1000));
+  const currentIndex = current ? groups.findIndex((group) => group.key === current.key) : groups.length;
+  const restRunning = Boolean(rest && !rest.expired);
+
+  const setRepsFor = (setId: string, value: string) => { setTouched(true); setReps((previousReps) => ({ ...previousReps, [setId]: value })); };
+  const stepReps = (setId: string, delta: number) => setRepsFor(setId, String(Math.max(1, Math.min(100, Number(reps[setId] || 0) + delta))));
+  const stepWeight = (set: ExerciseSet, delta: number) => {
+    const next = Math.max(0, Math.round(((set.weightKg ?? 0) + delta) * 100) / 100);
+    update((previousState) => setSetWeight(previousState as SessionTrackerState, session.id, exercise.id, set.id, next, { scope, remember }));
+  };
+  const startWeightEdit = (set: ExerciseSet) => { setEditingWeightId(set.id); setWeightText(set.weightKg == null ? "" : String(set.weightKg)); };
+  const commitWeight = (set: ExerciseSet) => {
+    const value = parseWeightInput(weightText);
+    setEditingWeightId(null);
+    if (value == null) { if (weightText.trim()) setError("Укажите вес числом, например 12,5."); return; }
+    setError("");
+    update((previousState) => setSetWeight(previousState as SessionTrackerState, session.id, exercise.id, set.id, value, { scope, remember }));
+  };
+
+  const record = () => {
+    if (!current) return;
+    const entries: Array<{ setId: string; reps: number }> = [];
+    for (const part of current.parts) {
+      if (part.set.completed) continue;
+      const value = parseRepsInput(reps[part.set.id] ?? "");
+      if (value == null) { setError(part.label ? `Повторы части ${part.label}: целое число от 1 до 100.` : "Укажи целое число повторений от 1 до 100."); return; }
+      entries.push({ setId: part.set.id, reps: value });
+    }
+    setError("");
+    const saved = update((previousState) => recordLogicalSet(previousState as SessionTrackerState, session.id, exercise.id, entries));
+    if (!saved) { setError("Не удалось сохранить подход. Черновик оставлен, повтори действие."); return; }
+    for (const entry of entries) { try { window.localStorage.removeItem(`${draftPrefix}${entry.setId}`); } catch { /* ignore */ } }
+    setTouched(false);
+  };
+
+  const changeRest = (action: "reschedule" | "cancel") => update((previousState) => {
+    const next = previousState as SessionTrackerState;
+    const timer = next.activeTimer;
+    if (!timer) return previousState;
+    const mutation = createRestTimerCommand(timer, action, new Date().toISOString(), `Ритм: отдых завершен после ${exercise.name}. Открой тренировку для следующего шага.`);
+    if (!mutation) return previousState;
+    const outbox = next.outbox.map((item) => item.entityId === timer.sourceId && ["timer.rescheduled", "timer.cancelled"].includes(item.type) && item.status === "pending" ? { ...item, status: "cancelled" as const } : item);
+    return { ...next, activeTimer: mutation.timer, outbox: [...outbox, mutation.command] };
+  });
+
+  const collapse = () => {
+    const saved = touched && current
+      ? update((previousState) => ({ ...previousState, workouts: previousState.workouts.map((item) => item.id !== workout.id ? item : { ...item, exercises: item.exercises.map((itemExercise) => itemExercise.id !== exercise.id ? itemExercise : { ...itemExercise, sets: itemExercise.sets.map((set) => reps[set.id] !== undefined && current.parts.some((part) => part.set.id === set.id) ? { ...set, repsDraft: reps[set.id] } : set) }) }) }))
+      : true;
+    if (saved) router.push("/workouts");
+  };
+  const commitFinish = () => { setFinishOpen(false); const saved = update((previousState) => finishWorkoutSession(previousState as SessionTrackerState, session.id)); if (saved) router.push(`/workout/${session.id}/summary`); };
+  const askFinish = () => { setMenuOpen(false); if (!hasRecorded) { setError("Пока нет записанных подходов. Запишите подход или отмените тренировку."); return; } setFinishOpen(true); };
+  const cancel = async () => {
+    setMenuOpen(false);
+    if (!(await confirm("Записанные подходы останутся в журнале в «Отменённых», но не попадут в статистику и недельную цель.", { title: "Отменить тренировку?", danger: true, confirmLabel: "Отменить тренировку", cancelLabel: "Продолжить" }))) return;
+    const saved = update((previousState) => cancelWorkoutSession(previousState as SessionTrackerState, session.id));
+    if (saved) router.push("/workouts");
+  };
+
+  const recordLabel = current ? `Записать ${current.parts.filter((part) => !part.set.completed).map((part) => reps[part.set.id] || "—").join(" + ")}` : "";
+  const syncText = syncStatus === "idle" ? "" : syncStatus === "syncing" || syncStatus === "dirty" ? "На устройстве · отправляем на сервер" : "На устройстве · нет подтверждения сервера";
+
+  return <main className="wk">
+    <header className="wkTop">
+      <IconButton label="Свернуть" icon={ArrowLeft} onClick={collapse} />
+      <span className="workoutTimer"><Clock size={18} />{formatTime(elapsed)}</span>
+      <IconButton label="Меню тренировки" icon={MoreHorizontal} onClick={() => setMenuOpen(true)} />
+    </header>
+    {syncText ? <p className="wkHint" role="status">{syncText}</p> : null}
+    {storageError && <Notice tone="warning">{storageError}</Notice>}
+    {error && !current && <Notice tone="warning">{error}</Notice>}
+    <div className="wkTabs" ref={tabsRef} role="group" aria-label="Упражнения">
+      {workout.exercises.map((item, index) => {
+        const done = item.sets.length > 0 && item.sets.every((set) => set.completed);
+        return <button type="button" key={item.id} className={`wkTab${done ? " done" : ""}`} aria-current={index === session.activeExerciseIndex} aria-label={`Упражнение ${index + 1}: ${item.name}${done ? ", выполнено" : ""}`} onClick={() => update((previousState) => goToExercise(previousState as SessionTrackerState, session.id, index))}>{done ? <Check size={18} /> : index + 1}</button>;
+      })}
+    </div>
+    <div className="workoutProgress"><span>Упражнение {session.activeExerciseIndex + 1} из {workout.exercises.length}</span><span>{exerciseDone ? "Готово" : `Подход ${Math.max(1, currentIndex + 1)} из ${groups.length}`}</span></div>
+    <section className="wkCard">
+      <div>
+        <h1>{exercise.name}</h1>
+        {visibleCopy(exercise.settings) ? <p className="wkLast">{visibleCopy(exercise.settings)}</p> : null}
+        {previous ? <p className="wkLast">В прошлый раз ({formatLocalDate(previous.date)}): <b>{formatSets(previous.sets)}</b></p> : null}
+      </div>
+      <div className="wkRibbon setSegments" aria-label="Подходы">{groups.map((group) => <span className={group.completed ? "done" : group.key === current?.key ? "current" : ""} key={group.key}>{group.number}</span>)}</div>
+      {exerciseDone
+        ? <div className="wkDone completeState">
+          <Check size={40} />
+          <h2>Упражнение завершено</h2>
+          <p>{isLastExercise ? "Это было последнее упражнение." : `Дальше: ${workout.exercises[session.activeExerciseIndex + 1]?.name ?? ""}`}</p>
+        </div>
+        : current && <>
+          <div className="wkSetTitle"><h2>{current.paired ? "Пара A + B" : `Подход ${current.number}`}</h2>{current.paired ? <span>отдых после обеих частей</span> : null}</div>
+          {current.parts.filter((part) => !part.set.completed).map((part) => <PartEditor
+            key={part.set.id}
+            set={part.set}
+            label={part.label}
+            reps={reps[part.set.id] ?? ""}
+            weightEditing={editingWeightId === part.set.id}
+            weightText={weightText}
+            onWeightStep={(delta) => stepWeight(part.set, delta)}
+            onWeightStartEdit={() => startWeightEdit(part.set)}
+            onWeightText={setWeightText}
+            onWeightCommit={() => commitWeight(part.set)}
+            onRepsText={(value) => setRepsFor(part.set.id, value)}
+            onRepsStep={(delta) => stepReps(part.set.id, delta)}
+          />)}
+          <div className="wkScope">
+            <Segmented<WeightScope> label="Куда применить вес" value={scope} onChange={setScope} options={[{ value: "this", label: "Только этот подход" }, { value: "rest", label: "И следующие" }]} />
+            {scope === "rest" ? <Chip pressed={remember} onClick={() => setRemember((value) => !value)}>{remember ? <Check size={16} /> : null}Запомнить в программе</Chip> : null}
+            <p className="wkHint">Вес меняется сразу, количество подходов не растёт.</p>
+          </div>
+          {error ? <p className="wkError" role="alert">{error}</p> : null}
+        </>}
+    </section>
+    <div className="wkBottom">
+      {restRunning && rest && <div className="restState" role="timer" aria-label="Отдых">
+        <span className="restLabel">Отдых</span>
+        <strong>{formatTime(rest.remainingSec)}</strong>
+        <small>Записано: {restSet?.weightKg != null ? `${restSet.weightKg} кг × ` : ""}{restSet?.reps ?? "—"}</small>
+        <div className="restActions">
+          <Button size="sm" onClick={() => changeRest("reschedule")}>+30 секунд</Button>
+          <Button size="sm" icon={SkipForward} onClick={() => changeRest("cancel")}>Пропустить отдых</Button>
+        </div>
+        <div className="restBar"><span style={{ width: `${Math.max(0, Math.min(100, (rest.remainingSec / (sessionState.activeTimer?.durationSec || 1)) * 100))}%` }} /></div>
+      </div>}
+      {exerciseDone
+        ? isLastExercise
+          ? <Button variant="primary" size="lg" block icon={Square} onClick={() => setFinishOpen(true)}>Завершить тренировку</Button>
+          : <Button variant="primary" size="lg" block onClick={() => update((previousState) => goToExercise(previousState as SessionTrackerState, session.id, session.activeExerciseIndex + 1))}>Следующее упражнение<ChevronRight size={22} /></Button>
+        : <Button variant="primary" size="lg" block icon={Check} onClick={record}>{recordLabel}</Button>}
+    </div>
+    <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title="Тренировка">
+      <ul className="menuList">
+        <li><button type="button" className="menuItem" onClick={askFinish}><Play size={20} /><span>Завершить досрочно<small>Невыполненные подходы не попадут в итог</small></span></button></li>
+        <li><button type="button" className="menuItem danger" onClick={() => void cancel()}><XCircle size={20} /><span>Отменить тренировку<small>Подходы останутся в «Отменённых»</small></span></button></li>
+      </ul>
+      <Button variant="ghost" block onClick={() => setMenuOpen(false)}>Закрыть</Button>
+    </Sheet>
+    <Sheet open={finishOpen} onClose={() => setFinishOpen(false)} title="Завершить тренировку?">
+      <p>{groups.every((group) => group.completed) && workout.exercises.every((item) => item.sets.every((set) => set.completed)) ? "Все подходы записаны." : "Незаписанные подходы не попадут в результат. В недельной цели останутся только записанные."}</p>
+      <div className="sheetActions two">
+        <Button onClick={() => setFinishOpen(false)}>Продолжить занятие</Button>
+        <Button variant="primary" onClick={commitFinish}>Подтвердить завершение</Button>
+      </div>
+    </Sheet>
+    {dialog}
+  </main>;
+}

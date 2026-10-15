@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { PwaRegistration } from "./pwa";
 import { TrackerProvider } from "@/components/tracker-state";
 import "./globals.css";
+import "../styles/ds.css";
 
 const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-sans", display: "swap" });
 
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0b0f",
+  themeColor: "#060709",
   width: "device-width",
   initialScale: 1,
 };

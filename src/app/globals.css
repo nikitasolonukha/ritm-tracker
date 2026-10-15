@@ -1,31 +1,58 @@
 /* Ритм. Один слой стилей: токены → база → элементы → экраны. */
 :root {
-  --bg: #0a0b0f;
-  --surface: #14161c;
-  --surface-2: #1d2029;
-  --field: #0e1015;
-  --line: rgba(255, 255, 255, 0.08);
+  /* Цвет: почти чёрный графит и один горячий акцент */
+  --bg: #060709;
+  --surface: #0f1115;
+  --surface-2: #161920;
+  --surface-3: #1e222b;
+  --field: #0a0c0f;
+  --line: rgba(255, 255, 255, 0.07);
   --line-strong: rgba(255, 255, 255, 0.14);
-  --text: #f5f5f7;
-  --muted: #8f95a3;
-  --accent: #ff8a3d;
-  --accent-2: #ff9d5c;
-  --accent-grad: linear-gradient(135deg, #ffb457 0%, #ff8a3d 55%, #ff6a3a 100%);
-  --accent-soft: rgba(255, 138, 61, 0.12);
-  --on-accent: #1c0e03;
-  --ok: #52d6a4;
-  --warning: #f5c065;
-  --danger: #ff8080;
-  --card-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0));
+  --text: #f7f7f8;
+  --muted: #9097a4;
+  --accent: #ff6b2c;
+  --accent-2: #ff8a4d;
+  --accent-grad: linear-gradient(135deg, #ff8f3f 0%, #ff6b2c 50%, #ff4a2e 100%);
+  --accent-soft: rgba(255, 107, 44, 0.14);
+  --accent-line: rgba(255, 107, 44, 0.45);
+  --on-accent: #160700;
+  --ok: #3be8a0;
+  --ok-soft: rgba(59, 232, 160, 0.14);
+  --warning: #ffc861;
+  --danger: #ff6f6f;
+  --card-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0));
+  /* Форма и размеры */
+  --r-sm: 10px;
   --r: 16px;
+  --r-lg: 22px;
+  --r-pill: 999px;
   --ctl: 48px;
   --nav-h: 68px;
   --nav-space: calc(var(--nav-h) + env(safe-area-inset-bottom) + 24px);
+  /* Шкала отступов */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  /* Шкала шрифтов */
+  --fs-xs: 12px;
+  --fs-sm: 14px;
+  --fs-md: 16px;
+  --fs-lg: 18px;
+  --fs-xl: 22px;
+  --fs-2xl: 28px;
+  --fs-num: 44px;
+  --fs-hero: 72px;
+  /* Тени */
+  --shadow-accent: 0 10px 28px -10px rgba(255, 90, 40, 0.65);
+  --shadow-pop: 0 24px 64px rgba(0, 0, 0, 0.65);
 }
 
 * { box-sizing: border-box; }
 html { -webkit-font-smoothing: antialiased; background: var(--bg); color: var(--text); }
-body { margin: 0; min-height: 100vh; font: 16px/1.4 var(--font-sans), system-ui, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg) radial-gradient(900px 420px at 50% -140px, rgba(255, 138, 61, 0.11), transparent 70%) no-repeat; background-attachment: fixed; }
+body { margin: 0; min-height: 100vh; font: 16px/1.4 var(--font-sans), system-ui, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg) radial-gradient(900px 420px at 50% -160px, rgba(255, 107, 44, 0.12), transparent 70%) no-repeat; background-attachment: fixed; }
 h1, h2, h3, p { margin-top: 0; }
 h1 { margin-bottom: 0; font-size: 28px; font-weight: 700; line-height: 1.15; letter-spacing: -0.02em; text-wrap: balance; }
 h2 { margin-bottom: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
@@ -140,51 +167,6 @@ button.dayCapsule { display: grid; width: 100%; min-width: 0; min-height: 64px; 
 .startBar { position: sticky; z-index: 5; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 8px); margin-top: 16px; }
 .startWorkout { width: 100%; box-shadow: 0 0 0 8px var(--bg); }
 .editLink { width: fit-content; margin: 0 0 12px; }
-
-/* Активная тренировка */
-.workoutMode { display: grid; align-content: start; justify-items: center; gap: 12px; min-height: 100dvh; padding: 12px 16px calc(24px + env(safe-area-inset-bottom)); background: var(--bg); }
-.workoutMode > * { width: min(560px, 100%); }
-.workoutTop { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.workoutTimer { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.workoutSync { margin: 0; color: var(--muted); font-size: 13px; }
-.workoutProgress { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 14px; }
-.activeExercise { margin: 0 auto; padding: 20px 16px; border-radius: 20px; background: var(--card-sheen), var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
-.activeExercise h1 { font-size: 26px; overflow-wrap: anywhere; }
-.setSegments { display: flex; gap: 6px; margin: 16px 0 12px; }
-.setSegments span { height: 6px; flex: 1; border-radius: 999px; background: var(--surface-2); font-size: 0; }
-.setSegments span.done, .setSegments span.current { background: var(--accent-grad); }
-.workWeight { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; }
-.workWeight strong { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
-.workWeight span { min-width: 0; color: var(--muted); font-size: 14px; }
-.weightEditButton { margin-left: auto; }
-.repsControl { display: grid; grid-template-columns: 56px 1fr 56px; gap: 8px; align-items: center; }
-.repsControl button { width: 56px; height: 56px; border: 0; border-radius: 50%; background: var(--surface-2); color: var(--text); font-size: 28px; }
-.repsControl input { min-height: 88px; padding: 0; border: 0; background: transparent; text-align: center; font-size: 72px; font-weight: 600; line-height: 1; }
-.repsField small { text-align: center; }
-.recordButton { width: 100%; margin-top: 12px; }
-.restState { display: grid; gap: 8px; }
-.restState span { color: var(--muted); }
-.restState strong { font-size: 76px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
-.restState small { color: var(--muted); font-size: 14px; }
-.restBar { height: 4px; margin: 4px 0; overflow: hidden; border-radius: 999px; background: var(--surface-2); }
-.restBar span { display: block; height: 100%; border-radius: inherit; background: var(--accent-grad); transition: width 200ms linear; }
-.restActions { display: grid; grid-template-columns: 1fr 1.5fr; gap: 8px; }
-.restActions button { white-space: nowrap; }
-.completeState { display: grid; justify-items: start; gap: 12px; }
-.completeState svg { color: var(--accent); }
-.completeState .primary { width: 100%; }
-.earlyFinish { display: grid; gap: 12px; }
-.earlyFinish p { margin: 0; color: var(--muted); }
-.finishActions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.weightEditor { display: grid; gap: 12px; margin: 0 0 16px; padding: 16px; border-radius: var(--r); background: var(--surface-2); }
-.weightEditor h2 { font-size: 18px; }
-.weightEditor input[type="text"], .weightEditor input:not([type]) { min-height: 52px; font-size: 20px; }
-.weightScope { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; color: var(--muted); font-size: 14px; }
-.weightScope legend { margin-bottom: 4px; color: var(--text); font-weight: 600; }
-.weightEditorActions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-@media (max-width: 520px) {
-  .weightEditor { position: fixed; z-index: 20; right: 0; bottom: 0; left: 0; width: 100%; margin: 0; padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); border-radius: 20px 20px 0 0; box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.5); }
-}
 
 /* Итог и история */
 .summaryHero { display: grid; gap: 6px; padding: 20px 16px; }

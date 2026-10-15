@@ -346,7 +346,8 @@ test("real local multi-account product journey, storage isolation and offline re
     await expect(page.getByRole("heading", { name: "Тренировки", exact: true })).toBeVisible();
     if (await page.locator("a.resumeBanner").count()) {
       await page.locator("a.resumeBanner").click();
-      await page.getByRole("button", { name: "Отменить", exact: true }).click();
+      await page.getByRole("button", { name: "Меню тренировки", exact: true }).click();
+      await page.getByRole("button", { name: /^Отменить тренировку/ }).click();
       await page.getByRole("dialog").getByRole("button", { name: "Отменить тренировку", exact: true }).click();
       await expect(page).toHaveURL(/\/workouts$/);
       await expect(page.getByRole("heading", { name: "Тренировки", exact: true })).toBeVisible();

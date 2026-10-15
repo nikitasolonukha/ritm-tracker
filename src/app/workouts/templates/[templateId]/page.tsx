@@ -24,7 +24,7 @@ function planRows(exercise: Exercise) {
     const last = rows.at(-1);
     if (last?.key === key) { last.count += 1; continue; }
     rows.push(group.paired
-      ? { key, count: 1, reps: group.parts.map((part) => `${part.label} ${part.set.reps ?? "—"}`).join(" + "), detail: parts.map((set, index) => `${group.parts[index].label}: ${weightText(set)}`).join(" · ") }
+      ? { key, count: 1, reps: parts.map((set) => String(set.reps ?? "—")).join(" + "), detail: parts.every((set) => set.weightKg === parts[0].weightKg) ? `${weightText(parts[0])} · правая и левая` : parts.map((set, index) => `${group.parts[index].label === "A" ? "правая" : "левая"}: ${weightText(set)}`).join(" · ") }
       : { key, count: 1, reps: String(parts[0].reps ?? "—"), detail: weightText(parts[0]) });
   }
   return rows;

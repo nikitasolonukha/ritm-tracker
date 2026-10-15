@@ -17,43 +17,60 @@ const formatTime = (value: number) => `${Math.floor(value / 60).toString().padSt
 const kgText = (value: number | null | undefined) => (value == null ? "—" : String(value));
 const unitOf = (set: ExerciseSet) => set.weightMode === "per-hand" ? "кг на сторону" : set.weightMode === "total" ? "кг общий вес" : "кг";
 
-type PartEditorProps = {
-  set: ExerciseSet;
-  label: "A" | "B" | null;
-  reps: string;
+const sideName = (label: "A" | "B" | null) => label === "A" ? "Правая" : label === "B" ? "Левая" : "";
+const sideSuffix = (label: "A" | "B" | null) => label ? ` ${sideName(label).toLowerCase()}` : "";
+
+type NumberHandlers = {
   weightEditing: boolean;
   weightText: string;
   onWeightStep: (delta: number) => void;
   onWeightStartEdit: () => void;
   onWeightText: (value: string) => void;
   onWeightCommit: () => void;
-  onRepsText: (value: string) => void;
-  onRepsStep: (delta: number) => void;
 };
 
-function PartEditor({ set, label, reps, weightEditing, weightText, onWeightStep, onWeightStartEdit, onWeightText, onWeightCommit, onRepsText, onRepsStep }: PartEditorProps) {
+function WeightField({ weight, unit, suffix, weightEditing, weightText, onWeightStep, onWeightStartEdit, onWeightText, onWeightCommit, title = "Вес" }: NumberHandlers & { weight: number | null | undefined; unit: string; suffix: string; title?: string }) {
+  return <div className="wkField workWeight">
+    <span className="wkFieldName">{title}</span>
+    <Stepper minusLabel={`Уменьшить вес${suffix}`} plusLabel={`Увеличить вес${suffix}`} minusDisabled={(weight ?? 0) <= 0} onMinus={() => onWeightStep(-WEIGHT_STEP)} onPlus={() => onWeightStep(WEIGHT_STEP)}>
+      {weightEditing
+        ? <input autoFocus aria-label={`Вес${suffix}`} inputMode="decimal" value={weightText} onChange={(event) => onWeightText(event.target.value)} onBlur={onWeightCommit} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} />
+        : <button type="button" className="stepperValueBtn" aria-label={`Ввести вес${suffix} числом`} onClick={onWeightStartEdit}><strong>{kgText(weight)}</strong></button>}
+      <small>{unit}</small>
+    </Stepper>
+  </div>;
+}
+
+function RepsField({ set, label, reps, onRepsText, onRepsStep, title = "Повторы" }: { set: ExerciseSet; label: "A" | "B" | null; reps: string; onRepsText: (value: string) => void; onRepsStep: (delta: number) => void; title?: string }) {
   const repsNumber = Number(reps || 0);
+  return <div className="wkField">
+    <span className="wkFieldName">{title}</span>
+    <div className="repsControl">
+      <Stepper minusLabel={`Уменьшить повторы${sideSuffix(label)}`} plusLabel={`Увеличить повторы${sideSuffix(label)}`} minusDisabled={repsNumber <= 1} plusDisabled={repsNumber >= 100} onMinus={() => onRepsStep(-1)} onPlus={() => onRepsStep(1)}>
+        <input autoComplete="off" aria-label={`Фактические повторы${sideSuffix(label)}`} inputMode="numeric" value={reps} placeholder={`${set.reps ?? "—"}`} onChange={(event) => onRepsText(event.target.value)} />
+        <small>план: {set.reps ?? "не задан"}</small>
+      </Stepper>
+    </div>
+  </div>;
+}
+
+/** Обычный подход или одна сторона пары, когда у сторон разный вес. */
+function PartEditor({ set, label, reps, onRepsText, onRepsStep, ...weight }: NumberHandlers & { set: ExerciseSet; label: "A" | "B" | null; reps: string; onRepsText: (value: string) => void; onRepsStep: (delta: number) => void }) {
   return <div className={`wkPart${label ? "" : " single"}`}>
-    {label ? <div className="wkPartLabel"><span className="wkPartBadge">{label}</span>{label === "A" ? "Первая часть" : "Вторая часть"}</div> : null}
+    {label ? <div className="wkPartLabel"><span className="wkPartBadge">{label === "A" ? "П" : "Л"}</span>{sideName(label)} сторона</div> : null}
     <div className="wkFields">
-      <div className="wkField workWeight">
-        <span className="wkFieldName">Вес</span>
-        <Stepper minusLabel={`Уменьшить вес${label ? ` ${label}` : ""}`} plusLabel={`Увеличить вес${label ? ` ${label}` : ""}`} minusDisabled={(set.weightKg ?? 0) <= 0} onMinus={() => onWeightStep(-WEIGHT_STEP)} onPlus={() => onWeightStep(WEIGHT_STEP)}>
-          {weightEditing
-            ? <input autoFocus aria-label={`Вес${label ? ` ${label}` : ""}`} inputMode="decimal" value={weightText} onChange={(event) => onWeightText(event.target.value)} onBlur={onWeightCommit} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} />
-            : <button type="button" className="stepperValueBtn" aria-label={`Ввести вес${label ? ` ${label}` : ""} числом`} onClick={onWeightStartEdit}><strong>{kgText(set.weightKg)}</strong></button>}
-          <small>{unitOf(set)}</small>
-        </Stepper>
-      </div>
-      <div className="wkField">
-        <span className="wkFieldName">Повторы</span>
-        <div className="repsControl">
-          <Stepper minusLabel={`Уменьшить повторы${label ? ` ${label}` : ""}`} plusLabel={`Увеличить повторы${label ? ` ${label}` : ""}`} minusDisabled={repsNumber <= 1} plusDisabled={repsNumber >= 100} onMinus={() => onRepsStep(-1)} onPlus={() => onRepsStep(1)}>
-            <input autoComplete="off" aria-label={`Фактические повторы${label ? ` ${label}` : ""}`} inputMode="numeric" value={reps} placeholder={`${set.reps ?? "—"}`} onChange={(event) => onRepsText(event.target.value)} />
-            <small>план: {set.reps ?? "не задан"}</small>
-          </Stepper>
-        </div>
-      </div>
+      <WeightField weight={set.weightKg} unit={unitOf(set)} suffix={sideSuffix(label)} {...weight} />
+      <RepsField set={set} label={label} reps={reps} onRepsText={onRepsText} onRepsStep={onRepsStep} />
+    </div>
+  </div>;
+}
+
+/** Пара «правая, затем левая» с одинаковым весом: один вес на обе стороны и повторы для каждой. */
+function PairEditor({ parts, reps, onRepsText, onRepsStep, ...weight }: NumberHandlers & { parts: Array<{ set: ExerciseSet; label: "A" | "B" | null }>; reps: Record<string, string>; onRepsText: (setId: string, value: string) => void; onRepsStep: (setId: string, delta: number) => void }) {
+  return <div className="wkPart single">
+    <div className="wkFields">
+      <div className="wkWide"><WeightField weight={parts[0].set.weightKg} unit={`${unitOf(parts[0].set)} · обе стороны`} suffix="" {...weight} /></div>
+      {parts.map((part) => <RepsField key={part.set.id} set={part.set} label={part.label} title={`Повторы · ${sideName(part.label).toLowerCase()}`} reps={reps[part.set.id] ?? ""} onRepsText={(value) => onRepsText(part.set.id, value)} onRepsStep={(delta) => onRepsStep(part.set.id, delta)} />)}
     </div>
   </div>;
 }
@@ -132,6 +149,17 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
     const next = Math.max(0, Math.round(((set.weightKg ?? 0) + delta) * 100) / 100);
     update((previousState) => setSetWeight(previousState as SessionTrackerState, session.id, exercise.id, set.id, next, { scope, remember }));
   };
+  const incompleteParts = current ? current.parts.filter((part) => !part.set.completed) : [];
+  const sharedWeight = incompleteParts.length === 2 && incompleteParts[0].set.weightKg === incompleteParts[1].set.weightKg;
+  const applyWeightToParts = (kg: number) => update((previousState) => incompleteParts.reduce((acc, part) => setSetWeight(acc, session.id, exercise.id, part.set.id, kg, { scope, remember }), previousState as SessionTrackerState));
+  const stepSharedWeight = (delta: number) => applyWeightToParts(Math.max(0, Math.round(((incompleteParts[0]?.set.weightKg ?? 0) + delta) * 100) / 100));
+  const commitSharedWeight = () => {
+    const value = parseWeightInput(weightText);
+    setEditingWeightId(null);
+    if (value == null) { if (weightText.trim()) setError("Укажите вес числом, например 12,5."); return; }
+    setError("");
+    applyWeightToParts(value);
+  };
   const startWeightEdit = (set: ExerciseSet) => { setEditingWeightId(set.id); setWeightText(set.weightKg == null ? "" : String(set.weightKg)); };
   const commitWeight = (set: ExerciseSet) => {
     const value = parseWeightInput(weightText);
@@ -147,7 +175,7 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
     for (const part of current.parts) {
       if (part.set.completed) continue;
       const value = parseRepsInput(reps[part.set.id] ?? "");
-      if (value == null) { setError(part.label ? `Повторы части ${part.label}: целое число от 1 до 100.` : "Укажи целое число повторений от 1 до 100."); return; }
+      if (value == null) { setError(part.label ? `Повторы (${sideName(part.label).toLowerCase()}): целое число от 1 до 100.` : "Укажи целое число повторений от 1 до 100."); return; }
       entries.push({ setId: part.set.id, reps: value });
     }
     setError("");
@@ -215,21 +243,34 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
           <p>{isLastExercise ? "Это было последнее упражнение." : `Дальше: ${workout.exercises[session.activeExerciseIndex + 1]?.name ?? ""}`}</p>
         </div>
         : current && <>
-          <div className="wkSetTitle"><h2>{current.paired ? "Пара A + B" : `Подход ${current.number}`}</h2>{current.paired ? <span>отдых после обеих частей</span> : null}</div>
-          {current.parts.filter((part) => !part.set.completed).map((part) => <PartEditor
-            key={part.set.id}
-            set={part.set}
-            label={part.label}
-            reps={reps[part.set.id] ?? ""}
-            weightEditing={editingWeightId === part.set.id}
-            weightText={weightText}
-            onWeightStep={(delta) => stepWeight(part.set, delta)}
-            onWeightStartEdit={() => startWeightEdit(part.set)}
-            onWeightText={setWeightText}
-            onWeightCommit={() => commitWeight(part.set)}
-            onRepsText={(value) => setRepsFor(part.set.id, value)}
-            onRepsStep={(delta) => stepReps(part.set.id, delta)}
-          />)}
+          <div className="wkSetTitle"><h2>{`Подход ${current.number}`}</h2>{current.paired ? <span>правая, затем левая</span> : null}</div>
+          {sharedWeight
+            ? <PairEditor
+              parts={incompleteParts}
+              reps={reps}
+              weightEditing={editingWeightId === "shared"}
+              weightText={weightText}
+              onWeightStep={stepSharedWeight}
+              onWeightStartEdit={() => { setEditingWeightId("shared"); setWeightText(incompleteParts[0].set.weightKg == null ? "" : String(incompleteParts[0].set.weightKg)); }}
+              onWeightText={setWeightText}
+              onWeightCommit={commitSharedWeight}
+              onRepsText={setRepsFor}
+              onRepsStep={stepReps}
+            />
+            : incompleteParts.map((part) => <PartEditor
+              key={part.set.id}
+              set={part.set}
+              label={part.label}
+              reps={reps[part.set.id] ?? ""}
+              weightEditing={editingWeightId === part.set.id}
+              weightText={weightText}
+              onWeightStep={(delta) => stepWeight(part.set, delta)}
+              onWeightStartEdit={() => startWeightEdit(part.set)}
+              onWeightText={setWeightText}
+              onWeightCommit={() => commitWeight(part.set)}
+              onRepsText={(value) => setRepsFor(part.set.id, value)}
+              onRepsStep={(delta) => stepReps(part.set.id, delta)}
+            />)}
           <div className="wkScope">
             <Segmented<WeightScope> label="Куда применить вес" value={scope} onChange={setScope} options={[{ value: "this", label: "Только этот подход" }, { value: "rest", label: "И следующие" }]} />
             {scope === "rest" ? <Chip pressed={remember} onClick={() => setRemember((value) => !value)}>{remember ? <Check size={16} /> : null}Запомнить в программе</Chip> : null}

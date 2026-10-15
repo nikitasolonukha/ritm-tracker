@@ -242,7 +242,7 @@ export default function SettingsPage() {
           <p className="fieldHint muted">«Общий вес» — штанга или тренажёр целиком. «На сторону» — вес одной гантели, в объём входит дважды.</p>
           <div className="setEditors">{logicalSets.map((logicalSet, setNumber) => <div className="segmentEditor" key={logicalSet.key}>{logicalSet.sets.map((set, partIndex) => {
             const caption = (text: string) => <span className={setNumber === 0 && partIndex === 0 ? undefined : "srOnly"}>{text}</span>;
-            const part = set.component === "compound-a" ? "A" : set.component === "compound-b" ? "B" : "";
+            const part = set.component === "compound-a" ? "П" : set.component === "compound-b" ? "Л" : "";
             return <div className={`setPart${mixed ? " withMode" : ""}`} key={set.id}>
               <span className="setNo" aria-hidden="true">{partIndex === 0 || part ? `${setNumber + 1}${part}` : ""}</span>
               <label>{caption("Вес")}<SettingsInput numeric="weight" placeholder="кг" value={set.weightKg} onCommit={(value) => editSet(exercise.id, set.id, "weightKg", value)} /></label>
@@ -251,8 +251,8 @@ export default function SettingsPage() {
               {mixed && <label className="setMode">{caption("Режим")}<AppSelect value={set.weightMode ?? ""} onChange={(value) => editSet(exercise.id, set.id, "weightMode", value)}><option value="">Уточнить</option><option value="total">Общий вес</option><option value="per-hand">На сторону</option></AppSelect></label>}
             </div>;
           })}</div>)}</div>
-          <div className="setEditorActions"><button className="secondary" onClick={() => addSet(exercise.id)}><Plus size={17} /> Подход</button>{paired ? <button className="secondary" onClick={() => splitCompound(exercise.id)}>Разделить пары</button> : exercise.sets.length >= 2 && exercise.sets.length % 2 === 0 && <button className="secondary" title="Соседние подходы станут парой: часть A, затем часть B, отдых после обеих" onClick={() => makeCompound(exercise.id)}>Сделать парами A/B</button>}</div>
-          {paired && <p className="fieldHint muted">Подходы идут парами: сначала часть A, затем часть B. Отдых — после обеих.</p>}
+          <div className="setEditorActions"><button className="secondary" onClick={() => addSet(exercise.id)}><Plus size={17} /> Подход</button>{paired ? <button className="secondary" onClick={() => splitCompound(exercise.id)}>Убрать правую и левую</button> : exercise.sets.length >= 2 && exercise.sets.length % 2 === 0 && <button className="secondary" title="Каждый подход делается дважды: сначала правой, потом левой. Отдых после обеих сторон" onClick={() => makeCompound(exercise.id)}>Правая и левая</button>}</div>
+          {paired && <p className="fieldHint muted">Каждый подход делается дважды: сначала правая сторона (П), затем левая (Л). Отдых — после обеих.</p>}
           <div className="exerciseToolbar"><button type="button" className="iconButton" aria-label="Переместить выше" title="Выше" disabled={exerciseIndex === 0} onClick={() => moveExercise(-1)}><ArrowUp size={18} /></button><button type="button" className="iconButton" aria-label="Переместить ниже" title="Ниже" disabled={lastExercise} onClick={() => moveExercise(1)}><ArrowDown size={18} /></button><button type="button" className="secondary dangerButton" onClick={() => removeExercise(exercise.id, exercise.name)}><Trash2 size={17} /> Удалить упражнение</button></div>
         </div></details>;
       })}

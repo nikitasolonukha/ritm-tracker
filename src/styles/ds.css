@@ -257,3 +257,6 @@
 .obsMain span { color: var(--muted); font-size: var(--fs-sm); }
 .obsMain small { overflow: hidden; color: var(--muted); font-size: var(--fs-sm); text-overflow: ellipsis; white-space: nowrap; }
 .progressTabs > a { padding: 0 4px; font-size: 13px; }
+
+.wkWide { grid-column: 1 / -1; }
+.wkWide > .wkField { height: 100%; }

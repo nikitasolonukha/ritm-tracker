@@ -36,7 +36,7 @@ function SetFields({ draft, change }: { draft: SetDraft; change: (patch: Partial
   </>;
 }
 
-const partTitle = (set: ExerciseSet) => set.component === "compound-a" ? " · часть A" : set.component === "compound-b" ? " · часть B" : "";
+const partTitle = (set: ExerciseSet) => set.component === "compound-a" ? " · правая" : set.component === "compound-b" ? " · левая" : "";
 const modeText = (set: ExerciseSet) => set.weightMode === "per-hand" ? "на сторону" : set.weightMode === "total" ? "общий вес" : "";
 
 export default function JournalWorkoutPage({ params }: { params: Promise<{ sessionId: string }> }) {

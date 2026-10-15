@@ -1,6 +1,6 @@
 {
   "name": "ritm-tracker",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@9.15.0",
@@ -10,6 +10,7 @@
     "start": "next start",
     "lint": "eslint \"src/**/*.{ts,tsx}\" \"tests/**/*.ts\"",
     "test": "node --test --experimental-strip-types tests/tracker.test.ts tests/repair.test.ts tests/telegram.test.ts tests/audit-regressions.test.mjs tests/workout-session.test.ts tests/product.test.ts tests/exercises.test.ts tests/stats.test.ts tests/streaks.test.ts tests/workout-flow.test.ts tests/csv-export.test.ts tests/auth-product.test.ts tests/backup.test.ts tests/telegram-runtime.test.ts",
+    "test:e2e:demo": "node scripts/demo-e2e.mjs",
     "test:coverage": "node --test --experimental-strip-types --experimental-test-coverage tests/tracker.test.ts tests/repair.test.ts tests/telegram.test.ts tests/audit-regressions.test.mjs tests/workout-session.test.ts tests/product.test.ts tests/exercises.test.ts tests/stats.test.ts tests/streaks.test.ts tests/workout-flow.test.ts tests/csv-export.test.ts tests/auth-product.test.ts tests/backup.test.ts tests/telegram-runtime.test.ts"
   },
   "dependencies": {

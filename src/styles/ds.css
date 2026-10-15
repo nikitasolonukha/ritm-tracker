@@ -319,3 +319,6 @@
 .sessionBar b { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-sm); }
 .appPage:has(.sessionBar) { padding-bottom: calc(var(--nav-space) + 64px); }
 @media (min-width: 900px) { .sessionBar { left: calc(50% + 130px); right: auto; width: min(640px, calc(100% - 320px)); bottom: 24px; transform: translateX(-50%); } .appPage:has(.sessionBar) { padding-bottom: 120px; } }
+
+/* Подтверждение всегда поверх листов (лист правки подхода открыт, пока спрашиваем про удаление) */
+.dialogBackdrop { z-index: 80; }

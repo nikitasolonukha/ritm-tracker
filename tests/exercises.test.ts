@@ -69,3 +69,17 @@ test("rest durations are formatted in minutes and seconds", async () => {
   assert.equal(formatRest(45), "45 с");
   assert.ok(restOptionsSec.includes(240) && restOptionsSec.includes(90));
 });
+
+test("recent records list the heaviest set per exercise, newest first", async () => {
+  const { recentRecords } = await import("../src/lib/exercises.ts");
+  const state = stateOf([
+    workout("w1", "2026-09-01", "Жим лёжа", [set("a", 60, 8), set("b", 70, 3)]),
+    workout("w2", "2026-09-08", "Тяга", [set("c", 50, 10)]),
+    workout("w3", "2026-09-15", "жим лежа", [set("d", 65, 5)]),
+  ]);
+  const records = recentRecords(state, 5);
+  assert.deepEqual(records.map((r) => r.name), ["Тяга", "жим лежа"]);
+  assert.equal(records[1].weightKg, 70);
+  assert.equal(records[1].date, "2026-09-01");
+  assert.equal(recentRecords(state, 1).length, 1);
+});

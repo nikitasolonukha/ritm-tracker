@@ -28,13 +28,15 @@ function setsWord(count: number) {
 }
 
 export default function SettingsPage() {
-  const { state, update, importLegacy, dismissLegacy, legacyState, storageError, syncStatus } = useTrackerState();
+  const { state, update, importLegacy, dismissLegacy, legacyState, storageError, syncStatus, userId } = useTrackerState();
   const { confirm, dialog } = useConfirm();
   const sessionState = state as SessionTrackerState | null;
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>();
   const template = sessionState?.workoutTemplates?.find((t) => t.id === selectedTemplateId) ?? sessionState?.workoutTemplates?.[0];
   const [signOutError, setSignOutError] = useState("");
+  const [email, setEmail] = useState<string>();
   const [section, setSection] = useState<"habits" | "program" | "telegram" | "data">("habits");
+  useEffect(() => { if (userId && userId !== "demo") void createClient().auth.getUser().then(({ data }) => setEmail(data.user?.email ?? undefined)).catch(() => undefined); }, [userId]);
   useEffect(() => { const query = new URLSearchParams(window.location.search); const section = query.get("section"); if (section === "program" || section === "telegram" || section === "data") setSection(section); setSelectedTemplateId(query.get("program") ?? undefined); }, []);
   if (!state) return <main className="shell appPage"><p className="muted">Загружаю настройки...</p></main>;
   const addProgram = () => {
@@ -201,7 +203,14 @@ export default function SettingsPage() {
     <PageHeader eyebrow="Аккаунт" title="Профиль" actions={<HeaderAction onClick={signOut} icon={LogOut} label="Выйти" />} />
     {signOutError && <Notice tone="error">{signOutError}</Notice>}
     {storageError && <Notice tone="warning">{storageError}</Notice>}
-    <p className="muted" role="status">{syncStatus === "idle" ? "Изменения сохранены" : syncStatus === "syncing" || syncStatus === "dirty" ? "Сохраняем изменения…" : syncStatus === "loading" ? "Загружаем данные…" : "Изменения на этом устройстве"}</p>
+    <section className="accountCard">
+      <span className="accountAvatar" aria-hidden="true">{(email ?? "Р").slice(0, 1).toUpperCase()}</span>
+      <div className="accountText">
+        <strong>{email ?? (userId === "demo" ? "Демо-режим" : "Аккаунт")}</strong>
+        <small role="status">{syncStatus === "idle" ? "Изменения сохранены" : syncStatus === "syncing" || syncStatus === "dirty" ? "Сохраняем изменения…" : syncStatus === "loading" ? "Загружаем данные…" : "Изменения на этом устройстве"}</small>
+      </div>
+      <span className="accountVersion">v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
+    </section>
     {legacyState && <section className="panel migrationNotice"><p className="eyebrow">На этом телефоне</p><h2>Есть записи до входа в аккаунт</h2><p>Это привычки, тренировки и отметки, которые остались в памяти телефона. Их можно скопировать сюда: то, что уже есть в аккаунте, не сотрётся. Незавершённая тренировка из старой копии текущую не заменит.</p><div className="settingsActions"><button className="primary" onClick={importLegacy}>Перенести в этот аккаунт</button><button className="secondary" type="button" onClick={dismissLegacy}>Не переносить</button></div></section>}
     <div className="settingsTabs" role="tablist" aria-label="Раздел настроек">{([["habits", "Привычки"], ["program", "Программа"], ["telegram", "Telegram"], ["data", "Данные"]] as const).map(([id, label]) => <button key={id} role="tab" aria-selected={section === id} onClick={() => setSection(id)}>{label}</button>)}</div>
     {section === "telegram" && <><TelegramSettings /><ReminderSettings /></>}

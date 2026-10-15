@@ -128,3 +128,16 @@ export function buildExerciseLibrary(state: SessionTrackerState): ExerciseEntry[
   }
   return [...map.values()].sort((a, b) => (b.lastDate ?? "").localeCompare(a.lastDate ?? "") || a.name.localeCompare(b.name, "ru"));
 }
+
+export type RecordEntry = { key: string; name: string; weightKg: number; reps: number; date: string };
+
+/** Личные рекорды по весу для каждого упражнения с историей. Сначала самые свежие, `limit` штук. */
+export function recentRecords(state: SessionTrackerState, limit = 5): RecordEntry[] {
+  const entries: RecordEntry[] = [];
+  for (const entry of buildExerciseLibrary(state)) {
+    if (!entry.sessionCount) continue;
+    const heaviest = getExerciseRecords(getExerciseSessions(state, entry.key)).heaviest;
+    if (heaviest) entries.push({ key: entry.key, name: entry.name, weightKg: heaviest.weightKg, reps: heaviest.reps, date: heaviest.date });
+  }
+  return entries.sort((a, b) => b.date.localeCompare(a.date) || b.weightKg - a.weightKg).slice(0, limit);
+}

@@ -295,3 +295,27 @@
 .historyCard > div { flex: 1 1 0; min-width: 0; }
 .historyCard h2 { overflow-wrap: anywhere; }
 .historyExercises { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Рекорды */
+.recordList { display: grid; gap: var(--s-2); grid-template-columns: minmax(0, 1fr); }
+.recordRow { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-radius: var(--r); background: var(--card-sheen), var(--surface); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); text-decoration: none; }
+.recordRow > span { display: grid; flex: 1; gap: 2px; min-width: 0; }
+.recordRow strong { overflow: hidden; font-size: var(--fs-md); text-overflow: ellipsis; white-space: nowrap; }
+.recordRow small { color: var(--muted); font-size: var(--fs-sm); }
+.recordRow b { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sectionLink { font-size: var(--fs-sm); text-decoration: none; }
+
+/* Карточка аккаунта */
+.accountCard { display: flex; align-items: center; gap: var(--s-3); margin-bottom: var(--s-4); padding: var(--s-3) var(--s-4); border-radius: var(--r); background: var(--card-sheen), var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.accountAvatar { display: grid; flex: 0 0 44px; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--accent-grad); color: var(--on-accent); font-size: var(--fs-lg); font-weight: 800; }
+.accountText { display: grid; flex: 1; gap: 2px; min-width: 0; }
+.accountText strong { overflow: hidden; font-size: var(--fs-md); text-overflow: ellipsis; white-space: nowrap; }
+.accountText small { color: var(--muted); font-size: var(--fs-sm); }
+.accountVersion { color: var(--muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+
+/* Плашка активной тренировки над навигацией */
+.sessionBar { position: fixed; z-index: 15; right: 12px; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 8px); left: 12px; display: flex; align-items: center; gap: var(--s-3); min-height: 52px; max-width: 696px; margin: 0 auto; padding: 0 var(--s-4); border-radius: var(--r); background: var(--accent-grad); color: var(--on-accent); box-shadow: var(--shadow-accent); font-weight: 650; text-decoration: none; font-variant-numeric: tabular-nums; }
+.sessionBar span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sessionBar b { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-sm); }
+.appPage:has(.sessionBar) { padding-bottom: calc(var(--nav-space) + 64px); }
+@media (min-width: 900px) { .sessionBar { left: calc(50% + 130px); right: auto; width: min(640px, calc(100% - 320px)); bottom: 24px; transform: translateX(-50%); } .appPage:has(.sessionBar) { padding-bottom: 120px; } }

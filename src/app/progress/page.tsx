@@ -1,6 +1,7 @@
 "use client";
 
-import { Download, Plus, Save, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Download, Plus, Save, Trash2, Trophy } from "lucide-react";
 import { useEffect, useState, type ChangeEvent } from "react";
 import { AppNav } from "@/components/app-nav";
 import { AppSelect } from "@/components/app-select";
@@ -12,6 +13,7 @@ import { HeaderAction, Notice, PageHeader, StatTile, useConfirm } from "@/compon
 import { calculateWorkoutTotals, formatLocalDate, getLocalDate, normalizeDecimalInput, russianWord } from "@/lib/tracker";
 import { sleepFromEvents } from "@/lib/habits";
 import { observationSeries, weeklyVolume, type ObservationMetric } from "@/lib/stats";
+import { recentRecords } from "@/lib/exercises";
 import { createClient } from "@/lib/supabase/client";
 
 async function blobDataUrl(blob: Blob): Promise<string> {
@@ -51,6 +53,7 @@ export default function ProgressPage() {
   const metrics: Array<[ObservationMetric, string, string]> = [["weightKg", "Масса", "кг"], ["sleep", "Сон", "ч"], ["energy", "Энергия", "из 10"]];
   const [, metricLabel, metricUnit] = metrics.find(([id]) => id === metric)!;
   const volumeBars = weeklyVolume(workouts, today, 8);
+  const records = recentRecords(sessions);
   function save() {
     const e = normalizeDecimalInput(energy); const s = normalizeDecimalInput(sleep); const w = weight.trim() ? normalizeDecimalInput(weight) : undefined;
     if (e == null || e > 10 || s == null || s > 24 || (w !== undefined && (w == null || w <= 0 || w > 500)) || !date || date > today) { setMessage("Энергия: 0–10, сон: 0–24 ч, масса: больше 0 и до 500 кг. Укажите дату не позднее сегодня."); return; }
@@ -105,6 +108,14 @@ export default function ProgressPage() {
       <div className="sectionHeading"><h2>Объём по неделям</h2><span className="muted">кг</span></div>
       <BarChart title="Объём по неделям" unit="кг" bars={volumeBars} emptyText="Объём появится после первой записанной тренировки." />
     </section>
+    {records.length > 0 && <section className="actionSection">
+      <div className="sectionHeading"><h2>Рекорды</h2><Link className="muted sectionLink" href="/exercises">Все упражнения</Link></div>
+      <div className="recordList">{records.map((record) => <Link className="recordRow" href={`/exercises/${encodeURIComponent(record.key)}`} key={record.key}>
+        <Trophy size={18} className="accentIcon" />
+        <span><strong>{record.name}</strong><small>{formatLocalDate(record.date)}</small></span>
+        <b>{String(record.weightKg).replace(".", ",")} кг × {record.reps}</b>
+      </Link>)}</div>
+    </section>}
     <section className="actionSection">
       <div className="sectionHeading"><h2>Динамика</h2></div>
       <div className="metricPicker"><Segmented<ObservationMetric> label="Показатель" value={metric} onChange={setMetric} options={metrics.map(([id, label]) => ({ value: id, label }))} /></div>

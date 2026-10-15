@@ -24,7 +24,8 @@ export type Exercise = {
   equipment?: string;
   equipmentPosition?: string;
   category?: ExerciseCategory;
-  restSec?: 180 | 240;
+  /** Отдых после подхода, секунды (30–900). */
+  restSec?: number;
   weightFactor?: number;
   sets: ExerciseSet[];
 };
@@ -178,6 +179,16 @@ export function commitDraftValue(raw: string | undefined, field: "weight" | "rep
  */
 export function logicalSetKey(set: Pick<ExerciseSet, "segmentId" | "component">, index: number): string {
   return set.segmentId ?? (set.component && set.component !== "single" ? `pair-${Math.floor(index / 2)}` : `set-${index}`);
+}
+
+export const restOptionsSec = [60, 90, 120, 150, 180, 210, 240, 300] as const;
+
+/** «3 мин», «1 мин 30 с», «45 с». */
+export function formatRest(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  if (minutes === 0) return `${rest} с`;
+  return rest === 0 ? `${minutes} мин` : `${minutes} мин ${rest} с`;
 }
 
 export function calculateExerciseVolume(sets: ExerciseSet[]): number {

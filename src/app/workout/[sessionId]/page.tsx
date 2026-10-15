@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, ChevronRight, Clock, MoreHorizontal, Play, SkipForward, Square, XCircle } from "lucide-react";
+import { ArrowLeft, Check, ChevronRight, Clock, History, MoreHorizontal, Play, Plus, SkipForward, Square, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button, Chip, IconButton, Segmented, Sheet, Stepper } from "@/components/ds";
 import { useTrackerState } from "@/components/tracker-state";
@@ -11,7 +11,7 @@ import { Notice, useConfirm } from "@/components/ui";
 import { formatSets, lastPerformance } from "@/lib/exercises";
 import { createRestTimerCommand, formatLocalDate, restoreRestTimer, visibleCopy, type Exercise, type ExerciseSet } from "@/lib/tracker";
 import { cancelWorkoutSession, finishWorkoutSession, type SessionTrackerState } from "@/lib/workout-session";
-import { currentLogicalSet, goToExercise, logicalSets, parseRepsInput, parseWeightInput, recordLogicalSet, setSetWeight, type WeightScope } from "@/lib/workout-flow";
+import { addExtraSet, currentLogicalSet, goToExercise, logicalSets, parseRepsInput, parseWeightInput, recordLogicalSet, setSetWeight, type WeightScope } from "@/lib/workout-flow";
 
 const WEIGHT_STEP = 2.5;
 const formatTime = (value: number) => `${Math.floor(value / 60).toString().padStart(2, "0")}:${(value % 60).toString().padStart(2, "0")}`;
@@ -161,6 +161,11 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
     setError("");
     applyWeightToParts(value);
   };
+  const addSet = () => { setMenuOpen(false); update((previousState) => addExtraSet(previousState as SessionTrackerState, session.id, exercise.id)); };
+  // «Как в прошлый раз»: вес каждой стороны из такого же подхода прошлой тренировки.
+  const lastWeights = incompleteParts.map((part) => ({ part, weight: previous?.sets[part.index]?.weightKg ?? null }));
+  const lastWeightHint = lastWeights.find((item) => item.weight != null && item.weight !== item.part.set.weightKg);
+  const applyLastWeights = () => update((previousState) => lastWeights.reduce((acc, item) => item.weight == null ? acc : setSetWeight(acc, session.id, exercise.id, item.part.set.id, item.weight, { scope: "this" }), previousState as SessionTrackerState));
   const startWeightEdit = (set: ExerciseSet) => { setEditingWeightId(set.id); setWeightText(set.weightKg == null ? "" : String(set.weightKg)); };
   const commitWeight = (set: ExerciseSet) => {
     const value = parseWeightInput(weightText);
@@ -275,6 +280,7 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
               onRepsText={(value) => setRepsFor(part.set.id, value)}
               onRepsStep={(delta) => stepReps(part.set.id, delta)}
             />)}
+          {lastWeightHint && <Chip pressed={false} onClick={applyLastWeights}><History size={16} />Вес как в прошлый раз: {String(lastWeightHint.weight).replace(".", ",")} кг</Chip>}
           <div className="wkScope">
             <Segmented<WeightScope> label="Куда применить вес" value={scope} onChange={setScope} options={[{ value: "this", label: "Только этот подход" }, { value: "rest", label: "И следующие" }]} />
             {scope === "rest" ? <Chip pressed={remember} onClick={() => setRemember((value) => !value)}>{remember ? <Check size={16} /> : null}Запомнить в программе</Chip> : null}
@@ -295,13 +301,17 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
         <div className="restBar"><span style={{ width: `${Math.max(0, Math.min(100, (rest.remainingSec / (sessionState.activeTimer?.durationSec || 1)) * 100))}%` }} /></div>
       </div>}
       {exerciseDone
-        ? isLastExercise
-          ? <Button variant="primary" size="lg" block icon={Square} onClick={() => setFinishOpen(true)}>Завершить тренировку</Button>
-          : <Button variant="primary" size="lg" block onClick={() => update((previousState) => goToExercise(previousState as SessionTrackerState, session.id, session.activeExerciseIndex + 1))}>Следующее упражнение<ChevronRight size={22} /></Button>
+        ? <>
+          <Button block icon={Plus} onClick={addSet}>Ещё подход</Button>
+          {isLastExercise
+            ? <Button variant="primary" size="lg" block icon={Square} onClick={() => setFinishOpen(true)}>Завершить тренировку</Button>
+            : <Button variant="primary" size="lg" block onClick={() => update((previousState) => goToExercise(previousState as SessionTrackerState, session.id, session.activeExerciseIndex + 1))}>Следующее упражнение<ChevronRight size={22} /></Button>}
+        </>
         : <Button variant="primary" size="lg" block icon={Check} onClick={record}>{recordLabel}</Button>}
     </div>
     <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title="Тренировка">
       <ul className="menuList">
+        <li><button type="button" className="menuItem" onClick={addSet}><Plus size={20} /><span>Добавить подход<small>Ещё один подход в это упражнение</small></span></button></li>
         <li><button type="button" className="menuItem" onClick={askFinish}><Play size={20} /><span>Завершить досрочно<small>Невыполненные подходы не попадут в итог</small></span></button></li>
         <li><button type="button" className="menuItem danger" onClick={() => void cancel()}><XCircle size={20} /><span>Отменить тренировку<small>Подходы останутся в «Отменённых»</small></span></button></li>
       </ul>

@@ -6,7 +6,7 @@ import { useTrackerState } from "@/components/tracker-state";
 import { createClient } from "@/lib/supabase/client";
 import { setServiceWorkerAccount } from "@/lib/pwa";
 import type { SessionTrackerState } from "@/lib/workout-session";
-import { getLocalDate, type ExerciseSet } from "@/lib/tracker";
+import { formatRest, getLocalDate, restOptionsSec, type ExerciseSet } from "@/lib/tracker";
 import { SettingsInput } from "@/components/settings-input";
 import { TelegramSettings } from "@/components/telegram-settings";
 import { ReminderSettings } from "@/components/reminder-settings";
@@ -55,7 +55,7 @@ export default function SettingsPage() {
           if (field === "muscleGroup") return { ...exercise, muscleGroup: value };
           if (field === "equipment") return { ...exercise, equipment: value };
           if (field === "equipmentPosition") return { ...exercise, equipmentPosition: value };
-          if (field === "restSec") return { ...exercise, restSec: Number(value) as 180 | 240 };
+          if (field === "restSec") return { ...exercise, restSec: Number(value) };
           return { ...exercise, [field]: value };
         }),
       }),
@@ -233,14 +233,14 @@ export default function SettingsPage() {
         const mixed = modes.size > 1;
         const lastExercise = exerciseIndex === template.exercises.length - 1;
         const moveExercise = (direction: -1 | 1) => update((previous) => ({ ...previous, workoutTemplates: previous.workoutTemplates?.map((p) => { if (p.id !== template.id) return p; const list = [...p.exercises]; const index = list.findIndex((e) => e.id === exercise.id); [list[index], list[index + direction]] = [list[index + direction], list[index]]; return { ...p, exercises: list }; }) }));
-        return <details className="exerciseDisclosure editorCard" key={exercise.id}><summary><span>{exercise.name}</span><small>{logicalSetCount} {setsWord(logicalSetCount)} · {(exercise.restSec ?? 180) / 60} мин отдыха</small></summary><div className="settingExercise">
+        return <details className="exerciseDisclosure editorCard" key={exercise.id}><summary><span>{exercise.name}</span><small>{logicalSetCount} {setsWord(logicalSetCount)} · {formatRest(exercise.restSec ?? 180)} отдыха</small></summary><div className="settingExercise">
           <ExercisePhoto name={exercise.name} size={72} />
           <label>Название<SettingsInput list="exercise-names" value={exercise.name} onCommit={(value) => editExercise(exercise.id, "name", value)} /></label>
           <div className="twoCols"><label>Группа мышц<SettingsInput value={exercise.muscleGroup} placeholder="Например, грудь" onCommit={(value) => editExercise(exercise.id, "muscleGroup", value)} /></label>
           <label>Оборудование<SettingsInput value={exercise.equipment} placeholder="Например, тренажёр" onCommit={(value) => editExercise(exercise.id, "equipment", value)} /></label></div>
           <label>Положение оборудования<SettingsInput value={exercise.equipmentPosition} placeholder="Необязательно" onCommit={(value) => editExercise(exercise.id, "equipmentPosition", value)} /></label>
           <div className="twoCols"><label>Режим<AppSelect value={mixed ? "mixed" : [...modes][0] ?? ""} onChange={(value) => setExerciseMode(exercise.id, value)}><option value="">Уточнить</option><option value="total">Общий вес</option><option value="per-hand">На сторону</option>{mixed && <option value="mixed" disabled>Разный</option>}</AppSelect></label>
-          <label>Отдых<AppSelect value={exercise.restSec ?? 180} onChange={(value) => editExercise(exercise.id, "restSec", value)}><option value="180">180 сек</option><option value="240">240 сек</option></AppSelect></label></div>
+          <label>Отдых<AppSelect value={exercise.restSec ?? 180} onChange={(value) => editExercise(exercise.id, "restSec", value)}>{restOptionsSec.map((sec) => <option key={sec} value={sec}>{formatRest(sec)}</option>)}</AppSelect></label></div>
           <p className="fieldHint muted">«Общий вес» — штанга или тренажёр целиком. «На сторону» — вес одной гантели, в объём входит дважды.</p>
           <div className="setEditors">{logicalSets.map((logicalSet, setNumber) => <div className="segmentEditor" key={logicalSet.key}>{logicalSet.sets.map((set, partIndex) => {
             const caption = (text: string) => <span className={setNumber === 0 && partIndex === 0 ? undefined : "srOnly"}>{text}</span>;

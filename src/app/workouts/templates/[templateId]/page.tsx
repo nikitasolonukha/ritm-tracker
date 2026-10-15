@@ -9,7 +9,7 @@ import { ExercisePhoto } from "@/components/exercise-photo";
 import { useTrackerState } from "@/components/tracker-state";
 import { EmptyState, HeaderAction, PageHeader } from "@/components/ui";
 import { useStartWorkout } from "@/components/use-start-workout";
-import { russianWord, visibleCopy, type Exercise, type ExerciseSet } from "@/lib/tracker";
+import { formatRest, russianWord, visibleCopy, type Exercise, type ExerciseSet } from "@/lib/tracker";
 import type { SessionTrackerState } from "@/lib/workout-session";
 import { logicalSets } from "@/lib/workout-flow";
 
@@ -54,7 +54,7 @@ export default function TemplatePage({ params }: { params: Promise<{ templateId:
           <div className="planHead"><h2>{exercise.name}</h2><ExercisePhoto name={exercise.name} size={56} /></div>
           {(details || hint) && <p>{details || hint}</p>}
           <ul className="planRows">{planRows(exercise).map((row) => <li key={row.key}><b>{row.count} × {row.reps}</b><span>{row.detail}</span></li>)}</ul>
-          <p className="planRest"><Clock size={13} /> отдых {(exercise.restSec ?? 180) / 60} мин</p>
+          <p className="planRest"><Clock size={13} /> отдых {formatRest(exercise.restSec ?? 180)}</p>
         </div>
       </article>;
     })}</section>

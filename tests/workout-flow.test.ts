@@ -3,7 +3,7 @@ import test from "node:test";
 import { createInitialState } from "../src/lib/storage.ts";
 import { calculateWorkoutTotals, completeWorkoutSet } from "../src/lib/tracker.ts";
 import { cancelWorkoutSession, correctHistoricalSet, finishWorkoutSession, startWorkoutSession, type SessionTrackerState } from "../src/lib/workout-session.ts";
-import { currentLogicalSet, goToExercise, logicalSets, parseRepsInput, parseWeightInput, recordLogicalSet, recordSet, setSetWeight } from "../src/lib/workout-flow.ts";
+import { addExtraSet, currentLogicalSet, goToExercise, logicalSets, parseRepsInput, parseWeightInput, recordLogicalSet, recordSet, setSetWeight } from "../src/lib/workout-flow.ts";
 
 type Set = { id: string; weightKg: number | null; reps: number | null; completed: boolean; weightMode?: "total" | "per-hand"; component?: "compound-a" | "compound-b"; segmentId?: string };
 
@@ -184,4 +184,36 @@ test("reopening a recorded set in the journal and re-recording is not blocked", 
   const cancelled = cancelWorkoutSession(recorded, sessionId);
   const reopened = correctHistoricalSet({ ...cancelled, workoutSessions: cancelled.workoutSessions!.map((s) => ({ ...s, status: "completed" as const })) }, workoutId, "row", id, { weightKg: 40, reps: 10, weightMode: "total", completed: false });
   assert.equal(setOf(reopened, sessionId, "row", "s1").completed, false);
+});
+
+test("an extra set copies the last one and starts uncompleted; a pair gets a whole new pair", () => {
+  const { state, sessionId } = sessionWith([plainExercise(), pairedExercise()]);
+  const plain = addExtraSet(state, sessionId, "row", "x1");
+  const rowSets = workoutOf(plain, sessionId).exercises[0].sets;
+  assert.equal(rowSets.length, 4);
+  assert.equal(rowSets[3].completed, false);
+  assert.equal(rowSets[3].weightKg, rowSets[2].weightKg);
+  assert.notEqual(rowSets[3].id, rowSets[2].id);
+  assert.equal(logicalSets(workoutOf(plain, sessionId).exercises[0]).length, 4);
+
+  const pair = addExtraSet(state, sessionId, "press", "x2");
+  const pressSets = workoutOf(pair, sessionId).exercises[1].sets;
+  assert.equal(pressSets.length, 6);
+  const groups = logicalSets(workoutOf(pair, sessionId).exercises[1]);
+  assert.equal(groups.length, 3);
+  assert.deepEqual(groups[2].parts.map((part) => part.label), ["A", "B"]);
+  assert.equal(new Set(pressSets.map((set) => set.id)).size, 6);
+
+  const again = addExtraSet(plain, sessionId, "row", "x3");
+  assert.equal(workoutOf(again, sessionId).exercises[0].sets.length, 5);
+  assert.equal(addExtraSet(state, "missing", "row", "x"), state);
+});
+
+test("an extra set can be recorded like any other and counts in the totals", () => {
+  const { state, sessionId } = sessionWith([plainExercise()]);
+  let next = addExtraSet(state, sessionId, "row", "x1");
+  for (const set of workoutOf(next, sessionId).exercises[0].sets) next = recordSet(next, sessionId, "row", set.id, 10);
+  const totals = calculateWorkoutTotals(workoutOf(next, sessionId));
+  assert.equal(totals.completedLogicalSets, 4);
+  assert.equal(totals.volumeKg, 4 * 40 * 10);
 });

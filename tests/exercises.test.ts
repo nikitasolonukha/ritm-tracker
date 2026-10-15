@@ -61,3 +61,11 @@ test("library merges program and history, last performance is factual", () => {
   assert.equal(lastPerformance(state, "Жим лёжа", "w1"), undefined);
   assert.equal(lastPerformance(state, "Неизвестное"), undefined);
 });
+
+test("rest durations are formatted in minutes and seconds", async () => {
+  const { formatRest, restOptionsSec } = await import("../src/lib/tracker.ts");
+  assert.equal(formatRest(180), "3 мин");
+  assert.equal(formatRest(90), "1 мин 30 с");
+  assert.equal(formatRest(45), "45 с");
+  assert.ok(restOptionsSec.includes(240) && restOptionsSec.includes(90));
+});

@@ -146,3 +146,31 @@ export function goToExercise(state: SessionTrackerState, sessionId: string, inde
   if (!session || session.status !== "active" || !workout || index < 0 || index >= workout.exercises.length || index === session.activeExerciseIndex) return state;
   return { ...state, workoutSessions: (state.workoutSessions ?? []).map((item) => item.id === sessionId ? { ...item, activeExerciseIndex: index } : item) };
 }
+
+/**
+ * Добавляет ещё один подход в конец упражнения во время тренировки: копия последнего подхода без отметки.
+ * Для упражнения с правой и левой стороной добавляется целая пара.
+ */
+export function addExtraSet(state: SessionTrackerState, sessionId: string, exerciseId: string, seed: string = globalThis.crypto?.randomUUID?.() ?? String(Date.now())): SessionTrackerState {
+  const context = activeContext(state, sessionId, exerciseId);
+  if (!context || context.exercise.sets.length === 0 || context.exercise.sets.length >= 100) return state;
+  const groups = logicalSets(context.exercise);
+  const last = groups.at(-1);
+  if (!last) return state;
+  const copies: ExerciseSet[] = last.parts.map((part, index) => ({
+    ...part.set,
+    id: `${context.workout.id}-${exerciseId}-extra-${seed}-${index}`,
+    completed: false,
+    note: undefined,
+    weightDraft: undefined,
+    repsDraft: undefined,
+    ...(last.paired ? { segmentId: `pair-extra-${seed}` } : {}),
+  }));
+  return {
+    ...state,
+    workouts: state.workouts.map((workout) => workout.id !== context.workout.id ? workout : {
+      ...workout,
+      exercises: workout.exercises.map((exercise) => exercise.id !== exerciseId ? exercise : { ...exercise, sets: [...exercise.sets, ...copies] }),
+    }),
+  };
+}

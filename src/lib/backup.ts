@@ -62,7 +62,7 @@ function validWorkout(workout: Value) {
     && items(workout.exercises, 100, (exercise) => string(exercise.name, 200)
       && ["settings", "muscleGroup", "equipment", "equipmentPosition"].every((field) => optional(exercise[field], (v) => string(v, 1000, true)))
       && optional(exercise.category, (v) => oneOf(v, ["warmup", "working", "finisher"]))
-      && optional(exercise.restSec, (v) => oneOf(v, [180, 240]))
+      && optional(exercise.restSec, (v) => integer(v, 30, 900))
       && optional(exercise.weightFactor, (v) => numeric(v, 0, 10))
       && items(exercise.sets, 100, validSet));
 }

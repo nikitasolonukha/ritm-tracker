@@ -3,8 +3,8 @@
 /* Кнопки */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);
-  min-height: var(--ctl); padding: 0 var(--s-4); border: 1px solid transparent; border-radius: var(--r);
-  font-size: var(--fs-md); font-weight: 600; line-height: 1; text-align: center; text-decoration: none; white-space: nowrap;
+  min-height: var(--ctl); padding: 8px var(--s-4); border: 1px solid transparent; border-radius: var(--r);
+  font-size: var(--fs-md); font-weight: 600; line-height: 1.2; text-align: center; text-decoration: none; white-space: normal; overflow-wrap: anywhere;
   color: var(--text); background: var(--surface-2); transition: transform 120ms, filter 120ms, background-color 120ms;
 }
 .btn:active:not(:disabled) { transform: scale(0.98); }

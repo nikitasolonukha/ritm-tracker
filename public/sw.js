@@ -93,7 +93,7 @@ self.addEventListener("fetch", (event) => {
   const isAsset = isStaticAsset(event.request);
   const requestUrl = new URL(event.request.url);
   if (requestUrl.origin !== self.location.origin || requestUrl.pathname.startsWith("/api/")) return;
-  const isPublicAsset = isAsset && (requestUrl.pathname.startsWith("/_next/static/") || ["/icon.svg", "/favicon.ico"].includes(requestUrl.pathname));
+  const isPublicAsset = isAsset && (requestUrl.pathname.startsWith("/_next/static/") || requestUrl.pathname.startsWith("/machines/") || ["/icon.svg", "/favicon.ico"].includes(requestUrl.pathname));
   if (!isNavigation && !isAsset) return;
 
   event.respondWith((async () => {

@@ -5,6 +5,7 @@ import { ArrowLeft, Clock, Pencil, Play } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppNav } from "@/components/app-nav";
 import { Button } from "@/components/ds";
+import { ExercisePhoto } from "@/components/exercise-photo";
 import { useTrackerState } from "@/components/tracker-state";
 import { EmptyState, HeaderAction, PageHeader } from "@/components/ui";
 import { useStartWorkout } from "@/components/use-start-workout";
@@ -50,7 +51,7 @@ export default function TemplatePage({ params }: { params: Promise<{ templateId:
       return <article className="planCard" key={exercise.id}>
         <span className="planNumber">{index + 1}</span>
         <div className="planBody">
-          <h2>{exercise.name}</h2>
+          <div className="planHead"><h2>{exercise.name}</h2><ExercisePhoto name={exercise.name} size={56} /></div>
           {(details || hint) && <p>{details || hint}</p>}
           <ul className="planRows">{planRows(exercise).map((row) => <li key={row.key}><b>{row.count} × {row.reps}</b><span>{row.detail}</span></li>)}</ul>
           <p className="planRest"><Clock size={13} /> отдых {(exercise.restSec ?? 180) / 60} мин</p>

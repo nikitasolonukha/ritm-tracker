@@ -6,6 +6,7 @@ import { useState } from "react";
 import { AppNav } from "@/components/app-nav";
 import { useTrackerState } from "@/components/tracker-state";
 import { ProgressTabs } from "@/components/ds";
+import { ExercisePhoto } from "@/components/exercise-photo";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { buildExerciseLibrary, exerciseKey } from "@/lib/exercises";
 import { formatLocalDate, russianWord } from "@/lib/tracker";
@@ -24,6 +25,7 @@ export default function ExercisesPage() {
     {library.length > 0 && <label className="searchField"><Search size={18} /><input type="search" placeholder="Найти упражнение" aria-label="Найти упражнение" value={query} onChange={(event) => setQuery(event.target.value)} /></label>}
     <section className="historyList">
       {shown.map((entry) => <Link className="historyCard" href={`/exercises/${encodeURIComponent(entry.key)}`} key={entry.key}>
+        <ExercisePhoto name={entry.name} size={52} interactive={false} />
         <div>
           <h2>{entry.name}</h2>
           <p>{[entry.muscleGroup, entry.equipment].filter(Boolean).join(" · ") || (entry.inProgram ? "Из программы" : "Из журнала")}</p>

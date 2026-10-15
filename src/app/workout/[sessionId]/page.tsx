@@ -6,6 +6,7 @@ import { ArrowLeft, Check, ChevronRight, Clock, MoreHorizontal, Play, SkipForwar
 import { useEffect, useRef, useState } from "react";
 import { Button, Chip, IconButton, Segmented, Sheet, Stepper } from "@/components/ds";
 import { useTrackerState } from "@/components/tracker-state";
+import { ExercisePhoto } from "@/components/exercise-photo";
 import { Notice, useConfirm } from "@/components/ui";
 import { formatSets, lastPerformance } from "@/lib/exercises";
 import { createRestTimerCommand, formatLocalDate, restoreRestTimer, visibleCopy, type Exercise, type ExerciseSet } from "@/lib/tracker";
@@ -230,10 +231,13 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
     </div>
     <div className="workoutProgress"><span>Упражнение {session.activeExerciseIndex + 1} из {workout.exercises.length}</span><span>{exerciseDone ? "Готово" : `Подход ${Math.max(1, currentIndex + 1)} из ${groups.length}`}</span></div>
     <section className="wkCard">
-      <div>
+      <div className="wkHead">
+        <div>
         <h1>{exercise.name}</h1>
         {visibleCopy(exercise.settings) ? <p className="wkLast">{visibleCopy(exercise.settings)}</p> : null}
         {previous ? <p className="wkLast">В прошлый раз ({formatLocalDate(previous.date)}): <b>{formatSets(previous.sets)}</b></p> : null}
+        </div>
+        <ExercisePhoto name={exercise.name} size={72} />
       </div>
       <div className="wkRibbon setSegments" aria-label="Подходы">{groups.map((group) => <span className={group.completed ? "done" : group.key === current?.key ? "current" : ""} key={group.key}>{group.number}</span>)}</div>
       {exerciseDone

@@ -15,6 +15,7 @@ import { HabitEditor } from "@/components/habit-editor";
 import { DataSettings } from "@/components/data-settings";
 import { AppSelect } from "@/components/app-select";
 import { Button } from "@/components/ds";
+import { ExercisePhoto } from "@/components/exercise-photo";
 import { HeaderAction, Notice, PageHeader, useConfirm } from "@/components/ui";
 import { buildExerciseLibrary } from "@/lib/exercises";
 
@@ -233,6 +234,7 @@ export default function SettingsPage() {
         const lastExercise = exerciseIndex === template.exercises.length - 1;
         const moveExercise = (direction: -1 | 1) => update((previous) => ({ ...previous, workoutTemplates: previous.workoutTemplates?.map((p) => { if (p.id !== template.id) return p; const list = [...p.exercises]; const index = list.findIndex((e) => e.id === exercise.id); [list[index], list[index + direction]] = [list[index + direction], list[index]]; return { ...p, exercises: list }; }) }));
         return <details className="exerciseDisclosure editorCard" key={exercise.id}><summary><span>{exercise.name}</span><small>{logicalSetCount} {setsWord(logicalSetCount)} · {(exercise.restSec ?? 180) / 60} мин отдыха</small></summary><div className="settingExercise">
+          <ExercisePhoto name={exercise.name} size={72} />
           <label>Название<SettingsInput list="exercise-names" value={exercise.name} onCommit={(value) => editExercise(exercise.id, "name", value)} /></label>
           <div className="twoCols"><label>Группа мышц<SettingsInput value={exercise.muscleGroup} placeholder="Например, грудь" onCommit={(value) => editExercise(exercise.id, "muscleGroup", value)} /></label>
           <label>Оборудование<SettingsInput value={exercise.equipment} placeholder="Например, тренажёр" onCommit={(value) => editExercise(exercise.id, "equipment", value)} /></label></div>

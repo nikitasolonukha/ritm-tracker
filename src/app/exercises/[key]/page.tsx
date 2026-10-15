@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, Dumbbell, Trophy } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
 import { LineChart } from "@/components/charts";
+import { ExerciseHero } from "@/components/exercise-photo";
 import { useTrackerState } from "@/components/tracker-state";
 import { EmptyState, PageHeader, StatTile } from "@/components/ui";
 import { buildExerciseLibrary, formatSets, getExerciseRecords, getExerciseSeries, getExerciseSessions } from "@/lib/exercises";
@@ -31,6 +32,7 @@ export default function ExercisePage() {
   return <main className="shell appPage">
     {back}
     <PageHeader eyebrow={[entry.muscleGroup, entry.equipment].filter(Boolean).join(" · ") || "Упражнение"} title={entry.name} />
+    <ExerciseHero name={entry.name} />
     {!sessions.length ? <EmptyState icon={Dumbbell} title="Пока нет записанных подходов">Рекорды и график появятся после первой тренировки с этим упражнением.</EmptyState> : <>
       <div className="summaryMetrics">
         <StatTile value={records.heaviest ? `${kg(records.heaviest.weightKg)} кг` : "—"} label="макс. вес" />

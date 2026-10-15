@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft, ArrowUp, ArrowDown, LogOut, Plus, Trash2 } from "lucide-react";
+import { ArrowUp, ArrowDown, LogOut, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTrackerState } from "@/components/tracker-state";
 import { createClient } from "@/lib/supabase/client";
@@ -15,6 +14,7 @@ import { AppNav } from "@/components/app-nav";
 import { HabitEditor } from "@/components/habit-editor";
 import { DataSettings } from "@/components/data-settings";
 import { AppSelect } from "@/components/app-select";
+import { Button } from "@/components/ds";
 import { HeaderAction, Notice, PageHeader, useConfirm } from "@/components/ui";
 import { buildExerciseLibrary } from "@/lib/exercises";
 
@@ -197,8 +197,7 @@ export default function SettingsPage() {
   };
 
   return <main className="shell appPage">
-    <Link className="backLink" href="/today"><ArrowLeft size={18} /> Сегодня</Link>
-    <PageHeader eyebrow="Аккаунт" title="Настройки" actions={<HeaderAction onClick={signOut} icon={LogOut} label="Выйти" />} />
+    <PageHeader eyebrow="Аккаунт" title="Профиль" actions={<HeaderAction onClick={signOut} icon={LogOut} label="Выйти" />} />
     {signOutError && <Notice tone="error">{signOutError}</Notice>}
     {storageError && <Notice tone="warning">{storageError}</Notice>}
     <p className="muted" role="status">{syncStatus === "idle" ? "Изменения сохранены" : syncStatus === "syncing" || syncStatus === "dirty" ? "Сохраняем изменения…" : syncStatus === "loading" ? "Загружаем данные…" : "Изменения на этом устройстве"}</p>
@@ -207,7 +206,7 @@ export default function SettingsPage() {
     {section === "telegram" && <><TelegramSettings /><ReminderSettings /></>}
     {section === "data" && <DataSettings />}
     <div hidden={section !== "habits"}>
-    <button className="secondary" onClick={addHabit}><Plus size={18} /> Добавить привычку</button>
+    <Button block icon={Plus} onClick={addHabit}>Добавить привычку</Button>
 
     <section className="settingsEditor"><div className="sectionHeading"><h2>Ритм дня</h2><span className="muted">{state.habits.filter((h) => !h.archived).length} действий</span></div><div className="settingsList">{[...state.habits].sort((a, b) => Number(Boolean(a.archived)) - Number(Boolean(b.archived))).map((habit, index, list) => <div key={habit.id}>{habit.archived && !list[index - 1]?.archived && <h3 className="archiveHeading">В архиве</h3>}<HabitEditor habit={habit} /></div>)}</div></section>
     </div>
@@ -233,7 +232,7 @@ export default function SettingsPage() {
         const mixed = modes.size > 1;
         const lastExercise = exerciseIndex === template.exercises.length - 1;
         const moveExercise = (direction: -1 | 1) => update((previous) => ({ ...previous, workoutTemplates: previous.workoutTemplates?.map((p) => { if (p.id !== template.id) return p; const list = [...p.exercises]; const index = list.findIndex((e) => e.id === exercise.id); [list[index], list[index + direction]] = [list[index + direction], list[index]]; return { ...p, exercises: list }; }) }));
-        return <details className="exerciseDisclosure" key={exercise.id}><summary><span>{exercise.name}</span><small>{logicalSetCount} {setsWord(logicalSetCount)} · {(exercise.restSec ?? 180) / 60} мин отдыха</small></summary><div className="settingExercise">
+        return <details className="exerciseDisclosure editorCard" key={exercise.id}><summary><span>{exercise.name}</span><small>{logicalSetCount} {setsWord(logicalSetCount)} · {(exercise.restSec ?? 180) / 60} мин отдыха</small></summary><div className="settingExercise">
           <label>Название<SettingsInput list="exercise-names" value={exercise.name} onCommit={(value) => editExercise(exercise.id, "name", value)} /></label>
           <div className="twoCols"><label>Группа мышц<SettingsInput value={exercise.muscleGroup} placeholder="Например, грудь" onCommit={(value) => editExercise(exercise.id, "muscleGroup", value)} /></label>
           <label>Оборудование<SettingsInput value={exercise.equipment} placeholder="Например, тренажёр" onCommit={(value) => editExercise(exercise.id, "equipment", value)} /></label></div>

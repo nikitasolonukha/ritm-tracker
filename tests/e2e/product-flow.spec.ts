@@ -313,7 +313,7 @@ test("real local multi-account product journey, storage isolation and offline re
     expect(response.headers()["x-ritm-account-id"]).toBe(identity.id);
     await checkLayout(page, "authenticated-today");
     await page.goto(`${baseURL}/settings`);
-    await expect(page.getByRole("heading", { name: "Настройки", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Профиль", exact: true })).toBeVisible();
     await assertLegacyIsolation(page, identity);
   });
 
@@ -333,7 +333,7 @@ test("real local multi-account product journey, storage isolation and offline re
 
   await phase("reusable-isolated-fixture-preparation", async () => {
     await page.goto(`${baseURL}/settings`);
-    await expect(page.getByRole("heading", { name: "Настройки", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Профиль", exact: true })).toBeVisible();
     const previous = (await serverSnapshot(page)).payload;
     const oldHabits = previous?.habits.filter((h) => !h.archived && /^QA (Breakfast|Prepare) /.test(h.title)) ?? [];
     for (const habit of oldHabits) {
@@ -588,7 +588,7 @@ test("real local multi-account product journey, storage isolation and offline re
         await expect(page.locator(".globalRest")).toContainText("Отдых");
         await checkLayout(page, "persistent-rest");
         await page.getByRole("link", { name: "Настроить программы", exact: true }).click();
-        await expect(page.getByRole("heading", { name: "Настройки", exact: true })).toBeVisible();
+        await expect(page.getByRole("heading", { name: "Профиль", exact: true })).toBeVisible();
         await page.evaluate(() => window.scrollTo(0, 0));
         await expect(page.locator(".globalRest")).toBeInViewport({ ratio: 1 });
         await checkLayout(page, "persistent-rest-settings");
@@ -705,18 +705,23 @@ test("real local multi-account product journey, storage isolation and offline re
     expect(workoutId, "An actual session is required").toBeTruthy();
     await page.goto(`${baseURL}/journal/workouts/${workoutId}`);
     await expect(page.getByRole("heading", { name: programName, exact: true })).toBeVisible();
+    const openFirstSet = async (target = page) => { await target.getByRole("button", { name: /^Править подход 1/ }).first().click(); };
     const row = page.locator(".historySet").first();
+    await openFirstSet();
     await row.getByRole("textbox", { name: "Фактические повторы", exact: true }).fill("99");
     await row.getByRole("button", { name: "Отменить правки", exact: true }).click();
+    await openFirstSet();
     await expect(row.getByRole("textbox", { name: "Фактические повторы", exact: true })).toHaveValue("8");
     await row.getByRole("textbox", { name: "Фактические повторы", exact: true }).fill("12");
     await row.getByRole("button", { name: "Сохранить исправление", exact: true }).click();
     await expect(page.getByText("Исправление сохранено на устройстве.", { exact: true })).toBeVisible();
     await saved(page, (state) => state.workouts.find((w) => w.id === workoutId)?.exercises[0].sets[0].reps === 12, "History corrections must persist without starting a rest timer");
+    await openFirstSet();
     await row.getByRole("checkbox", { name: "Подход выполнен", exact: true }).uncheck();
     await row.getByRole("button", { name: "Сохранить исправление", exact: true }).click();
     await saved(page, (state) => state.workouts.find((w) => w.id === workoutId)?.exercises[0].sets[0].completed === false, "Undoing a historical fact must not delete its ID or inputs");
     expect((await serverSnapshot(page)).payload!.activeTimer).toBeNull();
+    await openFirstSet();
     await row.getByRole("checkbox", { name: "Подход выполнен", exact: true }).check();
     await row.getByRole("button", { name: "Сохранить исправление", exact: true }).click();
     await saved(page, (state) => state.workouts.find((w) => w.id === workoutId)?.exercises[0].sets[0].completed === true, "A cancelled historical mark can be explicitly restored");
@@ -724,7 +729,9 @@ test("real local multi-account product journey, storage isolation and offline re
     expect(snapshot.activeTimer).toBeNull();
     expect(snapshot.workoutTemplates!.find((p) => p.id === templateId)!.exercises[0].sets[0].reps).toBe(8);
     await page.reload();
+    await openFirstSet();
     await expect(page.locator(".historySet").first().getByRole("textbox", { name: "Фактические повторы", exact: true })).toHaveValue("12");
+    await page.keyboard.press("Escape");
     await checkLayout(page, "workout-history");
     const otherDevice = await browser.newContext({ baseURL, serviceWorkers: "allow", viewport: { width: 390, height: 844 } });
     try {
@@ -734,6 +741,7 @@ test("real local multi-account product journey, storage isolation and offline re
       await remote.goto(`${baseURL}/journal`);
       await expect(remote.locator("a.historyCard").filter({ hasText: programName })).toBeVisible();
       await remote.locator("a.historyCard").filter({ hasText: programName }).click();
+      await openFirstSet(remote);
       await expect(remote.locator(".historySet").first().getByRole("textbox", { name: "Фактические повторы", exact: true })).toHaveValue("12");
       const state = await localSnapshot(remote, identity);
       expect(state.workouts.find((w) => w.id === workoutId)?.exercises[0].sets.filter((s) => s.completed)).toHaveLength(4);
@@ -1012,7 +1020,7 @@ test("real local multi-account product journey, storage isolation and offline re
     const otherIdentity = await authenticate(page, accounts[1]);
     expect(otherIdentity.id).toBe(second!.id);
     await page.goto(`${baseURL}/settings`);
-    await expect(page.getByRole("heading", { name: "Настройки", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Профиль", exact: true })).toBeVisible();
     await assertLegacyIsolation(page, otherIdentity);
     await page.goto(`${baseURL}/workouts`);
     await expect(page.locator("a.programCard").filter({ hasText: programName })).toHaveCount(0);

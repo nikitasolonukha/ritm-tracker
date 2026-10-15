@@ -178,3 +178,59 @@
 .planRows b { font-size: var(--fs-md); font-weight: 700; font-variant-numeric: tabular-nums; }
 .planRows span { color: var(--muted); font-size: var(--fs-sm); }
 .planRest { display: flex; align-items: center; gap: 6px; margin-top: var(--s-1) !important; }
+
+/* Профиль и редакторы */
+.settingsTabs { padding: 4px; border-radius: var(--r); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.settingsTabs button { min-height: 44px; border-radius: var(--r-sm); font-size: var(--fs-sm); }
+.exerciseDisclosure.editorCard { margin-bottom: var(--s-2); padding: 0 var(--s-4); border: 0; border-radius: var(--r); background: var(--card-sheen), var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.exerciseDisclosure.editorCard[open] { box-shadow: inset 0 0 0 1px var(--accent-line); }
+.exerciseDisclosure.editorCard > summary { padding: var(--s-3) 0; }
+.editorGroup { display: grid; gap: var(--s-3); padding: var(--s-3) 0; border-top: 1px solid var(--line); }
+.editorGroup:first-child { border-top: 0; }
+.editorGroup h3 { margin: 0; color: var(--muted); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.editorActions { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--s-2); padding: var(--s-3) 0 var(--s-4); }
+.dayChip { position: relative; display: inline-flex !important; align-items: center; justify-content: center; min-width: 48px; min-height: 44px; padding: 0 var(--s-3); border: 1px solid var(--line-strong); border-radius: var(--r-pill); background: var(--surface-2); color: var(--muted); font-size: var(--fs-sm); font-weight: 600; }
+.dayChip input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.dayChip:has(input:checked) { border-color: transparent; background: var(--accent-grad); color: var(--on-accent); }
+.dayChip:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.weekdayPicker { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.weekdayPicker legend { width: 100%; }
+.switchLabel { min-height: var(--ctl); }
+.panel .exerciseDisclosure.editorCard { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-strong); }
+
+/* Итог тренировки */
+.summaryPage { display: grid; align-content: start; gap: var(--s-4); }
+.summaryHero { display: grid; justify-items: center; gap: var(--s-1); padding: var(--s-6) var(--s-4) var(--s-4); text-align: center; background: radial-gradient(260px 180px at 50% 0, rgba(255, 107, 44, 0.2), transparent 70%); box-shadow: none; }
+.summaryBadge { display: grid; place-items: center; width: 72px; height: 72px; margin-bottom: var(--s-2); border-radius: 50%; background: var(--accent-grad); color: var(--on-accent); box-shadow: var(--shadow-accent); }
+.summaryHero h1 { font-size: var(--fs-2xl); font-weight: 800; }
+.summaryHero p { margin: 0; }
+.recordBanner { justify-content: center; margin: 0; color: var(--accent); font-weight: 650; }
+.resultList { display: grid; gap: var(--s-2); margin: 0; padding: 0; list-style: none; }
+.resultList li { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-radius: var(--r); background: var(--card-sheen), var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.resultList div { display: grid; gap: 2px; min-width: 0; }
+.resultList small { color: var(--muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.recordTag { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: var(--r-pill); background: var(--accent-soft); color: var(--accent); font-size: var(--fs-xs); font-weight: 700; }
+.summaryActions { display: grid; gap: var(--s-2); margin-top: var(--s-2); }
+
+/* Запись тренировки в журнале */
+.historyExerciseCard { display: grid; gap: var(--s-3); margin-top: var(--s-3); padding: var(--s-4); border-radius: var(--r); background: var(--card-sheen), var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.historyExerciseCard > header { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }
+.historyExerciseCard h2 { overflow-wrap: anywhere; font-size: var(--fs-lg); }
+.historyExerciseCard > header span { color: var(--muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.setList { display: grid; gap: var(--s-2); margin: 0; padding: 0; list-style: none; }
+.setRow { display: flex; align-items: center; gap: var(--s-3); width: 100%; min-height: 56px; padding: 0 var(--s-3); border: 0; border-radius: var(--r-sm); background: var(--surface-2); color: var(--text); text-align: left; }
+.setRow.pending { opacity: 0.6; }
+.setRowNo { display: grid; flex: 0 0 28px; place-items: center; width: 28px; height: 28px; border-radius: 9px; background: var(--surface-3); color: var(--muted); font-size: var(--fs-sm); font-weight: 700; font-variant-numeric: tabular-nums; }
+.setRowMain { display: grid; flex: 1; gap: 1px; min-width: 0; }
+.setRowMain strong { font-size: var(--fs-md); font-weight: 650; font-variant-numeric: tabular-nums; }
+.setRowMain small { overflow: hidden; color: var(--muted); font-size: var(--fs-xs); text-overflow: ellipsis; white-space: nowrap; }
+.okIcon { color: var(--ok); }
+.mutedIcon { color: var(--muted); }
+.exerciseFoot { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.journalFoot { display: grid; gap: var(--s-2); margin-top: var(--s-4); }
+.sheetForm { display: grid; gap: var(--s-3); }
+.sheetForm .setPart { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-3); }
+.sheetForm .setPart > :nth-child(3) { grid-column: 1 / -1; }
+.sheetForm label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 600; }
+.sheetForm .checkLabel { display: flex; }
+.summaryBadge svg { color: var(--on-accent); }

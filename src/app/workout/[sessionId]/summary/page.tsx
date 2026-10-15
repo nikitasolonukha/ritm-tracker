@@ -1,11 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Check, Dumbbell } from "lucide-react";
+import { Check, Dumbbell, Trophy } from "lucide-react";
+import { useEffect, useState } from "react";
+import { LinkButton } from "@/components/ds";
 import { useTrackerState } from "@/components/tracker-state";
+import { StatTile } from "@/components/ui";
+import { exerciseKey, formatSets, getExerciseRecords, getExerciseSessions } from "@/lib/exercises";
 import { calculateWorkoutTotals, formatLocalDate, russianWord } from "@/lib/tracker";
 import type { SessionTrackerState } from "@/lib/workout-session";
-import { useEffect, useState } from "react";
+
+const durationText = (seconds: number) => {
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  return minutes < 60 ? `${minutes} мин` : `${Math.floor(minutes / 60)} ч ${minutes % 60} мин`;
+};
 
 export default function WorkoutSummaryPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { state } = useTrackerState();
@@ -15,7 +23,42 @@ export default function WorkoutSummaryPage({ params }: { params: Promise<{ sessi
   const sessionState = state as SessionTrackerState;
   const session = sessionState.workoutSessions?.find((item) => item.id === routeSessionId);
   const workout = session && sessionState.workouts.find((item) => item.id === session.workoutId);
+  if (!workout || !session) return <main className="shell appPage"><p>Тренировка не найдена.</p><Link className="btn btn-secondary" href="/journal">Журнал</Link></main>;
   const totals = calculateWorkoutTotals(workout);
-  if (!workout || !session) return <main className="shell appPage"><p>Тренировка не найдена.</p><Link className="secondary" href="/journal">Журнал</Link></main>;
-  return <main className="shell appPage summaryPage"><Link className="backLink" href="/journal"><ArrowLeft size={18} /> Журнал</Link><section className="summaryHero"><Check size={34} /><p className="eyebrow">{session.status === "partial" ? "Завершена частично" : session.status === "cancelled" ? "Тренировка отменена" : session.status === "active" ? "Тренировка ещё идёт" : "Тренировка завершена"}</p><h1>{workout.title}</h1><p className="muted">{formatLocalDate(workout.date)}</p></section><div className="summaryMetrics"><div><strong>{totals.completedLogicalSets}</strong><span>{russianWord(totals.completedLogicalSets, "подход", "подхода", "подходов")}</span></div><div><strong>{totals.exercises}</strong><span>{russianWord(totals.exercises, "упражнение", "упражнения", "упражнений")}</span></div><div><strong>{totals.volumeKg.toLocaleString("ru-RU")}</strong><span>кг объёма</span></div></div><Link className="primary" href={`/journal/workouts/${workout.id}`}><Dumbbell size={18} /> Открыть в журнале</Link></main>;
+  const title = session.status === "partial" ? "Завершена частично" : session.status === "cancelled" ? "Тренировка отменена" : session.status === "active" ? "Тренировка ещё идёт" : "Тренировка завершена";
+  const duration = session.finishedAt ? (Date.parse(session.finishedAt) - Date.parse(session.startedAt)) / 1000 : 0;
+  const results = workout.exercises
+    .map((exercise) => {
+      const done = exercise.sets.filter((set) => set.completed);
+      if (!done.length) return null;
+      const key = exerciseKey(exercise.name);
+      const before = getExerciseRecords(getExerciseSessions(sessionState, key).filter((entry) => entry.workoutId !== workout.id));
+      const now = getExerciseRecords([{ date: workout.date, workoutId: workout.id, workoutTitle: workout.title, sets: done, volumeKg: 0 }]);
+      const record = Boolean(now.heaviest && before.heaviest && now.heaviest.weightKg > before.heaviest.weightKg);
+      return { id: exercise.id, name: exercise.name, sets: formatSets(done), record };
+    })
+    .filter((item): item is { id: string; name: string; sets: string; record: boolean } => item !== null);
+  const records = results.filter((item) => item.record).length;
+  return <main className="shell appPage summaryPage">
+    <section className="summaryHero">
+      <span className="summaryBadge"><Check size={30} /></span>
+      <p className="eyebrow">{title}</p>
+      <h1>{workout.title}</h1>
+      <p className="muted">{formatLocalDate(workout.date)}{duration > 0 ? ` · ${durationText(duration)}` : ""}</p>
+    </section>
+    <div className="summaryMetrics">
+      <StatTile value={totals.completedLogicalSets} label={russianWord(totals.completedLogicalSets, "подход", "подхода", "подходов")} />
+      <StatTile value={totals.exercises} label={russianWord(totals.exercises, "упражнение", "упражнения", "упражнений")} />
+      <StatTile value={totals.volumeKg.toLocaleString("ru-RU")} label="кг объёма" />
+    </div>
+    {records > 0 && <p className="recordLine recordBanner"><Trophy size={18} /> {records === 1 ? "Новый рекорд по весу" : `Новых рекордов по весу: ${records}`}</p>}
+    <ul className="resultList">{results.map((item) => <li key={item.id}>
+      <div><strong>{item.name}</strong><small>{item.sets}</small></div>
+      {item.record && <span className="recordTag"><Trophy size={14} />Рекорд</span>}
+    </li>)}</ul>
+    <div className="summaryActions">
+      <LinkButton href="/today" variant="primary" size="lg" block>Готово</LinkButton>
+      <LinkButton href={`/journal/workouts/${workout.id}`} icon={Dumbbell} block>Открыть в журнале</LinkButton>
+    </div>
+  </main>;
 }

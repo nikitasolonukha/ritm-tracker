@@ -2,16 +2,59 @@
   "name": "Ритм",
   "short_name": "Ритм",
   "description": "Личный трекер привычек, тренировок и наблюдений.",
-  "start_url": "/",
+  "start_url": "/today",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
+  "lang": "ru",
   "background_color": "#060709",
   "theme_color": "#060709",
   "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
     {
       "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Тренировки",
+      "url": "/workouts",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Прогресс",
+      "url": "/progress",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

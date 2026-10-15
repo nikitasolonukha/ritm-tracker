@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("settings keep decimal drafts and separate sections without overflow", async ({ page }) => {
   await page.goto("/settings");
   await page.getByRole("tab", { name: "Программа", exact: true }).click();
-  await page.locator(".exerciseDisclosure summary").first().click();
+  await page.locator(".exerciseDisclosure:visible summary").first().click();
   const weight = page.getByRole("textbox", { name: "Вес", exact: true }).first();
   await weight.fill("");
   await weight.pressSequentially("12,");
@@ -14,7 +14,7 @@ test("settings keep decimal drafts and separate sections without overflow", asyn
   await expect(weight).toHaveValue("12.5");
   await page.reload();
   await page.getByRole("tab", { name: "Программа", exact: true }).click();
-  await page.locator(".exerciseDisclosure summary").first().click();
+  await page.locator(".exerciseDisclosure:visible summary").first().click();
   await expect(weight).toHaveValue("12.5");
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 });

@@ -1,7 +1,9 @@
 "use client";
 
 import { Notice } from "./ui";
-import { Download, FileCheck, Upload, X } from "lucide-react";
+import { Download, FileCheck, Table, Upload, X } from "lucide-react";
+import { workoutsToCsv } from "@/lib/csv-export";
+import type { SessionTrackerState } from "@/lib/workout-session";
 import { useRef, useState, type ChangeEvent } from "react";
 import { useTrackerState } from "@/components/tracker-state";
 import { createClient } from "@/lib/supabase/client";
@@ -100,9 +102,20 @@ export function DataSettings() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Импорт не выполнен. Исходные данные сохранены."); }
   }
 
+  function exportCsv() {
+    const url = URL.createObjectURL(new Blob([workoutsToCsv(state as SessionTrackerState)], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `ritm-journal-${getLocalDate()}.csv`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setMessage("Журнал выгружен: каждая строка — один подход. Файл открывается в Excel и Google Таблицах.");
+  }
+
   return <section className="settingsEditor" aria-labelledby="data-settings-title">
     <div className="sectionHeading"><h2 id="data-settings-title">Резервная копия</h2></div>
     <div className="settingsActions"><button className="secondary" onClick={exportBackup} disabled={busy}><Download size={18} />{busy ? "Обрабатываю…" : "Скачать копию с фото"}</button></div>
+    <div className="settingsActions"><button className="secondary" onClick={exportCsv} disabled={busy}><Table size={18} />Скачать журнал в CSV (Excel)</button></div>
     <div className="settingsActions"><input ref={fileInput} type="file" aria-label="Восстановить из JSON" hidden accept="application/json,.json" disabled={busy} onChange={chooseFile} /><button className="secondary" onClick={() => fileInput.current?.click()} disabled={busy}><Upload size={18} />Выбрать JSON-копию</button></div>
     {error && <Notice tone="warning">{error}</Notice>}
     {message && <Notice tone="info">{message}</Notice>}

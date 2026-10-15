@@ -53,7 +53,7 @@ export default function TemplatePage({ params }: { params: Promise<{ templateId:
         <div className="planBody">
           <div className="planHead"><h2>{exercise.name}</h2><ExercisePhoto name={exercise.name} size={56} /></div>
           {(details || hint) && <p>{details || hint}</p>}
-          <ul className="planRows">{planRows(exercise).map((row) => <li key={row.key}><b>{row.count} × {row.reps}</b><span>{row.detail}</span></li>)}</ul>
+          <ul className="planRows">{planRows(exercise).map((row) => <li key={row.key}><b>{row.count}×{row.reps}</b><span>{row.detail}</span></li>)}</ul>
           <p className="planRest"><Clock size={13} /> отдых {formatRest(exercise.restSec ?? 180)}</p>
         </div>
       </article>;

@@ -57,4 +57,4 @@ export async function middleware(request: NextRequest) {
   return withCookies(response);
 }
 
-export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon.svg|sw.js).*)"] };
+export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon\.svg|icon-.*\.png|apple-touch-icon\.png|machines/|sw.js).*)"] };

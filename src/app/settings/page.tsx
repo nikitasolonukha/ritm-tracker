@@ -6,7 +6,7 @@ import { useTrackerState } from "@/components/tracker-state";
 import { createClient } from "@/lib/supabase/client";
 import { setServiceWorkerAccount } from "@/lib/pwa";
 import type { SessionTrackerState } from "@/lib/workout-session";
-import type { ExerciseSet } from "@/lib/tracker";
+import { getLocalDate, type ExerciseSet } from "@/lib/tracker";
 import { SettingsInput } from "@/components/settings-input";
 import { TelegramSettings } from "@/components/telegram-settings";
 import { ReminderSettings } from "@/components/reminder-settings";
@@ -38,7 +38,7 @@ export default function SettingsPage() {
   if (!state) return <main className="shell appPage"><p className="muted">Загружаю настройки...</p></main>;
   const addProgram = () => {
     const id = `program-${crypto.randomUUID()}`;
-    if (update((previous) => ({ ...previous, workoutTemplates: [...(previous.workoutTemplates ?? []), { id, title: "Новая программа", date: new Date().toISOString().slice(0, 10), exercises: [] }] }))) setSelectedTemplateId(id);
+    if (update((previous) => ({ ...previous, workoutTemplates: [...(previous.workoutTemplates ?? []), { id, title: "Новая программа", date: getLocalDate(), exercises: [] }] }))) setSelectedTemplateId(id);
   };
   const removeProgram = async () => { if (template && await confirm(`Удалить программу «${template.title}»? Записанные тренировки останутся.`, { danger: true })) update((previous) => ({ ...previous, workoutTemplates: previous.workoutTemplates?.filter((p) => p.id !== template.id) })); };
 
@@ -193,7 +193,7 @@ export default function SettingsPage() {
   }
   const addHabit = () => {
     const id = `habit-${crypto.randomUUID()}`;
-    update((previous) => ({ ...previous, habits: [...previous.habits, { id, type: "habit", title: "Новая привычка", schedule: "" }] }));
+    update((previous) => ({ ...previous, habits: [...previous.habits, { id, type: "habit", title: "Новая привычка", schedule: "", createdAt: getLocalDate() }] }));
   };
 
   return <main className="shell appPage">

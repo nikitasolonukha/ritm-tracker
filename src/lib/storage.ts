@@ -131,10 +131,29 @@ export function backupSyncConflict(userId: string, revision: number, local: Trac
     const prefix = `${storageKey}-sync-conflict:${userId}:${revision}`;
     window.localStorage.setItem(`${prefix}:local`, JSON.stringify(local));
     window.localStorage.setItem(`${prefix}:remote`, JSON.stringify(remote));
+    pruneSyncConflictBackups(userId, 3);
     return { ok: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "sync conflict backup failed" };
   }
+}
+
+/** Оставляет только `keep` последних по ревизии пар резервных копий конфликта: старые копируются без конца и съедают квоту. */
+export function pruneSyncConflictBackups(userId: string, keep: number): number {
+  if (typeof window === "undefined") return 0;
+  try {
+    const prefix = `${storageKey}-sync-conflict:${userId}:`;
+    const byRevision = new Map<number, string[]>();
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (!key?.startsWith(prefix)) continue;
+      const revision = Number(key.slice(prefix.length).split(":")[0]);
+      if (Number.isFinite(revision)) byRevision.set(revision, [...(byRevision.get(revision) ?? []), key]);
+    }
+    const stale = [...byRevision.keys()].sort((a, b) => b - a).slice(keep).flatMap((revision) => byRevision.get(revision) ?? []);
+    for (const key of stale) window.localStorage.removeItem(key);
+    return stale.length;
+  } catch { return 0; }
 }
 
 export type StateReadResult = {
@@ -222,16 +241,11 @@ export function readState(): TrackerState {
 
 export function writeState(state: TrackerState, userId?: string): { ok: boolean; error?: string } {
   if (typeof window === "undefined") return { ok: false, error: "browser storage unavailable" };
-  const targetKey = getStorageKey(userId);
-  const temporaryKey = `${targetKey}-pending`;
+  // setItem replaces the value atomically and a failed write keeps the old one, so no second copy is needed.
   try {
-    const serialized = JSON.stringify(state);
-    window.localStorage.setItem(temporaryKey, serialized);
-    window.localStorage.setItem(targetKey, serialized);
-    window.localStorage.removeItem(temporaryKey);
+    window.localStorage.setItem(getStorageKey(userId), JSON.stringify(state));
     return { ok: true };
   } catch (error) {
-    try { window.localStorage.removeItem(temporaryKey); } catch { /* preserve the main record */ }
     return { ok: false, error: error instanceof Error ? error.message : "storage write failed" };
   }
 }

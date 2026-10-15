@@ -33,13 +33,16 @@ export default function ProgressPage() {
   const [metric, setMetric] = useState<ObservationMetric>("weightKg");
   const [allHistory, setAllHistory] = useState(false);
   const observation = state?.observations.find((item) => item.date === date);
+  const observationKey = JSON.stringify(observation ?? null);
   const computedSleep = state ? sleepFromEvents(state.habits,state.completions,date) : undefined;
   useEffect(() => {
     setEnergy(observation ? String(observation.energy) : "");
     setSleep(observation ? String(observation.sleep) : computedSleep == null ? "" : String(computedSleep));
     setWeight(observation?.weightKg == null ? "" : String(observation.weightKg));
     setSkin(observation?.skin ?? "unknown"); setNote(observation?.note ?? "");
-  }, [observation, computedSleep]);
+  // Reload the form only when the stored mark really changed, not when sync hands over an equal copy.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [observationKey, computedSleep]);
   if (!state) return <main className="shell"><p>Загружаю показатели…</p></main>;
   const sessions = state as import("@/lib/workout-session").SessionTrackerState;
   const blocked = new Set((sessions.workoutSessions ?? []).filter((s) => s.status === "active" || s.status === "cancelled").map((s) => s.workoutId));

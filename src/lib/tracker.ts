@@ -50,6 +50,8 @@ export type HabitCompletion = {
 
 export type Habit = {
   id: string;
+  /** Локальная дата создания: привычка не попадает в дни до неё, чтобы прошлые серии не обнулялись. */
+  createdAt?: string;
   title: string;
   type: "medicine" | "habit" | "workout" | "sleep" | "meal";
   schedule: string;

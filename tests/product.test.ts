@@ -278,3 +278,12 @@ test("a mark for an earlier day is backfilled at noon and ignored by sleep maths
   const withBed = change(past, "bed", "2026-10-14", "completed", now);
   assert.equal(sleepOf(habits, withBed.completions, "2026-10-15"), undefined);
 });
+
+test("a habit created today does not appear in earlier days", () => {
+  const habits = [
+    { id: "old", title: "Старая", type: "habit" as const, schedule: "" },
+    { id: "new", title: "Новая", type: "habit" as const, schedule: "", createdAt: "2026-10-10" },
+  ];
+  assert.deepEqual(habitsForDate(habits, "2026-10-09").map((h) => h.id), ["old"]);
+  assert.deepEqual(habitsForDate(habits, "2026-10-10").map((h) => h.id), ["old", "new"]);
+});

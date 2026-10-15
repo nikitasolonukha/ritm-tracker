@@ -3,7 +3,7 @@ import type { TrackerState } from "./storage.ts";
 
 export function habitsForDate(habits: Habit[], localDate: string): Habit[] {
   const weekday = new Date(`${localDate}T12:00:00Z`).getUTCDay();
-  return habits.filter((habit) => !habit.archived && habit.type !== "workout" && (!habit.daysOfWeek?.length || habit.daysOfWeek.includes(weekday)));
+  return habits.filter((habit) => !habit.archived && habit.type !== "workout" && (!habit.createdAt || localDate >= habit.createdAt) && (!habit.daysOfWeek?.length || habit.daysOfWeek.includes(weekday)));
 }
 
 export function habitAnchors(habits: Habit[], habitId: string): Habit[] {

@@ -12,11 +12,11 @@ const dayMonth = (date: string) => new Intl.DateTimeFormat("ru-RU", { day: "nume
 
 const MOSCOW = "Europe/Moscow";
 
-/** Окно отправки: воскресенье с 19:00 до полуночи по Москве. Возвращает дату этого воскресенья. */
+/** Окно отправки: воскресенье с 21:00 до полуночи по Москве, когда день почти закончен. Возвращает дату этого воскресенья. */
 export function weeklyDigestWindow(now: Date): { endDate: string } | null {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: MOSCOW, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23", weekday: "short" }).formatToParts(now);
   const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
-  if (get("weekday") !== "Sun" || Number(get("hour")) < 19) return null;
+  if (get("weekday") !== "Sun" || Number(get("hour")) < 21) return null;
   return { endDate: `${get("year")}-${get("month")}-${get("day")}` };
 }
 

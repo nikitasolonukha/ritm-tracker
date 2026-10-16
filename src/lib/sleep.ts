@@ -1,6 +1,6 @@
 import { changeHabit, sleepFromEvents, sleepHabitIds } from "./habits.ts";
 import type { TrackerState } from "./storage.ts";
-import type { Habit, HabitCompletion } from "./tracker.ts";
+import { getLocalDate, type Habit, type HabitCompletion } from "./tracker.ts";
 
 export type SleepNight = { date: string; hours: number };
 
@@ -77,12 +77,50 @@ export function enableSleepTracking(state: TrackerState, today: string): Tracker
   return { ...state, habits: [...habits, ...fresh] };
 }
 
-/** Отметка «лёг» или «проснулся» на сегодня. Повторное нажатие отменяет отметку этого дня. */
-export function markSleepEvent(state: TrackerState, role: "bedtime" | "wake", today: string, now = new Date()): TrackerState {
+const moscowHour = (date: Date) => Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Moscow", hour: "2-digit", hourCycle: "h23" }).format(date));
+
+/** День, к которому относится «лёг»: нажатие после полуночи, до 4 утра, ещё принадлежит вечеру предыдущего дня. */
+export function sleepDayOf(now: Date): string {
+  const today = getLocalDate(now);
+  return moscowHour(now) < 4 ? shiftDate(today, -1) : today;
+}
+
+/** Ставит время нажатия и снимает признак «задним числом»: отметка за вечер, поставленная после полуночи, настоящая. */
+function stampNow(state: TrackerState, habitId: string, localDate: string, now: Date): TrackerState {
+  return {
+    ...state,
+    completions: state.completions.map((completion) => {
+      if (completion.habitId !== habitId || completion.localDate !== localDate) return completion;
+      const { backfilled: _ignored, ...rest } = completion;
+      void _ignored;
+      return { ...rest, completedAt: now.toISOString() };
+    }),
+  };
+}
+
+/**
+ * Кнопки «Лёг спать» и «Проснулся».
+ *  - «Проснулся» ставится на сегодняшнюю дату, повторное нажатие отменяет её.
+ *  - «Лёг»: если карточка показывает «лёг в ...» (сон ещё идёт), нажатие отменяет именно эту отметку, какой бы датой она ни была;
+ *    иначе ставит новую на «день сна» (после полуночи, до 4 утра, это вечер вчерашнего дня).
+ */
+export function markSleepEvent(state: TrackerState, role: "bedtime" | "wake", now = new Date()): TrackerState {
   const habit = state.habits.find((item) => live(item) && item.eventRole === role);
   if (!habit) return state;
-  const exists = state.completions.some((c) => c.habitId === habit.id && c.localDate === today && c.outcome !== "skipped");
-  return changeHabit(state, habit.id, today, exists ? "cancelled" : "completed", now);
+  if (role === "wake") {
+    const date = getLocalDate(now);
+    const exists = state.completions.some((c) => c.habitId === habit.id && c.localDate === date && c.outcome !== "skipped");
+    return changeHabit(state, habit.id, date, exists ? "cancelled" : "completed", now);
+  }
+  const asleepSince = sleepSummary(state, getLocalDate(now), now).asleepSince;
+  if (asleepSince) {
+    const mark = state.completions.find((c) => c.habitId === habit.id && c.completedAt === asleepSince && counted(c));
+    return mark ? changeHabit(state, habit.id, mark.localDate, "cancelled", now) : state;
+  }
+  const date = sleepDayOf(now);
+  let next = state;
+  if (next.completions.some((c) => c.habitId === habit.id && c.localDate === date)) next = changeHabit(next, habit.id, date, "cancelled", now);
+  return stampNow(changeHabit(next, habit.id, date, "completed", now), habit.id, date, now);
 }
 
 /** «7 ч 30 мин» вместо «7,5». */

@@ -94,8 +94,8 @@ function SleepCard({ summary, today, update }: { summary: SleepSummary; today: s
       {summary.week.map((night) => <span key={night.date} style={{ height: `${Math.max(8, (night.hours / peak) * 100)}%` }} title={`${night.date.slice(-2)}: ${formatSleep(night.hours)}`} />)}
     </div>}
     <div className="sleepActions">
-      <Button icon={Moon} onClick={() => update((previous) => markSleepEvent(previous, "bedtime", today))}>{asleep && !summary.wokeAt ? "Отменить «лёг»" : "Лёг спать"}</Button>
-      <Button variant={asleep && !summary.wokeAt ? "primary" : "secondary"} icon={Sun} onClick={() => update((previous) => markSleepEvent(previous, "wake", today))}>{summary.wokeAt ? `Проснулся в ${clock(new Date(summary.wokeAt))}` : "Проснулся"}</Button>
+      <Button icon={Moon} onClick={() => update((previous) => markSleepEvent(previous, "bedtime"))}>{asleep && !summary.wokeAt ? "Отменить «лёг»" : "Лёг спать"}</Button>
+      <Button variant={asleep && !summary.wokeAt ? "primary" : "secondary"} icon={Sun} onClick={() => update((previous) => markSleepEvent(previous, "wake"))}>{summary.wokeAt ? `Проснулся в ${clock(new Date(summary.wokeAt))}` : "Проснулся"}</Button>
     </div>
   </Card>;
 }

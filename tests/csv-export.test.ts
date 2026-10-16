@@ -30,7 +30,7 @@ test("the workout log becomes one row per set with decimal commas and pair sides
   assert.ok(csv.startsWith("﻿Дата;Тренировка;"));
   const lines = csv.trim().split("\r\n");
   assert.equal(lines.length, 5, "header + 4 sets; the workout without recorded sets is not exported");
-  assert.equal(lines[1], "2026-10-01;\"Основная; Full \"\"Body\"\"\";Жим;1;;62,5;8;общий вес;да;");
+  assert.equal(lines[1], "2026-10-01;\"Основная; Full \"\"Body\"\"\";Жим;1;;62,5;8;общий вес;да;;");
   assert.ok(lines[2].includes("\"тяжело\nочень\""));
   assert.ok(lines[2].includes(";нет;"));
   assert.ok(lines[3].includes(";Тяга одной рукой;1;правая;20;10;"));

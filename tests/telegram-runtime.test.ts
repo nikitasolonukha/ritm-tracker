@@ -150,8 +150,8 @@ function fixture(options: FixtureOptions = {}) {
     },
   };
   const webhook = load("../src/app/api/telegram/webhook/route.ts", replacements) as Handler;
-  const digestPlans: Array<{ client: unknown; at: Date }> = [];
-  const planner = { planWeeklyDigests: async (client: unknown, at: Date) => { digestPlans.push({ client, at }); return 0; } };
+  const digestPlans: Array<{ client: unknown; at: Date; eventsBefore: number }> = [];
+  const planner = { planWeeklyDigests: async (client: unknown, at: Date) => { digestPlans.push({ client, at, eventsBefore: events.length }); return 0; } };
   const worker = load("../src/app/api/telegram/worker/route.ts", { ...replacements, "@/lib/weekly-digest-plan": planner, "../webhook/route": webhook }) as Handler;
   return {
     events, clients, timeouts, digestPlans,
@@ -674,11 +674,13 @@ test("a stale habit button is not rewritten, and a failing edit does not fail th
   assert.equal(rpcs(failing.events, "finish_telegram_update")[0].args.p_status, "processed");
 });
 
-test("Telegram worker plans weekly digests once per run, before claiming jobs", async () => {
+test("Telegram worker plans weekly digests once per run, after the claimed reminders are handled", async () => {
   const runtime = fixture({ jobs: [] });
   assert.equal((await runtime.worker()).status, 200);
   assert.equal(runtime.digestPlans.length, 1);
   assert.equal(Object.prototype.toString.call(runtime.digestPlans[0].at), "[object Date]");
   const order = runtime.events.filter((event) => event.kind === "rpc").map((event) => (event as RpcCall).name);
   assert.ok(order.indexOf("refresh_habit_notifications") < order.indexOf("claim_notification_jobs"));
+  const claimIndex = runtime.events.findIndex((event) => event.kind === "rpc" && (event as RpcCall).name === "claim_notification_jobs");
+  assert.ok(claimIndex >= 0 && runtime.digestPlans[0].eventsBefore > claimIndex, "the planner runs after the jobs were claimed");
 });

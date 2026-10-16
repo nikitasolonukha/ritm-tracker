@@ -2,7 +2,7 @@ import { historyWorkouts } from "./exercises.ts";
 import { logicalSetKey } from "./tracker.ts";
 import type { SessionTrackerState } from "./workout-session.ts";
 
-const header = ["Дата", "Тренировка", "Упражнение", "Подход", "Сторона", "Вес, кг", "Повторы", "Учёт веса", "Выполнен", "Заметка"];
+const header = ["Дата", "Тренировка", "Упражнение", "Подход", "Сторона", "Вес, кг", "Повторы", "Учёт веса", "Выполнен", "Заметка", "Заметка к упражнению"];
 
 /** Значение для CSV: кавычки удваиваются, значения с разделителем, кавычкой или переводом строки берутся в кавычки. */
 export function csvCell(value: string | number | null | undefined): string {
@@ -36,6 +36,7 @@ export function workoutsToCsv(state: SessionTrackerState): string {
           mode,
           set.completed ? "да" : "нет",
           set.note ?? "",
+          exercise.note ?? "",
         ]);
       });
     }

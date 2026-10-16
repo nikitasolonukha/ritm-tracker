@@ -4,10 +4,16 @@ import { isTrackerPayload } from "@/lib/payload-validation";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  // Лёгкий вопрос для фоновой сверки: только номер версии, без всей базы (в ней могут быть фото).
+  if (new URL(request.url).searchParams.get("probe") === "1") {
+    const probe = await supabase.from("tracker_state").select("version").eq("user_id", user.id).maybeSingle();
+    if (probe.error) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
+    return NextResponse.json({ version: probe.data?.version ?? 0 });
+  }
   const { data, error } = await supabase.from("tracker_state").select("payload, version, updated_at").eq("user_id", user.id).maybeSingle();
   if (error) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
   const legacyOwnerId = process.env.RITM_LEGACY_OWNER_USER_ID ?? process.env.RITM_OWNER_USER_ID;

@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createBackupDocument, parseBackup } from "../src/lib/backup.ts";
-import { detectLiveRecord, exerciseDefaults, lastExerciseNote } from "../src/lib/exercises.ts";
+import { detectLiveRecord, exerciseDefaults, lastExerciseNote, workoutResults } from "../src/lib/exercises.ts";
 import { buildShareCardModel, SHARE_CARD_MAX_ROWS, shareFileName } from "../src/lib/share-card.ts";
 import { changeHabit, habitsForDate } from "../src/lib/habits.ts";
 import { weekOverview } from "../src/lib/week-overview.ts";
-import { enableSleepTracking, formatSleep, markSleepEvent, sleepSummary } from "../src/lib/sleep.ts";
+import { enableSleepTracking, formatSleep, markSleepEvent, sleepDayOf, sleepSummary } from "../src/lib/sleep.ts";
 import { createInitialState } from "../src/lib/storage.ts";
 import { calculateWorkoutTotals } from "../src/lib/tracker.ts";
 import { addExerciseToSession, addWarmups, currentWarmup, logicalSets, recordLogicalSet, recordWarmup, setExerciseNote, setExerciseSettings, setWarmupWeight, skipWarmups } from "../src/lib/workout-flow.ts";
@@ -129,12 +129,12 @@ test("sleep is counted from the bedtime and wake marks, not from the plan", () =
   state = enableSleepTracking(state, "2026-10-02");
   assert.equal(enableSleepTracking(state, "2026-10-02"), state, "enabling twice changes nothing");
   assert.equal(state.habits.filter((h) => h.eventRole).length, 2);
-  state = markSleepEvent(state, "bedtime", "2026-10-02", bed);
+  state = markSleepEvent(state, "bedtime", bed);
   let summary = sleepSummary(state, "2026-10-02", hourAfter(bed));
   assert.equal(summary.configured, true);
   assert.equal(summary.asleepSince, bed.toISOString());
   assert.equal(summary.last, undefined);
-  state = markSleepEvent(state, "wake", "2026-10-03", wakeUp);
+  state = markSleepEvent(state, "wake", wakeUp);
   summary = sleepSummary(state, "2026-10-03", hourAfter(wakeUp));
   assert.equal(summary.last?.hours, 7.8);
   assert.equal(summary.asleepSince, undefined);
@@ -145,10 +145,10 @@ test("sleep is counted from the bedtime and wake marks, not from the plan", () =
 
 test("a second tap undoes the mark", () => {
   let state = enableSleepTracking(createInitialState("2026-10-02"), "2026-10-02");
-  state = markSleepEvent(state, "bedtime", "2026-10-02", bed);
-  state = markSleepEvent(state, "wake", "2026-10-03", wakeUp);
+  state = markSleepEvent(state, "bedtime", bed);
+  state = markSleepEvent(state, "wake", wakeUp);
   assert.equal(sleepSummary(state, "2026-10-03", hourAfter(wakeUp)).last?.hours, 7.8);
-  state = markSleepEvent(state, "wake", "2026-10-03", new Date("2026-10-03T05:00:00.000Z"));
+  state = markSleepEvent(state, "wake", new Date("2026-10-03T05:00:00.000Z"));
   assert.equal(sleepSummary(state, "2026-10-03", hourAfter(wakeUp)).last, undefined);
   assert.equal(sleepSummary(state, "2026-10-03", hourAfter(wakeUp)).asleepSince, bed.toISOString());
 });
@@ -180,15 +180,15 @@ test("sleep length is shown as hours and minutes", () => {
 
 test("a forgotten bedtime mark gives no absurd sleep and no endless 'asleep' state", () => {
   let state = enableSleepTracking(createInitialState("2026-10-02"), "2026-10-02");
-  state = markSleepEvent(state, "bedtime", "2026-10-02", bed);
+  state = markSleepEvent(state, "bedtime", bed);
   // забыл нажать «лёг» следующим вечером, проснулся через 30 часов после первой отметки
   const lateWake = new Date(bed.getTime() + 30 * 3_600_000);
-  state = markSleepEvent(state, "wake", "2026-10-03", lateWake);
+  state = markSleepEvent(state, "wake", lateWake);
   const summary = sleepSummary(state, "2026-10-03", hourAfter(lateWake));
   assert.equal(summary.last, undefined);
   assert.deepEqual(summary.week, []);
   // «лёг» без «проснулся» больше 20 часов назад не считается текущим сном
-  const stale = markSleepEvent(enableSleepTracking(createInitialState("2026-10-02"), "2026-10-02"), "bedtime", "2026-10-02", bed);
+  const stale = markSleepEvent(enableSleepTracking(createInitialState("2026-10-02"), "2026-10-02"), "bedtime", bed);
   assert.equal(sleepSummary(stale, "2026-10-04", new Date(bed.getTime() + 21 * 3_600_000)).asleepSince, undefined);
   assert.equal(sleepSummary(stale, "2026-10-03", new Date(bed.getTime() + 19 * 3_600_000)).asleepSince, bed.toISOString());
 });
@@ -358,17 +358,73 @@ test("the week overview counts only this week's recorded work and leaves the unf
 
 test("the week overview closes days only when every planned habit is done, and averages sleep", () => {
   let state = enableSleepTracking(createInitialState("2026-10-12"), "2026-10-12");
-  state = markSleepEvent(state, "bedtime", "2026-10-12", new Date("2026-10-12T20:00:00.000Z"));
-  state = markSleepEvent(state, "wake", "2026-10-13", new Date("2026-10-13T04:00:00.000Z"));
-  state = markSleepEvent(state, "bedtime", "2026-10-13", new Date("2026-10-13T20:00:00.000Z"));
-  state = markSleepEvent(state, "wake", "2026-10-14", new Date("2026-10-14T04:00:00.000Z"));
+  state = markSleepEvent(state, "bedtime", new Date("2026-10-12T20:00:00.000Z"));
+  state = markSleepEvent(state, "wake", new Date("2026-10-13T04:00:00.000Z"));
+  state = markSleepEvent(state, "bedtime", new Date("2026-10-13T20:00:00.000Z"));
+  state = markSleepEvent(state, "wake", new Date("2026-10-14T04:00:00.000Z"));
   const overview = weekOverview(state, "2026-10-14");
   assert.equal(overview.sleepNights, 2);
   assert.equal(overview.sleepAverageHours, 8);
-  assert.equal(overview.hasData, true);
+  assert.equal(overview.hasData, false, "only sleep marks: no 'days closed 0 of 0' tile");
   const planned = state.habits.filter((habit) => !habit.archived && habit.type !== "workout" && !habit.eventRole);
   for (const habit of planned) state = changeHabit(state, habit.id, "2026-10-13", "completed", new Date("2026-10-13T12:00:00.000Z"));
   const after = weekOverview(state, "2026-10-14");
+  assert.equal(after.hasData, true);
   assert.equal(after.daysClosed, 1);
   assert.equal(after.daysPlanned, 2, "12th and 13th count, today (14th) is still open");
+});
+
+test("pressing 'bedtime' again after midnight cancels the real bedtime mark instead of adding a second one", () => {
+  let state = enableSleepTracking(createInitialState("2026-10-11"), "2026-10-11");
+  state = markSleepEvent(state, "bedtime", new Date("2026-10-11T20:30:00.000Z")); // 23:30 MSK on the 11th
+  const at = new Date("2026-10-11T21:10:00.000Z"); // 00:10 MSK on the 12th
+  assert.equal(sleepSummary(state, "2026-10-12", at).asleepSince, "2026-10-11T20:30:00.000Z");
+  state = markSleepEvent(state, "bedtime", at);
+  assert.deepEqual(state.completions.filter((c) => c.habitId === "sleep-bedtime"), [], "the card said 'cancel', so the mark is gone");
+  assert.equal(sleepSummary(state, "2026-10-12", at).asleepSince, undefined);
+});
+
+test("going to bed after midnight counts for the evening before and does not erase tonight's bedtime later", () => {
+  let state = enableSleepTracking(createInitialState("2026-10-11"), "2026-10-11");
+  state = markSleepEvent(state, "bedtime", new Date("2026-10-11T21:30:00.000Z")); // 00:30 MSK on the 12th
+  const bedMark = state.completions.find((c) => c.habitId === "sleep-bedtime")!;
+  assert.equal(bedMark.localDate, "2026-10-11", "before 04:00 still belongs to the previous evening");
+  assert.equal(bedMark.backfilled, undefined, "a real mark, not a backfill");
+  assert.equal(bedMark.completedAt, "2026-10-11T21:30:00.000Z");
+  state = markSleepEvent(state, "wake", new Date("2026-10-12T05:00:00.000Z")); // 08:00 MSK on the 12th
+  assert.equal(sleepSummary(state, "2026-10-12", new Date("2026-10-12T06:00:00.000Z")).last?.hours, 7.5);
+  // вечером 12-го «лёг» ставит новую отметку и не стирает ту, что дала сегодняшние 7,5 часа
+  const evening = new Date("2026-10-12T20:30:00.000Z");
+  state = markSleepEvent(state, "bedtime", evening);
+  assert.equal(state.completions.filter((c) => c.habitId === "sleep-bedtime").length, 2);
+  const summary = sleepSummary(state, "2026-10-12", new Date("2026-10-12T20:40:00.000Z"));
+  assert.equal(summary.last?.hours, 7.5);
+  assert.equal(summary.asleepSince, evening.toISOString());
+  assert.equal(sleepDayOf(new Date("2026-10-12T00:59:00.000Z")), "2026-10-11", "03:59 MSK on the 12th is still the evening of the 11th");
+  assert.equal(sleepDayOf(new Date("2026-10-12T01:00:00.000Z")), "2026-10-12", "04:00 MSK starts the new day");
+});
+
+test("a heavier set than an earlier set of the same workout is not a record when there is no history", () => {
+  const started = startWorkoutSession(withTemplate(), "tpl", new Date("2026-10-02T10:00:00.000Z"))!;
+  const exercise = workoutOfSession(started.state, started.sessionId).exercises[0];
+  const withEarlier = { ...exercise, sets: [{ ...exercise.sets[0], weightKg: 40, reps: 8, completed: true }, exercise.sets[1]] };
+  assert.equal(detectLiveRecord(started.state, withEarlier, { ...exercise.sets[1], weightKg: 50, reps: 8, completed: true }), null);
+});
+
+test("records are judged only against earlier workouts, not against later ones", () => {
+  const base = withTemplate();
+  const doIt = (state: SessionTrackerState, day: string, weight: number) => {
+    const started = startWorkoutSession(state, "tpl", new Date(`${day}T10:00:00.000Z`))!;
+    const workout = workoutOfSession(started.state, started.sessionId);
+    const set = workout.exercises[0].sets[0];
+    const weighed = { ...started.state, workouts: started.state.workouts.map((w) => w.id !== workout.id ? w : { ...w, exercises: w.exercises.map((e) => ({ ...e, sets: e.sets.map((s) => s.id === set.id ? { ...s, weightKg: weight } : s) })) }) };
+    return finishWorkoutSession(recordLogicalSet(weighed, started.sessionId, workout.exercises[0].id, [{ setId: set.id, reps: 8 }]), started.sessionId, new Date(`${day}T11:00:00.000Z`));
+  };
+  let state = doIt(base, "2026-10-05", 50);
+  state = doIt(state, "2026-10-12", 60);
+  state = doIt(state, "2026-10-19", 70);
+  const byDate = (date: string) => state.workouts.find((w) => w.date === date)!;
+  assert.equal(workoutResults(state, byDate("2026-10-05"))[0].record, false, "first time: nothing to beat");
+  assert.equal(workoutResults(state, byDate("2026-10-12"))[0].record, true, "60 beats 50, even though 70 came later");
+  assert.equal(workoutResults(state, byDate("2026-10-19"))[0].record, true);
 });

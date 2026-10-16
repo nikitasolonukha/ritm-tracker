@@ -39,7 +39,7 @@ export function AddExerciseSheet({ open, onClose, state, onAdd }: { open: boolea
     <div className="chipRow"><Chip pressed={paired} onClick={() => setPaired((value) => !value)}>Правая и левая отдельно</Chip></div>
     <ul className="menuList" aria-label="Упражнения">
       {key && !exact ? <li><button type="button" className="menuItem" onClick={() => choose(query.trim().replace(/\s+/g, " "))}><Plus size={20} /><span>Добавить «{query.trim()}»<small>Новое упражнение только в этой тренировке</small></span></button></li> : null}
-      {matches.map((entry) => <li key={entry.key}><button type="button" className="menuItem" onClick={() => choose(entry.name)}><span>{entry.name}<small>{entry.lastDate ? `${entry.sessionCount} ${russianWord(entry.sessionCount, "тренировка", "тренировки", "тренировок")}, последняя ${entry.lastDate.split("-").reverse().join(".")}` : entry.inProgram ? "Есть в программе" : "Без истории"}</small></span></button></li>)}
+      {matches.map((entry) => <li key={entry.key}><button type="button" className="menuItem" onClick={() => choose(entry.name.slice(0, 80))}><span>{entry.name}<small>{entry.lastDate ? `${entry.sessionCount} ${russianWord(entry.sessionCount, "тренировка", "тренировки", "тренировок")}, последняя ${entry.lastDate.split("-").reverse().join(".")}` : entry.inProgram ? "Есть в программе" : "Без истории"}</small></span></button></li>)}
     </ul>
     {!matches.length && !key ? <p>В библиотеке пока пусто. Напишите название, и упражнение появится в этой тренировке.</p> : null}
   </Sheet>;

@@ -35,7 +35,7 @@ export function ReminderSettings() {
         <div className="reminderTop">
           <label className="reminderToggle">
             <input type="checkbox" aria-label="Недельная сводка в Telegram" checked={state.weeklyDigest !== false} onChange={(event) => update((previous) => ({ ...previous, weeklyDigest: event.target.checked }))} />
-            <span><strong>Недельная сводка</strong><small>{state.weeklyDigest !== false ? "по воскресеньям после 19:00: тренировки, привычки, сон" : "выключено"}</small></span>
+            <span><strong>Недельная сводка</strong><small>{state.weeklyDigest !== false ? "по воскресеньям после 21:00: тренировки, привычки, сон" : "выключено"}</small></span>
           </label>
         </div>
       </li>

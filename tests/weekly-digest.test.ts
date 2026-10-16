@@ -17,9 +17,9 @@ function workoutState(): SessionTrackerState {
   ] };
 }
 
-test("the weekly digest window is Sunday evening, Moscow time", () => {
-  assert.deepEqual(weeklyDigestWindow(new Date("2026-10-18T16:00:00.000Z")), { endDate: "2026-10-18" }, "19:00 MSK on Sunday");
-  assert.equal(weeklyDigestWindow(new Date("2026-10-18T15:59:00.000Z")), null, "18:59 MSK");
+test("the weekly digest window is Sunday from 21:00 to midnight, Moscow time", () => {
+  assert.deepEqual(weeklyDigestWindow(new Date("2026-10-18T18:00:00.000Z")), { endDate: "2026-10-18" }, "21:00 MSK on Sunday");
+  assert.equal(weeklyDigestWindow(new Date("2026-10-18T17:59:00.000Z")), null, "20:59 MSK");
   assert.equal(weeklyDigestWindow(new Date("2026-10-17T18:00:00.000Z")), null, "Saturday");
   assert.deepEqual(weeklyDigestWindow(new Date("2026-10-18T20:59:00.000Z")), { endDate: "2026-10-18" }, "23:59 MSK");
   assert.equal(weeklyDigestWindow(new Date("2026-10-18T21:00:00.000Z")), null, "Monday 00:00 MSK");
@@ -40,8 +40,8 @@ test("the digest reports facts for the week: workouts, volume, records, habits",
 
 test("sleep marks show up, a quiet week is not sent, a month boundary is written in full", () => {
   let next = enableSleepTracking(state(), "2026-10-12");
-  next = markSleepEvent(next, "bedtime", "2026-10-13", new Date("2026-10-13T20:00:00.000Z"));
-  next = markSleepEvent(next, "wake", "2026-10-14", new Date("2026-10-14T04:30:00.000Z"));
+  next = markSleepEvent(next, "bedtime", new Date("2026-10-13T20:00:00.000Z"));
+  next = markSleepEvent(next, "wake", new Date("2026-10-14T04:30:00.000Z"));
   const digest = buildWeeklyDigest(next, "2026-10-18");
   assert.match(digest.text, /Сон: в среднем 8 ч 30 мин \(1 ночь\)/);
   assert.equal(digest.hasData, true);
@@ -69,7 +69,7 @@ function fakeAdmin(data: { links: Row[]; jobs: Row[]; states: Row[] }, inserted:
     },
   } as never;
 }
-const sunday = new Date("2026-10-18T17:00:00.000Z");
+const sunday = new Date("2026-10-18T18:30:00.000Z");
 
 test("the planner queues one digest per linked user, skips opted-out and empty weeks, and is idempotent", async () => {
   const inserted: Row[] = [];
@@ -96,4 +96,31 @@ test("the planner does nothing outside the window and never throws on database e
   assert.equal(await planWeeklyDigests(fakeAdmin(data, inserted), new Date("2026-10-19T09:00:00.000Z")), 0);
   for (const table of ["telegram_links", "tracker_state"]) assert.equal(await planWeeklyDigests(fakeAdmin(data, inserted, table), sunday), 0);
   assert.equal(inserted.length, 0);
+});
+
+test("one broken payload does not stop the others, and each run reads at most a fixed number of users", async () => {
+  const inserted: Row[] = [];
+  const broken = { links: [{ user_id: "a" }, { user_id: "x" }, { user_id: "y" }], jobs: [], states: [
+    { user_id: "a", payload: workoutState() },
+    { user_id: "x", payload: {} },
+    { user_id: "y", payload: null },
+  ] };
+  assert.equal(await planWeeklyDigests(fakeAdmin(broken, inserted), sunday), 1);
+  assert.deepEqual(inserted.map((row) => [row.user_id, row.status, row.last_error ?? null]), [["a", "pending", null], ["x", "cancelled", "digest error"], ["y", "cancelled", "digest error"]]);
+
+  const many = Array.from({ length: 45 }, (_, index) => ({ user_id: `u${index}` }));
+  let requested: unknown[] = [];
+  const written: Row[] = [];
+  const admin = {
+    from(table: string) {
+      const chain: Record<string, unknown> = {};
+      for (const method of ["select", "not", "is", "eq"]) chain[method] = () => chain;
+      chain.in = (_column: string, ids: unknown[]) => { if (table === "tracker_state") requested = ids; return chain; };
+      chain.then = (resolve: (value: unknown) => void) => resolve({ data: table === "telegram_links" ? many : table === "tracker_state" ? (requested as string[]).map((id) => ({ user_id: id, payload: workoutState() })) : [], error: null });
+      return { ...chain, upsert: async (rows: Row[]) => { written.push(...rows); return { error: null }; } };
+    },
+  } as never;
+  await planWeeklyDigests(admin, sunday);
+  assert.equal(requested.length, 20);
+  assert.equal(written.length, 20);
 });

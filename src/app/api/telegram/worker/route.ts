@@ -40,7 +40,6 @@ export async function POST(request: NextRequest) {
       method: "POST", headers: { "content-type": "application/json", "x-telegram-bot-api-secret-token": process.env.TELEGRAM_WEBHOOK_SECRET! }, body: JSON.stringify(update.payload),
     })).catch(() => undefined);
   }
-  await planWeeklyDigests(admin, new Date()).catch(() => 0);
   const refresh = await admin.rpc("refresh_habit_notifications");
   if (refresh.error) return NextResponse.json({ error: "queue_unavailable" }, { status: 503 });
   const { data, error } = await admin.rpc("claim_notification_jobs", { p_limit: 1, p_lease_seconds: 45 });
@@ -110,5 +109,7 @@ export async function POST(request: NextRequest) {
     results.push({ id: job.id, status });
   }
 
+  // После отправки напоминаний: сводка не должна задерживать их, а её задание уйдёт на следующем запуске (через 10 секунд).
+  await planWeeklyDigests(admin, new Date()).catch(() => 0);
   return NextResponse.json({ processed: results.length, results });
 }

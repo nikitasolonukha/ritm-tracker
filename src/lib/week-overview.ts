@@ -1,5 +1,5 @@
 import { historyWorkouts } from "./exercises.ts";
-import { sleepFromEvents } from "./habits.ts";
+import { habitsForDate, sleepFromEvents } from "./habits.ts";
 import { dayInfo } from "./streaks.ts";
 import type { SessionTrackerState } from "./workout-session.ts";
 import { calculateWorkoutTotals } from "./tracker.ts";
@@ -43,7 +43,7 @@ export function weekOverview(state: SessionTrackerState, today: string): WeekOve
     if (hours != null) sleep.push(hours);
   }
   const goal = state.habits.find((habit) => !habit.archived && habit.type === "workout")?.targetDays ?? 3;
-  const marks = state.completions.some((c) => c.localDate >= startDate && c.localDate <= today && c.outcome !== "skipped");
+  const marks = daysPlanned > 0 && state.completions.some((c) => c.localDate >= startDate && c.localDate <= today && c.outcome !== "skipped" && state.habits.some((habit) => habit.id === c.habitId && habitsForDate([habit], c.localDate).length > 0));
   return {
     startDate,
     workouts: workouts.length,

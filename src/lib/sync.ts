@@ -22,6 +22,17 @@ export function decideSyncDirection(local: { outbox?: Array<{ status: string }> 
   return "conflict" as const;
 }
 
+/**
+ * Можно ли пропустить фоновую сверку: на сервере та же версия, что мы уже подтвердили, на устройстве нет ни изменений
+ * (отпечаток равен подтверждённому), ни неотправленных действий, ни незавершённой отправки. Иначе нужна полная сверка.
+ */
+export function canSkipPoll(input: { local: { outbox?: Array<{ status: string }>; [key: string]: unknown }; checkpoint?: { revision: number; fingerprint: string }; writeIntent?: unknown; remoteVersion?: number }): boolean {
+  const { local, checkpoint, writeIntent, remoteVersion } = input;
+  if (!checkpoint || writeIntent || typeof remoteVersion !== "number" || remoteVersion !== checkpoint.revision) return false;
+  if (local.outbox?.some((item) => ["pending", "sending", "failed"].includes(item.status))) return false;
+  return syncFingerprint(local) === checkpoint.fingerprint;
+}
+
 const syncOnlyOutboxTypes = new Set(["habit.completed", "habit.cancelled"]);
 
 export function prepareSyncPayload<T extends { outbox?: Array<{ type: string; status: string }> }>(state: T): T {

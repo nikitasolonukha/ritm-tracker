@@ -150,10 +150,11 @@ export type LiveRecord = { kind: "weight" | "oneRepMax"; value: number; previous
  */
 export function detectLiveRecord(state: SessionTrackerState, exercise: Pick<Exercise, "id" | "name" | "sets">, set: ExerciseSet): LiveRecord | null {
   if (set.weightKg == null || set.reps == null || set.weightKg <= 0 || set.reps <= 0 || !set.weightMode) return null;
-  const baseline: ExerciseSet[] = getExerciseSessions(state, exerciseKey(exercise.name)).flatMap((session) => session.sets);
-  baseline.push(...exercise.sets.filter((other) => other.id !== set.id && other.completed));
-  const comparable = baseline.filter((other) => other.weightMode === set.weightMode && other.weightKg != null && other.reps != null && other.weightKg > 0 && other.reps > 0);
-  if (!comparable.length) return null;
+  const usable = (other: ExerciseSet) => other.weightMode === set.weightMode && other.weightKg != null && other.reps != null && other.weightKg > 0 && other.reps > 0;
+  const history = getExerciseSessions(state, exerciseKey(exercise.name)).flatMap((session) => session.sets).filter(usable);
+  // Первый раз всегда «точка отсчёта»: подход тяжелее предыдущего подхода той же тренировки рекордом не считается.
+  if (!history.length) return null;
+  const comparable = [...history, ...exercise.sets.filter((other) => other.id !== set.id && other.completed).filter(usable)];
   const heaviest = Math.max(...comparable.map((other) => other.weightKg as number));
   if (set.weightKg > heaviest) return { kind: "weight", value: set.weightKg, previous: heaviest };
   const bestOneRepMax = Math.max(...comparable.map((other) => estimateOneRepMax(other.weightKg as number, other.reps as number)));
@@ -185,7 +186,7 @@ export function workoutResults(state: SessionTrackerState, workout: Workout): Wo
       const done = exercise.sets.filter((set) => set.completed);
       if (!done.length) return null;
       const key = exerciseKey(exercise.name);
-      const before = getExerciseRecords(getExerciseSessions(state, key).filter((entry) => entry.workoutId !== workout.id));
+      const before = getExerciseRecords(getExerciseSessions(state, key).filter((entry) => entry.workoutId !== workout.id && entry.date <= workout.date));
       const now = getExerciseRecords([{ date: workout.date, workoutId: workout.id, workoutTitle: workout.title, sets: done, volumeKg: 0 }]);
       const record = Boolean(now.heaviest && before.heaviest && now.heaviest.weightKg > before.heaviest.weightKg);
       return { id: exercise.id, name: exercise.name, sets: formatSets(done), record };

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Check, Dumbbell, Share2, Trophy } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, LinkButton } from "@/components/ds";
 import { useTrackerState } from "@/components/tracker-state";
 import { StatTile } from "@/components/ui";
@@ -20,7 +20,11 @@ export default function WorkoutSummaryPage({ params }: { params: Promise<{ sessi
   const { state } = useTrackerState();
   const [routeSessionId, setRouteSessionId] = useState<string>();
   const [shareState, setShareState] = useState<"idle" | "working" | "shared" | "downloaded" | "failed">("idle");
+  const preparedCard = useRef<{ key: string; blob: Blob } | null>(null);
   useEffect(() => { void params.then(({ sessionId }) => setRouteSessionId(sessionId)); }, [params]);
+  const prepareRef = useRef<(() => Promise<Blob>) | null>(null);
+  const loaded = Boolean(state);
+  useEffect(() => { void prepareRef.current?.().catch(() => undefined); }, [routeSessionId, loaded]);
   if (!state) return <main className="shell"><p>Загружаю результат…</p></main>;
   const sessionState = state as SessionTrackerState;
   const session = sessionState.workoutSessions?.find((item) => item.id === routeSessionId);
@@ -30,10 +34,17 @@ export default function WorkoutSummaryPage({ params }: { params: Promise<{ sessi
   const title = session.status === "partial" ? "Завершена частично" : session.status === "cancelled" ? "Тренировка отменена" : session.status === "active" ? "Тренировка ещё идёт" : "Тренировка завершена";
   const duration = session.finishedAt ? (Date.parse(session.finishedAt) - Date.parse(session.startedAt)) / 1000 : 0;
   const results = workoutResults(sessionState, workout);
+  const cardKey = `${workout.id}:${session.finishedAt ?? ""}:${totals.completedSets}`;
+  // Картинку готовим заранее: на iPhone системное окно «Поделиться» открывается только сразу после касания, без долгого ожидания.
+  const prepare = () => {
+    if (preparedCard.current?.key === cardKey) return Promise.resolve(preparedCard.current.blob);
+    return renderShareCard(buildShareCardModel(sessionState, workout, session)).then((blob) => { preparedCard.current = { key: cardKey, blob }; return blob; });
+  };
+  prepareRef.current = prepare;
   const share = async () => {
     setShareState("working");
     try {
-      const blob = await renderShareCard(buildShareCardModel(sessionState, workout, session));
+      const blob = preparedCard.current?.key === cardKey ? preparedCard.current.blob : await prepare();
       const outcome = await shareOrDownload(blob, shareFileName(workout), workout.title);
       setShareState(outcome === "cancelled" ? "idle" : outcome);
     } catch {

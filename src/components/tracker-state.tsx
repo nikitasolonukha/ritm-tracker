@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { backupSyncConflict, clearSyncWriteIntent, getStorageKey, migrateState, readLegacyOffer, readOutboxAcks, readStateSafely, readSyncCheckpoint, readSyncWriteIntent, shouldShowLegacyOffer, writeLegacyOffer, writeSyncCheckpoint, writeSyncWriteIntent, writeOutboxAck, writeState, type TrackerState } from "@/lib/storage";
-import { acknowledgeSavedHabits, confirmedSyncWrite, decideLostPutResponse, decideSyncDirection, prepareSyncPayload, syncFingerprint, type SyncWriteIntent } from "@/lib/sync";
+import { acknowledgeSavedHabits, canSkipPoll, confirmedSyncWrite, decideLostPutResponse, decideSyncDirection, prepareSyncPayload, syncFingerprint, type SyncWriteIntent } from "@/lib/sync";
 import { mergeBackup, previewBackup } from "@/lib/backup";
 import { setServiceWorkerAccount } from "@/lib/pwa";
 import Link from "next/link";
@@ -49,6 +49,8 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
   const acks = useRef(new Set<string>());
   const legacyAllowed = useRef(false);
   const rejected = useRef(false);
+  /** Последняя неудачная сверка была из-за связи: пропущенная сверка должна снять «нет связи». */
+  const offlineNotice = useRef(false);
   const lastRaw = useRef<string | null>(null);
   useEffect(() => { if (userId && !demoMode) setServiceWorkerAccount(userId); }, [pathname, userId, demoMode]);
 
@@ -198,11 +200,28 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
           if (prepared !== current.current && !persist(prepared)) throw new Error("Не удалось обновить очередь.");
         }
       } while (again.current && !blocked.current && alive.current);
+      offlineNotice.current = false;
       if (alive.current && account.current === syncAccount) { setSyncStatus("idle"); setStorageError(undefined); }
     } catch (error) {
       if (error instanceof SyncRejected) rejected.current = true;
+      offlineNotice.current = !(error instanceof SyncRejected);
       if (alive.current && account.current === syncAccount) { setSyncStatus(error instanceof SyncRejected ? "error" : "offline"); setStorageError(error instanceof Error ? error.message : "Нет связи. Локальные данные сохранены."); }
     } finally { running.current = false; }
+  }
+  /** Фоновая сверка: сначала спрашиваем у сервера только номер версии и качаем всё, лишь если что-то изменилось. */
+  async function pollSync() {
+    if (!ready.current || !account.current || demoMode || !isSupabaseConfigured || !current.current || blocked.current || running.current) { void sync(); return; }
+    try {
+      const response = await request("/api/sync?probe=1");
+      if (response.ok) {
+        const probe = await response.json() as { version?: number };
+        if (current.current && account.current && !running.current && canSkipPoll({ local: current.current, checkpoint: readSyncCheckpoint(account.current), writeIntent: writeIntent.current, remoteVersion: probe.version })) {
+          if (offlineNotice.current) { offlineNotice.current = false; setSyncStatus("idle"); setStorageError(undefined); }
+          return;
+        }
+      }
+    } catch { /* нет связи или таймаут: полная сверка сама покажет статус */ }
+    await sync();
   }
   function queueSync() {
     if (blocked.current) return;
@@ -245,7 +264,7 @@ function useTrackerStateInternal(demoMode: boolean): TrackerStore {
       if (!demoMode) await sync();
     }
     void initialize().catch(() => { if (alive.current) { setSyncStatus("error"); setStorageError("Не удалось открыть аккаунт. Проверьте соединение."); } });
-    const recover = () => { if (document.visibilityState === "visible" && navigator.onLine && !rejected.current) void sync(); };
+    const recover = () => { if (document.visibilityState === "visible" && navigator.onLine && !rejected.current) void pollSync(); };
     const onStorage = (event: StorageEvent) => { if (account.current && event.key === getStorageKey(account.current)) refreshFromStorage(); };
     window.addEventListener("storage", onStorage);
     window.addEventListener("online", recover);

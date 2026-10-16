@@ -254,6 +254,7 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
     if (warmup) { recordWarmupNow(); return; }
     if (!current) return;
     unlock();
+    if (soundOn) { try { navigator.vibrate?.(12); } catch { /* вибрации нет */ } }
     const entries: Array<{ setId: string; reps: number }> = [];
     for (const part of current.parts) {
       if (part.set.completed) continue;

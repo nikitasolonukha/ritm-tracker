@@ -249,3 +249,54 @@ test("the weekly digest switch is on by default and stays off after a reload", a
   await page.reload();
   await expect(page.getByRole("checkbox", { name: "Недельная сводка в Telegram" })).not.toBeChecked();
 });
+
+test("Today shows this week's workouts and volume once something is recorded, and the card opens Progress", async ({ page }) => {
+  await page.goto("/today");
+  await expect(page.locator(".weekCard")).toHaveCount(0);
+  await startFromToday(page);
+  const plus = page.getByRole("button", { name: "Увеличить вес", exact: true });
+  await plus.click();
+  await plus.click();
+  await recordFirstSet(page, "8");
+  await expect(page.locator(".workWeight strong")).not.toHaveText("5");
+  await finishEarly(page);
+  await page.getByRole("link", { name: "Готово" }).click();
+  const card = page.locator(".weekCard");
+  await expect(card).toBeVisible();
+  await expect(card).toContainText("Тренировки");
+  await expect(card).toContainText("1 из 3");
+  await expect(card).toContainText("Объём");
+  await expect(card).toContainText("40 кг");
+  await card.click();
+  await expect(page).toHaveURL(/\/progress/);
+});
+
+test("animations are short and switch off when the phone asks for reduced motion", async ({ page }) => {
+  await startFromToday(page);
+  await page.getByRole("button", { name: "Меню тренировки" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  const duration = () => page.locator(".sheet").evaluate((node) => getComputedStyle(node).animationDuration);
+  expect(await duration()).toBe("0.24s");
+  await page.keyboard.press("Escape");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.getByRole("button", { name: "Меню тренировки" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  expect(Number.parseFloat(await duration())).toBeLessThan(0.001);
+});
+
+test("the daily mark form stays inside its card and the sleep card is separated from the habit list", async ({ page }) => {
+  // Важно: эмуляция WebKit НЕ воспроизводит выход поля даты за карточку на настоящем iPhone (проверено: тест проходит и без исправления CSS).
+  // Здесь только страховка от очевидных регрессий; поведение на устройстве проверяет владелец.
+  await page.goto("/progress");
+  const card = page.locator(".observationEditor");
+  await card.scrollIntoViewIfNeeded();
+  const cardBox = await card.boundingBox();
+  const date = await card.locator("input[type=date]").boundingBox();
+  expect(date!.x).toBeGreaterThanOrEqual(cardBox!.x);
+  expect(date!.x + date!.width).toBeLessThanOrEqual(cardBox!.x + cardBox!.width + 0.5);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+  await page.goto("/today");
+  const list = await page.locator(".habitList").boundingBox();
+  const sleep = await page.locator(".sleepCard").boundingBox();
+  expect(sleep!.y - (list!.y + list!.height)).toBeGreaterThanOrEqual(8);
+});

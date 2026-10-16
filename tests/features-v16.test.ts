@@ -3,13 +3,14 @@ import test from "node:test";
 import { createBackupDocument, parseBackup } from "../src/lib/backup.ts";
 import { detectLiveRecord, exerciseDefaults, lastExerciseNote } from "../src/lib/exercises.ts";
 import { buildShareCardModel, SHARE_CARD_MAX_ROWS, shareFileName } from "../src/lib/share-card.ts";
-import { habitsForDate } from "../src/lib/habits.ts";
+import { changeHabit, habitsForDate } from "../src/lib/habits.ts";
+import { weekOverview } from "../src/lib/week-overview.ts";
 import { enableSleepTracking, formatSleep, markSleepEvent, sleepSummary } from "../src/lib/sleep.ts";
 import { createInitialState } from "../src/lib/storage.ts";
 import { calculateWorkoutTotals } from "../src/lib/tracker.ts";
 import { addExerciseToSession, addWarmups, currentWarmup, logicalSets, recordLogicalSet, recordWarmup, setExerciseNote, setExerciseSettings, setWarmupWeight, skipWarmups } from "../src/lib/workout-flow.ts";
 import { planWarmups } from "../src/lib/warmups.ts";
-import { finishWorkoutSession, startWorkoutSession, suggestNextTemplate, type SessionTrackerState } from "../src/lib/workout-session.ts";
+import { cancelWorkoutSession, finishWorkoutSession, startWorkoutSession, suggestNextTemplate, type SessionTrackerState } from "../src/lib/workout-session.ts";
 
 const press = (weight: number) => ({ id: "press", name: "Жим в тренажёре", restSec: 180 as const, sets: [1, 2].map((n) => ({ id: `s${n}`, weightKg: weight, reps: 8, completed: false, weightMode: "total" as const })) });
 
@@ -332,4 +333,42 @@ test("the share card shows only recorded work and cuts the list with a count of 
   assert.equal(shareFileName({ date: "2026-10-02" }), "ritm-2026-10-02.png");
   const planned = buildShareCardModel(state, { ...workoutOfSession(state, started.sessionId), exercises: [{ ...workout.exercises[0], sets: workout.exercises[0].sets.map((set) => ({ ...set, completed: false })) }] }, session);
   assert.equal(planned.rows.length, 0, "planned sets are not shown");
+});
+
+test("the week overview counts only this week's recorded work and leaves the unfinished today out of the denominator", () => {
+  const base = withTemplate();
+  const empty = weekOverview(base, "2026-10-14");
+  assert.equal(empty.hasData, false);
+  const first = runSession(base, "2026-10-12", [{ weight: 40, reps: 8 }, { weight: 40, reps: 8 }]);
+  const done = finishWorkoutSession(first.state, first.sessionId, new Date("2026-10-12T11:00:00.000Z"));
+  const overview = weekOverview(done, "2026-10-14");
+  assert.equal(overview.startDate, "2026-10-12");
+  assert.equal(overview.workouts, 1);
+  assert.equal(overview.volumeKg, 640);
+  assert.equal(overview.goal, 3);
+  assert.equal(overview.hasData, true);
+  // тренировка прошлой недели в этой неделе не считается
+  assert.equal(weekOverview(done, "2026-10-19").workouts, 0);
+  assert.equal(weekOverview(done, "2026-10-18").workouts, 1, "Sunday is still the same week");
+  // отмена тренировки в статистику не идёт
+  const second = runSession(done, "2026-10-13", [{ weight: 100, reps: 10 }]);
+  const cancelled = cancelWorkoutSession(second.state, second.sessionId);
+  assert.equal(weekOverview(cancelled, "2026-10-14").volumeKg, 640);
+});
+
+test("the week overview closes days only when every planned habit is done, and averages sleep", () => {
+  let state = enableSleepTracking(createInitialState("2026-10-12"), "2026-10-12");
+  state = markSleepEvent(state, "bedtime", "2026-10-12", new Date("2026-10-12T20:00:00.000Z"));
+  state = markSleepEvent(state, "wake", "2026-10-13", new Date("2026-10-13T04:00:00.000Z"));
+  state = markSleepEvent(state, "bedtime", "2026-10-13", new Date("2026-10-13T20:00:00.000Z"));
+  state = markSleepEvent(state, "wake", "2026-10-14", new Date("2026-10-14T04:00:00.000Z"));
+  const overview = weekOverview(state, "2026-10-14");
+  assert.equal(overview.sleepNights, 2);
+  assert.equal(overview.sleepAverageHours, 8);
+  assert.equal(overview.hasData, true);
+  const planned = state.habits.filter((habit) => !habit.archived && habit.type !== "workout" && !habit.eventRole);
+  for (const habit of planned) state = changeHabit(state, habit.id, "2026-10-13", "completed", new Date("2026-10-13T12:00:00.000Z"));
+  const after = weekOverview(state, "2026-10-14");
+  assert.equal(after.daysClosed, 1);
+  assert.equal(after.daysPlanned, 2, "12th and 13th count, today (14th) is still open");
 });

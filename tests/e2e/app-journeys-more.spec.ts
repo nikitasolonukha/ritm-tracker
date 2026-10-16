@@ -207,7 +207,8 @@ test("the rest ends with a vibration and two beeps once, and the signal can be s
     const w = window as unknown as { __vibrations: number; __beeps: number; AudioContext: unknown };
     w.__vibrations = 0;
     w.__beeps = 0;
-    Object.defineProperty(navigator, "vibrate", { value: () => { w.__vibrations += 1; return true; }, configurable: true });
+    // короткая вибрация при записи подхода (число) не считается: проверяем сигнал конца отдыха (узор из нескольких импульсов)
+    Object.defineProperty(navigator, "vibrate", { value: (pattern: unknown) => { if (Array.isArray(pattern)) w.__vibrations += 1; return true; }, configurable: true });
     w.AudioContext = class {
       currentTime = 0;
       destination = {};

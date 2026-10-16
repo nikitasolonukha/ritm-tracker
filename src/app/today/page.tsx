@@ -11,6 +11,7 @@ import { useStartWorkout } from "@/components/use-start-workout";
 import { changeHabit, habitsForDate, snoozeHabit } from "@/lib/habits";
 import { enableSleepTracking, formatSleep, markSleepEvent, sleepSummary, type SleepSummary } from "@/lib/sleep";
 import { habitStreaks } from "@/lib/streaks";
+import { weekOverview } from "@/lib/week-overview";
 import type { TrackerState } from "@/lib/storage";
 import { calculateWorkoutTotals, formatLocalDate, getLocalDate, russianWord, visibleCopy, type HabitCompletion } from "@/lib/tracker";
 import { suggestNextTemplate, type SessionTrackerState } from "@/lib/workout-session";
@@ -141,6 +142,7 @@ export default function TodayPage() {
   const checkInDue = !lastObservation || (Date.parse(today) - Date.parse(lastObservation)) / 86_400_000 >= 3;
   const completedDays = [...new Set(state.completions.map((c) => c.localDate))].filter((date) => { const planned = habitsForDate(state.habits, date); return planned.length > 0 && planned.every((h) => isDone(h.id, date)); }).length;
   const streaks = habitStreaks(state, today);
+  const overview = weekOverview(sessionState, today);
   const nextMilestone = [14, 28, 60, 90].find((d) => d > streaks.current) ?? Math.ceil((streaks.current + 1) / 30) * 30;
   const planTitle = selectedDate !== today ? "План на этот день" : resolved === habits.length ? "План дня закрыт" : "План дня";
   const showWorkout = selectedDate === today && (active || workoutHabits.length > 0);
@@ -170,6 +172,14 @@ export default function TodayPage() {
       <Card pad className="ringCard"><Ring size={88} stroke={8} value={finished} max={goal} ok={finished >= goal} label={`${finished}/${goal}`} sub="неделя" /></Card>
       <Link href="/calendar" className="card card-pad ringCard"><Ring size={88} stroke={8} value={streaks.current} max={nextMilestone} label={streaks.current} sub="дн. подряд" /></Link>
     </section>
+    {selectedDate === today && overview.hasData && <Link href="/progress" className="card card-pad weekCard" aria-label="Итоги недели, открыть прогресс">
+      <div className="sectionHeading"><h2>Эта неделя</h2><ArrowRight size={18} className="muted" /></div>
+      <dl className="weekStats">
+        <div><dt>Тренировки</dt><dd>{overview.workouts}<small> из {overview.goal}</small></dd></div>
+        <div><dt>Объём</dt><dd>{overview.volumeKg.toLocaleString("ru-RU")}<small> кг</small></dd></div>
+        <div><dt>{overview.sleepAverageHours != null ? "Сон, в среднем" : "Дни закрыты"}</dt><dd>{overview.sleepAverageHours != null ? formatSleep(overview.sleepAverageHours) : <>{overview.daysClosed}<small> из {overview.daysPlanned}</small></>}</dd></div>
+      </dl>
+    </Link>}
     {!habits.length
       ? <EmptyState title={selectedDate === today ? "Ваш ритм дня" : "В этот день привычек нет"} action={selectedDate === today ? <Link className="btn btn-primary" href="/settings">Добавить привычки</Link> : undefined} />
       : <section className="actionSection">

@@ -64,6 +64,8 @@ function validWorkout(workout: Value) {
       && optional(exercise.category, (v) => oneOf(v, ["warmup", "working", "finisher"]))
       && optional(exercise.restSec, (v) => integer(v, 30, 900))
       && optional(exercise.weightFactor, (v) => numeric(v, 0, 10))
+      && optional(exercise.warmupSets, (v) => integer(v, 0, 3))
+      && optional(exercise.warmups, (v) => items(v, 10, (warmup) => (warmup.weightKg === null || numeric(warmup.weightKg, 0, 5000)) && (warmup.reps === null || integer(warmup.reps, 0, 1000)) && typeof warmup.completed === "boolean"))
       && items(exercise.sets, 100, validSet));
 }
 

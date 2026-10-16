@@ -12,8 +12,8 @@ import { changeHabit, habitsForDate, snoozeHabit } from "@/lib/habits";
 import { enableSleepTracking, formatSleep, markSleepEvent, sleepSummary, type SleepSummary } from "@/lib/sleep";
 import { habitStreaks } from "@/lib/streaks";
 import type { TrackerState } from "@/lib/storage";
-import { calculateWorkoutTotals, getLocalDate, russianWord, visibleCopy, type HabitCompletion } from "@/lib/tracker";
-import type { SessionTrackerState } from "@/lib/workout-session";
+import { calculateWorkoutTotals, formatLocalDate, getLocalDate, russianWord, visibleCopy, type HabitCompletion } from "@/lib/tracker";
+import { suggestNextTemplate, type SessionTrackerState } from "@/lib/workout-session";
 
 type Habit = TrackerState["habits"][number];
 type Update = (change: (previous: TrackerState) => TrackerState) => boolean;
@@ -133,7 +133,9 @@ export default function TodayPage() {
   const activeDates = new Set(state.completions.filter((c) => c.outcome !== "skipped").map((c) => c.localDate));
   const goal = state.habits.find((habit) => !habit.archived && habit.type === "workout")?.targetDays ?? 3;
   const templates = sessionState.workoutTemplates ?? [];
-  const template = templates.length === 1 ? templates[0] : undefined;
+  const suggestion = suggestNextTemplate(sessionState);
+  const template = suggestion?.template;
+  const rotation = templates.length > 1;
   const sleep = sleepSummary(state, today);
   const lastObservation = state.observations.map((o) => o.date).sort().at(-1);
   const checkInDue = !lastObservation || (Date.parse(today) - Date.parse(lastObservation)) / 86_400_000 >= 3;
@@ -152,12 +154,15 @@ export default function TodayPage() {
       <div className="heroText">
         <span className="heroEyebrow"><Dumbbell size={16} />{active ? "Тренировка идёт" : "Тренировка сегодня"}</span>
         <h2>{activeWorkout?.title ?? template?.title ?? workoutHabits[0]?.title ?? "Тренировка"}</h2>
-        <p>{active ? "Продолжить с того места, где остановились." : template ? `${template.exercises.length} ${russianWord(template.exercises.length, "упражнение", "упражнения", "упражнений")} · ${setsPlanned} подходов по плану` : "Выберите программу"}</p>
+        <p>{active ? "Продолжить с того места, где остановились." : template ? `${rotation ? "Дальше по очереди · " : ""}${template.exercises.length} ${russianWord(template.exercises.length, "упражнение", "упражнения", "упражнений")} · ${setsPlanned} подходов${rotation ? (suggestion?.lastDate ? ` · в прошлый раз ${formatLocalDate(suggestion.lastDate)}` : " · ещё не делали") : " по плану"}` : "Выберите программу"}</p>
       </div>
       {active
         ? <Link className="btn btn-primary btn-lg btn-block" href={`/workout/${active.id}`}><Play size={22} />Продолжить тренировку</Link>
         : template
-          ? <Button variant="primary" size="lg" block icon={Play} onClick={() => void start(template.id)}>Начать тренировку</Button>
+          ? <>
+            <Button variant="primary" size="lg" block icon={Play} onClick={() => void start(template.id)}>Начать тренировку</Button>
+            {rotation && <Link className="btn btn-ghost btn-block" href="/workouts">Другая программа</Link>}
+          </>
           : <Link className="btn btn-primary btn-lg btn-block" href="/workouts">Выбрать программу<ArrowRight size={22} /></Link>}
     </Card>}
     <section className="ringsRow" aria-label="Прогресс">

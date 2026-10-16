@@ -58,6 +58,7 @@ export default function SettingsPage() {
           if (field === "equipment") return { ...exercise, equipment: value };
           if (field === "equipmentPosition") return { ...exercise, equipmentPosition: value };
           if (field === "restSec") return { ...exercise, restSec: Number(value) };
+          if (field === "warmupSets") return { ...exercise, warmupSets: Math.min(3, Math.max(0, Math.trunc(Number(value)) || 0)) || undefined };
           return { ...exercise, [field]: value };
         }),
       }),
@@ -250,6 +251,8 @@ export default function SettingsPage() {
           <label>Положение оборудования<SettingsInput value={exercise.equipmentPosition} placeholder="Необязательно" onCommit={(value) => editExercise(exercise.id, "equipmentPosition", value)} /></label>
           <div className="twoCols"><label>Режим<AppSelect value={mixed ? "mixed" : [...modes][0] ?? ""} onChange={(value) => setExerciseMode(exercise.id, value)}><option value="">Уточнить</option><option value="total">Общий вес</option><option value="per-hand">На сторону</option>{mixed && <option value="mixed" disabled>Разный</option>}</AppSelect></label>
           <label>Отдых<AppSelect value={exercise.restSec ?? 180} onChange={(value) => editExercise(exercise.id, "restSec", value)}>{restOptionsSec.map((sec) => <option key={sec} value={sec}>{formatRest(sec)}</option>)}</AppSelect></label></div>
+          <label>Разминка перед подходами<AppSelect value={exercise.warmupSets ?? 0} onChange={(value) => editExercise(exercise.id, "warmupSets", value)}><option value={0}>Без разминки</option><option value={1}>1 лёгкий подход</option><option value={2}>2 подхода</option><option value={3}>3 подхода</option></AppSelect></label>
+          <p className="fieldHint muted">Вес разминки считается от первого рабочего подхода, его можно поменять на экране тренировки. В объём, рекорды и журнал подходов разминка не попадает.</p>
           <p className="fieldHint muted">«Общий вес» — штанга или тренажёр целиком. «На сторону» — вес одной гантели, в объём входит дважды.</p>
           <div className="setEditors">{logicalSets.map((logicalSet, setNumber) => <div className="segmentEditor" key={logicalSet.key}>{logicalSet.sets.map((set, partIndex) => {
             const caption = (text: string) => <span className={setNumber === 0 && partIndex === 0 ? undefined : "srOnly"}>{text}</span>;

@@ -1,4 +1,5 @@
 import { completeWorkoutSet, logicalSetKey, normalizeDecimalInput, type Exercise, type ExerciseSet, type Workout, type WeightMode } from "./tracker.ts";
+import { planWarmups } from "./warmups.ts";
 import type { SessionTrackerState } from "./workout-session.ts";
 
 export { logicalSetKey };
@@ -217,5 +218,66 @@ export function addExerciseToSession(state: SessionTrackerState, sessionId: stri
     ...state,
     workouts: state.workouts.map((item) => item.id === workout.id ? { ...item, exercises: [...item.exercises, exercise] } : item),
     workoutSessions: (state.workoutSessions ?? []).map((item) => item.id === sessionId ? { ...item, activeExerciseIndex: workout.exercises.length } : item),
+  };
+}
+
+function mapExercise(state: SessionTrackerState, workoutId: string, exerciseId: string, change: (exercise: Exercise) => Exercise): SessionTrackerState {
+  return { ...state, workouts: state.workouts.map((workout) => workout.id !== workoutId ? workout : { ...workout, exercises: workout.exercises.map((exercise) => exercise.id === exerciseId ? change(exercise) : exercise) }) };
+}
+
+/** Следующая невыполненная разминка, пока ни один рабочий подход не записан. */
+export function currentWarmup(exercise: Pick<Exercise, "sets" | "warmups">) {
+  if (exercise.sets.some((set) => set.completed)) return undefined;
+  return exercise.warmups?.find((warmup) => !warmup.completed);
+}
+
+export function setWarmupWeight(state: SessionTrackerState, sessionId: string, exerciseId: string, warmupId: string, kg: number): SessionTrackerState {
+  const context = activeContext(state, sessionId, exerciseId);
+  if (!context || !Number.isFinite(kg) || kg < 0 || kg > 5000 || !context.exercise.warmups?.some((warmup) => warmup.id === warmupId && !warmup.completed)) return state;
+  return mapExercise(state, context.workout.id, exerciseId, (exercise) => ({ ...exercise, warmups: exercise.warmups?.map((warmup) => warmup.id === warmupId ? { ...warmup, weightKg: kg } : warmup) }));
+}
+
+/** Запись разминочного подхода. Без отдыха и без напоминаний: разминка короткая и в статистику не идёт. */
+export function recordWarmup(state: SessionTrackerState, sessionId: string, exerciseId: string, warmupId: string, reps: number): SessionTrackerState {
+  const context = activeContext(state, sessionId, exerciseId);
+  if (!context || !Number.isInteger(reps) || reps < 1 || reps > 100 || !context.exercise.warmups?.some((warmup) => warmup.id === warmupId && !warmup.completed)) return state;
+  return mapExercise(state, context.workout.id, exerciseId, (exercise) => ({ ...exercise, warmups: exercise.warmups?.map((warmup) => warmup.id === warmupId ? { ...warmup, reps, completed: true } : warmup) }));
+}
+
+/** Убирает невыполненную разминку (записанная остаётся). */
+export function skipWarmups(state: SessionTrackerState, sessionId: string, exerciseId: string): SessionTrackerState {
+  const context = activeContext(state, sessionId, exerciseId);
+  if (!context || !context.exercise.warmups?.some((warmup) => !warmup.completed)) return state;
+  return mapExercise(state, context.workout.id, exerciseId, (exercise) => {
+    const kept = (exercise.warmups ?? []).filter((warmup) => warmup.completed);
+    return { ...exercise, warmups: kept.length ? kept : undefined };
+  });
+}
+
+/** Добавляет разминку в упражнение, где её не было, пока рабочие подходы не начались. */
+export function addWarmups(state: SessionTrackerState, sessionId: string, exerciseId: string, count: number, seed: string = globalThis.crypto?.randomUUID?.() ?? String(Date.now())): SessionTrackerState {
+  const context = activeContext(state, sessionId, exerciseId);
+  if (!context || context.exercise.warmups?.length || context.exercise.sets.some((set) => set.completed)) return state;
+  const planned = planWarmups(count, context.exercise.sets[0]?.weightKg, `${exerciseId}-${seed}`);
+  return planned.length ? mapExercise(state, context.workout.id, exerciseId, (exercise) => ({ ...exercise, warmups: planned })) : state;
+}
+
+/**
+ * Настройки тренажёра («сиденье 4, спинка 2») для упражнения: в идущей тренировке и в программе, из которой она запущена.
+ * Пустая строка стирает настройки. В программе упражнение ищется по тому же id, что был при старте.
+ */
+export function setExerciseSettings(state: SessionTrackerState, sessionId: string, exerciseId: string, text: string): SessionTrackerState {
+  const context = activeContext(state, sessionId, exerciseId);
+  const value = text.trim().replace(/\s+/g, " ");
+  if (!context || value.length > 200) return state;
+  const apply = (exercise: Exercise): Exercise => {
+    const { settings: _previous, ...rest } = exercise;
+    void _previous;
+    return value ? { ...rest, settings: value } : rest;
+  };
+  const withWorkout = mapExercise(state, context.workout.id, exerciseId, apply);
+  return {
+    ...withWorkout,
+    workoutTemplates: withWorkout.workoutTemplates?.map((template) => template.id !== context.session.templateId ? template : { ...template, exercises: template.exercises.map((exercise) => exercise.id === exerciseId ? apply(exercise) : exercise) }),
   };
 }

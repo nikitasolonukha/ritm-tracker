@@ -16,6 +16,9 @@ export type ExerciseSet = {
 
 export type ExerciseCategory = "warmup" | "working" | "finisher";
 
+/** Разминочный подход: не входит в подходы, объём, рекорды и «в прошлый раз», только в ход тренировки. */
+export type WarmupSet = { id: string; weightKg: number | null; reps: number | null; completed: boolean };
+
 export type Exercise = {
   id: string;
   name: string;
@@ -27,6 +30,10 @@ export type Exercise = {
   /** Отдых после подхода, секунды (30–900). */
   restSec?: number;
   weightFactor?: number;
+  /** Сколько разминочных подходов (0–3) добавлять в начало упражнения при старте тренировки. */
+  warmupSets?: number;
+  /** Разминка в идущей тренировке. */
+  warmups?: WarmupSet[];
   sets: ExerciseSet[];
 };
 

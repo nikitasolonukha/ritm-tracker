@@ -4,6 +4,15 @@ import { expect, test, type Page } from "@playwright/test";
 
 const progress = (page: Page) => page.locator(".workoutProgress");
 
+/** Выбор в списке: на телефоне обычный select, на компьютере собственное меню. */
+async function pick(page: Page, scope: ReturnType<Page["locator"]>, label: string, optionText: string) {
+  const field = scope.locator("label", { hasText: label });
+  const native = field.locator("select");
+  if (await native.isVisible().catch(() => false)) { await native.selectOption({ label: optionText }); return; }
+  await field.locator(".appSelectButton").click();
+  await page.locator(".appSelectMenu button", { hasText: optionText }).click();
+}
+
 async function startFromToday(page: Page) {
   await page.goto("/today");
   await page.getByRole("button", { name: "Начать тренировку" }).click();
@@ -104,4 +113,63 @@ test("a new weight record is announced right after recording the set", async ({ 
   await inputs.first().fill("8");
   await page.getByRole("button", { name: /^Записать/ }).click();
   await expect(page.locator(".wkRecord")).toContainText("Рекорд веса: 7,5 кг (было 5)");
+});
+
+test("warm-up sets from the program come first, are skipped or recorded without a timer, and stay out of the stats", async ({ page }) => {
+  await page.goto("/settings?section=program");
+  const editor = page.locator(".exerciseDisclosure:visible").first();
+  await editor.locator("summary").click();
+  await pick(page, editor, "Разминка перед подходами", "2 подхода");
+  await startFromToday(page);
+  await expect(progress(page)).toContainText("Разминка 1 из 2");
+  await expect(page.getByRole("heading", { name: "Разминка 1 из 2" })).toBeVisible();
+  await expect(page.getByText("не входит в статистику")).toBeVisible();
+  await page.locator(".repsControl input").first().fill("10");
+  await page.getByRole("button", { name: /^Записать разминку 10/ }).click();
+  await expect(page.locator(".restState")).toHaveCount(0);
+  await expect(progress(page)).toContainText("Разминка 2 из 2");
+  await page.getByRole("button", { name: "Пропустить разминку" }).click();
+  await expect(progress(page)).toContainText("Подход 1 из 4");
+  await expect(page.getByRole("heading", { name: "Подход 1" })).toBeVisible();
+  await recordFirstSet(page);
+  await page.getByRole("button", { name: "Меню тренировки" }).click();
+  await page.getByRole("button", { name: /^Завершить досрочно/ }).click();
+  await page.getByRole("button", { name: "Подтвердить завершение" }).click();
+  // в итоге один подход, а разминка в него не входит
+  await expect(page.locator(".summaryMetrics")).toContainText("1");
+  await page.getByRole("link", { name: "Готово" }).click();
+  await page.goto("/journal");
+  await page.locator("a.historyCard").first().click();
+  await expect(page.getByText(/^Разминка \(не в статистике\): .*×10/)).toBeVisible();
+});
+
+test("a warm-up can be added from the workout menu until the first working set", async ({ page }) => {
+  await startFromToday(page);
+  await expect(progress(page)).toContainText("Подход 1 из 4");
+  await page.getByRole("button", { name: "Меню тренировки" }).click();
+  await page.getByRole("button", { name: /^Добавить разминку/ }).click();
+  await expect(progress(page)).toContainText("Разминка 1 из 2");
+  await page.getByRole("button", { name: "Пропустить разминку" }).click();
+  await expect(progress(page)).toContainText("Подход 1 из 4");
+  await recordFirstSet(page);
+  await page.getByRole("button", { name: "Меню тренировки" }).click();
+  await expect(page.getByRole("button", { name: /^Добавить разминку/ })).toHaveCount(0);
+});
+
+test("machine settings are edited in the workout and show up in the next one", async ({ page }) => {
+  await startFromToday(page);
+  await page.getByRole("button", { name: "Настройки тренажёра" }).first().click();
+  const sheet = page.getByRole("dialog");
+  await sheet.getByLabel("Настройки тренажёра").fill("сиденье 4, спинка 2");
+  await sheet.getByRole("button", { name: "Сохранить" }).click();
+  await expect(page.locator(".wkSettingsBtn")).toContainText("сиденье 4, спинка 2");
+  await page.reload();
+  await expect(page.locator(".wkSettingsBtn")).toContainText("сиденье 4, спинка 2");
+  await recordFirstSet(page);
+  await page.getByRole("button", { name: "Меню тренировки" }).click();
+  await page.getByRole("button", { name: /^Завершить досрочно/ }).click();
+  await page.getByRole("button", { name: "Подтвердить завершение" }).click();
+  await page.getByRole("link", { name: "Готово" }).click();
+  await startFromToday(page);
+  await expect(page.locator(".wkSettingsBtn")).toContainText("сиденье 4, спинка 2");
 });

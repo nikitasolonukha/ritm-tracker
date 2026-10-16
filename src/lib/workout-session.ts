@@ -1,6 +1,7 @@
 import { calculateWorkoutTotals, createRestTimerCommand, getLocalDate, type Workout } from "./tracker.ts";
 import type { TrackerState } from "./storage.ts";
 import type { ExerciseSet } from "./tracker.ts";
+import { planWarmups } from "./warmups.ts";
 
 export type WorkoutSession = {
   id: string;
@@ -91,6 +92,7 @@ export function startWorkoutSession(state: SessionTrackerState, templateId: stri
     exercises: template.exercises.map((exercise) => ({
       ...exercise,
       sets: exercise.sets.map((set) => ({ ...set, id: `${workoutId}-${exercise.id}-${set.id}`, completed: false, weightDraft: undefined, repsDraft: undefined })),
+      warmups: exercise.warmupSets ? planWarmups(exercise.warmupSets, exercise.sets[0]?.weightKg, `${workoutId}-${exercise.id}`) : undefined,
     })),
   };
   const session: WorkoutSession = { id: sessionId, workoutId, templateId, status: "active", startedAt: now.toISOString(), activeExerciseIndex: 0 };
@@ -136,4 +138,18 @@ export function cancelWorkoutSession(state: SessionTrackerState, sessionId: stri
     activeWorkoutId: state.activeWorkoutId === session.workoutId ? undefined : state.activeWorkoutId,
     activeTimer: state.activeWorkoutId === session.workoutId ? null : state.activeTimer,
   };
+}
+
+/**
+ * Какую программу предложить дальше: ту, что не делали дольше всех (никогда не делали — раньше всех).
+ * При равенстве берётся та, что выше в списке. Одна программа — всегда она.
+ */
+export function suggestNextTemplate(state: SessionTrackerState) {
+  const templates = (state.workoutTemplates ?? []).filter((template) => template.exercises.length > 0 && template.exercises.every((exercise) => exercise.sets.length > 0));
+  let best: { template: (typeof templates)[number]; last: string | null } | undefined;
+  for (const template of templates) {
+    const last = latestTemplateRecordDate(state, template.id);
+    if (!best || (last ?? "") < (best.last ?? "")) best = { template, last };
+  }
+  return best ? { template: best.template, lastDate: best.last } : undefined;
 }

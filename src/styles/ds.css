@@ -94,7 +94,7 @@
 .wkTab.done { border-color: rgba(59, 232, 160, 0.4); background: var(--ok-soft); color: var(--ok); }
 .workoutProgress { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); color: var(--muted); font-size: var(--fs-sm); }
 .workoutProgress strong { color: var(--text); font-weight: 650; }
-.wkCard { display: grid; gap: var(--s-4); padding: var(--s-5) var(--s-4); border-radius: var(--r-lg); background: var(--card-sheen), var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.wkCard { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); padding: var(--s-5) var(--s-4); border-radius: var(--r-lg); background: var(--card-sheen), var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
 .wkCard h1 { font-size: var(--fs-2xl); overflow-wrap: anywhere; }
 .wkLast { margin: 0; color: var(--muted); font-size: var(--fs-sm); }
 .wkLast b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -275,7 +275,7 @@
 .machineHero span { position: absolute; right: 0; bottom: 0; left: 0; padding: var(--s-5) var(--s-4) var(--s-3); background: linear-gradient(to top, rgba(6, 7, 9, 0.85), transparent); color: var(--text); font-size: var(--fs-sm); font-weight: 600; text-align: left; }
 .machineFull { display: block; width: 100%; max-height: 70dvh; border-radius: var(--r); object-fit: contain; background: var(--surface); }
 .wkHead { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); }
-.wkHead > div { min-width: 0; }
+.wkHead > div { min-width: 0; flex: 1; }
 .planHead { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); }
 .historyCard > .machineThumb { margin-right: var(--s-3); }
 
@@ -352,3 +352,8 @@
 .sleepBars span { flex: 1; min-width: 0; border-radius: 6px 6px 3px 3px; background: var(--accent-grad); opacity: 0.85; }
 .sleepActions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
 .sleepActions .btn { padding: 0 var(--s-2); }
+.warmupLine { margin: 0 0 var(--s-2); font-size: var(--fs-sm); }
+.wkSetTitle span { display: inline-flex; align-items: center; gap: 4px; }
+.wkSettingsBtn { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 32px; margin: 2px 0 var(--s-1); padding: 0 var(--s-3); border: 1px dashed var(--line-strong); border-radius: var(--r-pill); background: transparent; color: var(--text); font-size: var(--fs-sm); }
+.wkSettingsBtn span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wkSettingsBtn.empty { color: var(--muted); }

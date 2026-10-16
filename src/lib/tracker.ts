@@ -34,6 +34,8 @@ export type Exercise = {
   warmupSets?: number;
   /** Разминка в идущей тренировке. */
   warmups?: WarmupSet[];
+  /** Заметка к упражнению в этой тренировке («болело плечо»). Не переходит в программу. */
+  note?: string;
   sets: ExerciseSet[];
 };
 

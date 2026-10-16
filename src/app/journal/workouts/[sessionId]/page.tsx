@@ -156,6 +156,7 @@ export default function JournalWorkoutPage({ params }: { params: Promise<{ sessi
     {message && !editing && !addition && <Notice tone={problem(message) ? "warning" : "success"}>{message}</Notice>}
     {workout.exercises.map((exercise) => <section className="historyExerciseCard" key={exercise.id}>
       <header><h2>{exercise.name}</h2><span>{exercise.sets.filter((set) => set.completed).length}/{exercise.sets.length}</span></header>
+      {exercise.note ? <p className="muted warmupLine">Заметка: {exercise.note}</p> : null}
       {exercise.warmups?.some((warmup) => warmup.completed) ? <p className="muted warmupLine">Разминка (не в статистике): {exercise.warmups.filter((warmup) => warmup.completed).map((warmup) => `${warmup.weightKg == null ? "—" : String(warmup.weightKg).replace(".", ",")}×${warmup.reps ?? "—"}`).join(", ")}</p> : null}
       <ul className="setList">{exercise.sets.map((set, index) => <li key={set.id}>
         <button type="button" className={`setRow${set.completed ? "" : " pending"}`} aria-label={`Править подход ${index + 1}${partTitle(set)}: ${exercise.name}`} onClick={() => { setMessage(""); setEditing({ exerciseId: exercise.id, setId: set.id, index }); }}>

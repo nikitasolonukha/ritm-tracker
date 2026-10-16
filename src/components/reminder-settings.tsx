@@ -31,6 +31,14 @@ export function ReminderSettings() {
     <p className="muted">Сообщение приходит в Telegram. Либо в заданное время по Москве, либо после того, как вы отметили другое действие, например завтрак. Выполненное действие напоминание отменяет. В сообщении будет название привычки, поэтому называйте её действием: «Выпить аргинин».</p>
     {waiting > 0 && <Notice tone="warning">Без времени или привязки напоминание не придёт. Настройте отмеченные ниже ({waiting}).</Notice>}
     <ul className="reminderList">
+      <li className="ready">
+        <div className="reminderTop">
+          <label className="reminderToggle">
+            <input type="checkbox" aria-label="Недельная сводка в Telegram" checked={state.weeklyDigest !== false} onChange={(event) => update((previous) => ({ ...previous, weeklyDigest: event.target.checked }))} />
+            <span><strong>Недельная сводка</strong><small>{state.weeklyDigest !== false ? "по воскресеньям после 19:00: тренировки, привычки, сон" : "выключено"}</small></span>
+          </label>
+        </div>
+      </li>
       {habits.map((habit) => {
         const status = reminderStatus(habit);
         const enabled = habit.reminderEnabled ?? false;

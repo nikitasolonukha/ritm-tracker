@@ -65,6 +65,7 @@ function validWorkout(workout: Value) {
       && optional(exercise.restSec, (v) => integer(v, 30, 900))
       && optional(exercise.weightFactor, (v) => numeric(v, 0, 10))
       && optional(exercise.warmupSets, (v) => integer(v, 0, 3))
+      && optional(exercise.note, (v) => string(v, 1000, true))
       && optional(exercise.warmups, (v) => items(v, 10, (warmup) => (warmup.weightKg === null || numeric(warmup.weightKg, 0, 5000)) && (warmup.reps === null || integer(warmup.reps, 0, 1000)) && typeof warmup.completed === "boolean"))
       && items(exercise.sets, 100, validSet));
 }
@@ -116,7 +117,7 @@ function validateState(value: unknown): value is SessionTrackerState {
     || !numeric(value.activeTimer.durationSec, 0, 86400) || !optional(value.activeTimer.endsAt, instant)
     || !optional(value.activeTimer.sourceId, id) || !optional(value.activeTimer.version, (v) => integer(v, 0, 2147483647))
     || !optional(value.activeTimer.status, (v) => oneOf(v, ["running", "expired", "cancelled"])))) return false;
-  if (!optional(value.activeWorkoutId, id) || !optional(value.activeSessionId, id)) return false;
+  if (!optional(value.activeWorkoutId, id) || !optional(value.activeSessionId, id) || !optional(value.weeklyDigest, (v) => typeof v === "boolean")) return false;
   if (!optional(value.workoutSessions, (v) => items(v, 10_000, (s) => id(s.workoutId) && id(s.templateId)
     && oneOf(s.status, ["active", "completed", "partial", "cancelled"]) && instant(s.startedAt)
     && optional(s.finishedAt, instant) && integer(s.activeExerciseIndex, 0, 100)))) return false;

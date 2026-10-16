@@ -281,3 +281,15 @@ export function setExerciseSettings(state: SessionTrackerState, sessionId: strin
     workoutTemplates: withWorkout.workoutTemplates?.map((template) => template.id !== context.session.templateId ? template : { ...template, exercises: template.exercises.map((exercise) => exercise.id === exerciseId ? apply(exercise) : exercise) }),
   };
 }
+
+/** Заметка к упражнению в идущей тренировке (только в ней, в программу не попадает). Пустая строка стирает заметку. */
+export function setExerciseNote(state: SessionTrackerState, sessionId: string, exerciseId: string, text: string): SessionTrackerState {
+  const context = activeContext(state, sessionId, exerciseId);
+  const value = text.trim();
+  if (!context || value.length > 500) return state;
+  return mapExercise(state, context.workout.id, exerciseId, (exercise) => {
+    const { note: _previous, ...rest } = exercise;
+    void _previous;
+    return value ? { ...rest, note: value } : rest;
+  });
+}

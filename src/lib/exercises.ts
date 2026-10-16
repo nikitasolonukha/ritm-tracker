@@ -175,3 +175,31 @@ export function exerciseDefaults(state: SessionTrackerState, name: string): Exer
   const lastSet = last.sets.at(-1)!;
   return { sets: Math.min(10, Math.max(1, paired ? logicalCount : last.sets.length)), weightKg: lastSet.weightKg, reps: lastSet.reps, weightMode: lastSet.weightMode ?? "total", paired, ...base };
 }
+
+export type WorkoutResult = { id: string; name: string; sets: string; record: boolean };
+
+/** Итог тренировки по упражнениям: записанные подходы и признак рекорда веса относительно прошлых тренировок. */
+export function workoutResults(state: SessionTrackerState, workout: Workout): WorkoutResult[] {
+  return workout.exercises
+    .map((exercise) => {
+      const done = exercise.sets.filter((set) => set.completed);
+      if (!done.length) return null;
+      const key = exerciseKey(exercise.name);
+      const before = getExerciseRecords(getExerciseSessions(state, key).filter((entry) => entry.workoutId !== workout.id));
+      const now = getExerciseRecords([{ date: workout.date, workoutId: workout.id, workoutTitle: workout.title, sets: done, volumeKg: 0 }]);
+      const record = Boolean(now.heaviest && before.heaviest && now.heaviest.weightKg > before.heaviest.weightKg);
+      return { id: exercise.id, name: exercise.name, sets: formatSets(done), record };
+    })
+    .filter((item): item is WorkoutResult => item !== null);
+}
+
+/** Последняя заметка к упражнению из прошлых тренировок (не из идущей). */
+export function lastExerciseNote(state: SessionTrackerState, name: string, excludeWorkoutId?: string): { text: string; date: string } | undefined {
+  const key = exerciseKey(name);
+  for (const workout of [...historyWorkouts(state)].sort((a, b) => b.date.localeCompare(a.date))) {
+    if (workout.id === excludeWorkoutId) continue;
+    const note = workout.exercises.find((exercise) => exerciseKey(exercise.name) === key && exercise.note?.trim())?.note?.trim();
+    if (note) return { text: note, date: workout.date };
+  }
+  return undefined;
+}

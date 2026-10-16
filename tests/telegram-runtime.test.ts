@@ -150,9 +150,11 @@ function fixture(options: FixtureOptions = {}) {
     },
   };
   const webhook = load("../src/app/api/telegram/webhook/route.ts", replacements) as Handler;
-  const worker = load("../src/app/api/telegram/worker/route.ts", { ...replacements, "../webhook/route": webhook }) as Handler;
+  const digestPlans: Array<{ client: unknown; at: Date }> = [];
+  const planner = { planWeeklyDigests: async (client: unknown, at: Date) => { digestPlans.push({ client, at }); return 0; } };
+  const worker = load("../src/app/api/telegram/worker/route.ts", { ...replacements, "@/lib/weekly-digest-plan": planner, "../webhook/route": webhook }) as Handler;
   return {
-    events, clients, timeouts,
+    events, clients, timeouts, digestPlans,
     worker: (header: string | null = secret) => worker.POST(new NextRequest(`${origin}/api/telegram/worker`, {
       method: "POST", headers: header === null ? {} : { "x-telegram-worker-secret": header },
     })),
@@ -296,7 +298,7 @@ test("Telegram worker success sends the claimed job with versioned buttons and f
 });
 
 test("Telegram worker habit and diagnostic jobs use the correct message controls", async () => {
-  for (const source of ["habit:fixture-habit:2026-09-30:1", "telegram-diagnostic:fixture"]) {
+  for (const source of ["habit:fixture-habit:2026-09-30:1", "telegram-diagnostic:fixture", "weekly:2026-10-18"]) {
     const runtime = fixture({ jobs: [{ ...job, source_entity_id: source }] });
     assert.equal((await runtime.worker()).status, 200);
     const body = sends(runtime.events)[0].body;
@@ -639,4 +641,44 @@ test("Telegram webhook lost leases and completion errors return 503 instead of r
       assert.equal(rpcs(runtime.events, "finish_telegram_update")[0].args.p_processing_token, "fixture-update-lease");
     }
   }
+});
+
+test("an applied habit button turns the reminder into its outcome and removes the buttons, best effort", async () => {
+  for (const [action, outcome] of [["done", "✅ Отмечено"], ["skip", "⏭ Пропущено"], ["later", "⏰ Отложено на 10 минут"]] as const) {
+    const runtime = fixture({ rpc: (call) => call.name === "accept_telegram_habit_command" ? ok({ status: "applied" }) : defaultRpc(call) });
+    const update = callback("habit");
+    update.callback_query.data = `habit_${action}:${job.id}:${job.source_version}`;
+    Object.assign(update.callback_query.message, { message_id: 55, text: "Ритм: Витамин D" });
+    assert.equal((await runtime.webhook(update)).status, 200);
+    const calls = sends(runtime.events);
+    assert.deepEqual(calls.map((call) => call.url.split("/").at(-1)), ["answerCallbackQuery", "editMessageText"]);
+    assert.deepEqual(calls[1].body, { chat_id: 101, message_id: 55, text: `Ритм: Витамин D\n\n${outcome}`, reply_markup: { inline_keyboard: [] } });
+  }
+});
+
+test("a stale habit button is not rewritten, and a failing edit does not fail the update", async () => {
+  const stale = fixture({ rpc: (call) => call.name === "accept_telegram_habit_command" ? ok({ status: "stale" }) : defaultRpc(call) });
+  const staleUpdate = callback("habit");
+  Object.assign(staleUpdate.callback_query.message, { message_id: 55, text: "Ритм: Витамин D" });
+  assert.equal((await stale.webhook(staleUpdate)).status, 200);
+  assert.equal(sends(stale.events).length, 1, "only the acknowledgement");
+
+  const failing = fixture({
+    rpc: (call) => call.name === "accept_telegram_habit_command" ? ok({ status: "applied" }) : defaultRpc(call),
+    fetch: (call) => call.url.endsWith("/editMessageText") ? Response.json({ ok: false, description: "message is not modified" }, { status: 400 }) : Response.json({ ok: true }),
+  });
+  const update = callback("habit");
+  Object.assign(update.callback_query.message, { message_id: 55, text: "Ритм: Витамин D" });
+  const response = await failing.webhook(update);
+  assert.equal(response.status, 200);
+  assert.equal(rpcs(failing.events, "finish_telegram_update")[0].args.p_status, "processed");
+});
+
+test("Telegram worker plans weekly digests once per run, before claiming jobs", async () => {
+  const runtime = fixture({ jobs: [] });
+  assert.equal((await runtime.worker()).status, 200);
+  assert.equal(runtime.digestPlans.length, 1);
+  assert.equal(Object.prototype.toString.call(runtime.digestPlans[0].at), "[object Date]");
+  const order = runtime.events.filter((event) => event.kind === "rpc").map((event) => (event as RpcCall).name);
+  assert.ok(order.indexOf("refresh_habit_notifications") < order.indexOf("claim_notification_jobs"));
 });

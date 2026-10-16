@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createBackupDocument, parseBackup } from "../src/lib/backup.ts";
-import { detectLiveRecord, exerciseDefaults } from "../src/lib/exercises.ts";
+import { detectLiveRecord, exerciseDefaults, lastExerciseNote } from "../src/lib/exercises.ts";
+import { buildShareCardModel, SHARE_CARD_MAX_ROWS, shareFileName } from "../src/lib/share-card.ts";
 import { habitsForDate } from "../src/lib/habits.ts";
 import { enableSleepTracking, formatSleep, markSleepEvent, sleepSummary } from "../src/lib/sleep.ts";
 import { createInitialState } from "../src/lib/storage.ts";
 import { calculateWorkoutTotals } from "../src/lib/tracker.ts";
-import { addExerciseToSession, addWarmups, currentWarmup, logicalSets, recordLogicalSet, recordWarmup, setExerciseSettings, setWarmupWeight, skipWarmups } from "../src/lib/workout-flow.ts";
+import { addExerciseToSession, addWarmups, currentWarmup, logicalSets, recordLogicalSet, recordWarmup, setExerciseNote, setExerciseSettings, setWarmupWeight, skipWarmups } from "../src/lib/workout-flow.ts";
 import { planWarmups } from "../src/lib/warmups.ts";
 import { finishWorkoutSession, startWorkoutSession, suggestNextTemplate, type SessionTrackerState } from "../src/lib/workout-session.ts";
 
@@ -291,4 +292,44 @@ test("machine settings are saved in the workout and in the program, and can be c
   // следующая тренировка получает настройки из программы
   const next = startWorkoutSession(finishWorkoutSession(recordLogicalSet(saved, started.sessionId, exerciseId, [{ setId: workoutOfSession(saved, started.sessionId).exercises[0].sets[0].id, reps: 8 }]), started.sessionId), "tpl", new Date("2026-10-09T10:00:00.000Z"))!;
   assert.equal(workoutOfSession(next.state, next.sessionId).exercises[0].settings, "сиденье 4, спинка 2");
+});
+
+test("an exercise note stays in its workout, is shown next time and can be cleared", () => {
+  const first = runSession(withTemplate(), "2026-10-02", [{ weight: 40, reps: 8 }]);
+  const exerciseId = workoutOfSession(first.state, first.sessionId).exercises[0].id;
+  const noted = setExerciseNote(first.state, first.sessionId, exerciseId, "  болело плечо, снизил вес ");
+  assert.equal(workoutOfSession(noted, first.sessionId).exercises[0].note, "болело плечо, снизил вес");
+  assert.equal("note" in noted.workoutTemplates![0].exercises[0], false, "the program does not get the note");
+  assert.equal(setExerciseNote(noted, first.sessionId, exerciseId, "x".repeat(501)), noted);
+  assert.equal(setExerciseNote(noted, "missing", exerciseId, "а"), noted);
+  assert.equal("note" in workoutOfSession(setExerciseNote(noted, first.sessionId, exerciseId, "  "), first.sessionId).exercises[0], false);
+  const finished = finishWorkoutSession(noted, first.sessionId, new Date("2026-10-02T11:00:00.000Z"));
+  assert.deepEqual(lastExerciseNote(finished, "жим в тренажёре"), { text: "болело плечо, снизил вес", date: "2026-10-02" });
+  const next = startWorkoutSession(finished, "tpl", new Date("2026-10-09T10:00:00.000Z"))!;
+  assert.equal(workoutOfSession(next.state, next.sessionId).exercises[0].note, undefined, "a new workout starts without a note");
+  assert.equal(lastExerciseNote(next.state, "Жим в тренажёре", workoutOfSession(next.state, next.sessionId).id)?.date, "2026-10-02");
+  assert.equal(lastExerciseNote(finished, "Другое упражнение"), undefined);
+  const parsed = parseBackup(JSON.stringify(createBackupDocument(noted, "account-a")));
+  assert.equal(workoutOfSession(parsed.state, first.sessionId).exercises[0].note, "болело плечо, снизил вес");
+});
+
+test("the share card shows only recorded work and cuts the list with a count of the rest", () => {
+  const base = withTemplate();
+  const many = { ...base, workoutTemplates: [{ ...base.workoutTemplates![0], exercises: Array.from({ length: 9 }, (_, index) => ({ ...press(40), id: `e${index}`, name: `Упражнение ${index + 1}` })) }] } as SessionTrackerState;
+  const started = startWorkoutSession(many, "tpl", new Date("2026-10-02T10:00:00.000Z"))!;
+  let state = started.state;
+  const workout = workoutOfSession(state, started.sessionId);
+  for (const exercise of workout.exercises) state = recordLogicalSet(state, started.sessionId, exercise.id, [{ setId: exercise.sets[0].id, reps: 8 }]);
+  state = finishWorkoutSession(state, started.sessionId, new Date("2026-10-02T11:05:00.000Z"));
+  const session = state.workoutSessions![0];
+  const model = buildShareCardModel(state, workoutOfSession(state, started.sessionId), session);
+  assert.equal(model.rows.length, SHARE_CARD_MAX_ROWS);
+  assert.equal(model.more, 2);
+  assert.equal(model.durationText, "1 ч 5 мин");
+  assert.deepEqual(model.stats.map((stat) => stat.label), ["подходов", "упражнений", "кг объёма"]);
+  assert.equal(model.stats[0].value, "9");
+  assert.equal(model.recordCount, 0);
+  assert.equal(shareFileName({ date: "2026-10-02" }), "ritm-2026-10-02.png");
+  const planned = buildShareCardModel(state, { ...workoutOfSession(state, started.sessionId), exercises: [{ ...workout.exercises[0], sets: workout.exercises[0].sets.map((set) => ({ ...set, completed: false })) }] }, session);
+  assert.equal(planned.rows.length, 0, "planned sets are not shown");
 });

@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Check, Dumbbell, Trophy } from "lucide-react";
+import { Check, Dumbbell, Share2, Trophy } from "lucide-react";
 import { useEffect, useState } from "react";
-import { LinkButton } from "@/components/ds";
+import { Button, LinkButton } from "@/components/ds";
 import { useTrackerState } from "@/components/tracker-state";
 import { StatTile } from "@/components/ui";
-import { exerciseKey, formatSets, getExerciseRecords, getExerciseSessions } from "@/lib/exercises";
+import { workoutResults } from "@/lib/exercises";
+import { buildShareCardModel, renderShareCard, shareFileName, shareOrDownload } from "@/lib/share-card";
 import { calculateWorkoutTotals, formatLocalDate, russianWord } from "@/lib/tracker";
 import type { SessionTrackerState } from "@/lib/workout-session";
 
@@ -18,6 +19,7 @@ const durationText = (seconds: number) => {
 export default function WorkoutSummaryPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { state } = useTrackerState();
   const [routeSessionId, setRouteSessionId] = useState<string>();
+  const [shareState, setShareState] = useState<"idle" | "working" | "shared" | "downloaded" | "failed">("idle");
   useEffect(() => { void params.then(({ sessionId }) => setRouteSessionId(sessionId)); }, [params]);
   if (!state) return <main className="shell"><p>Загружаю результат…</p></main>;
   const sessionState = state as SessionTrackerState;
@@ -27,17 +29,17 @@ export default function WorkoutSummaryPage({ params }: { params: Promise<{ sessi
   const totals = calculateWorkoutTotals(workout);
   const title = session.status === "partial" ? "Завершена частично" : session.status === "cancelled" ? "Тренировка отменена" : session.status === "active" ? "Тренировка ещё идёт" : "Тренировка завершена";
   const duration = session.finishedAt ? (Date.parse(session.finishedAt) - Date.parse(session.startedAt)) / 1000 : 0;
-  const results = workout.exercises
-    .map((exercise) => {
-      const done = exercise.sets.filter((set) => set.completed);
-      if (!done.length) return null;
-      const key = exerciseKey(exercise.name);
-      const before = getExerciseRecords(getExerciseSessions(sessionState, key).filter((entry) => entry.workoutId !== workout.id));
-      const now = getExerciseRecords([{ date: workout.date, workoutId: workout.id, workoutTitle: workout.title, sets: done, volumeKg: 0 }]);
-      const record = Boolean(now.heaviest && before.heaviest && now.heaviest.weightKg > before.heaviest.weightKg);
-      return { id: exercise.id, name: exercise.name, sets: formatSets(done), record };
-    })
-    .filter((item): item is { id: string; name: string; sets: string; record: boolean } => item !== null);
+  const results = workoutResults(sessionState, workout);
+  const share = async () => {
+    setShareState("working");
+    try {
+      const blob = await renderShareCard(buildShareCardModel(sessionState, workout, session));
+      const outcome = await shareOrDownload(blob, shareFileName(workout), workout.title);
+      setShareState(outcome === "cancelled" ? "idle" : outcome);
+    } catch {
+      setShareState("failed");
+    }
+  };
   const records = results.filter((item) => item.record).length;
   return <main className="shell appPage summaryPage">
     <section className="summaryHero">
@@ -58,6 +60,9 @@ export default function WorkoutSummaryPage({ params }: { params: Promise<{ sessi
     </li>)}</ul>
     <div className="summaryActions">
       <LinkButton href="/today" variant="primary" size="lg" block>Готово</LinkButton>
+      <Button icon={Share2} block disabled={shareState === "working"} onClick={() => void share()}>{shareState === "working" ? "Готовлю картинку…" : "Поделиться картинкой"}</Button>
+      {shareState === "downloaded" && <p className="muted" role="status">Картинка сохранена в загрузки.</p>}
+      {shareState === "failed" && <p className="wkError" role="alert">Не получилось собрать картинку. Попробуйте ещё раз.</p>}
       <LinkButton href={`/journal/workouts/${workout.id}`} icon={Dumbbell} block>Открыть в журнале</LinkButton>
     </div>
   </main>;

@@ -17,6 +17,18 @@ async function answerCallbackQuery(botToken: string, callbackId: string, text: s
   return response.ok && payload.ok === true;
 }
 
+/** После нажатия кнопки заменяет сообщение на итог и убирает кнопки, чтобы их нельзя было нажать повторно. Необязательно: ошибки молча пропускаются. */
+async function settleReminderMessage(botToken: string, chatId: number, messageId: number, originalText: string, outcome: string) {
+  await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
+    method: "POST",
+    signal: AbortSignal.timeout(8000),
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: `${originalText.slice(0, 3800)}
+
+${outcome}`, reply_markup: { inline_keyboard: [] } }),
+  }).catch(() => undefined);
+}
+
 export async function POST(request: NextRequest) {
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
   if (!verifyTelegramSecret(request.headers.get("x-telegram-bot-api-secret-token"), secret)) {
@@ -63,6 +75,11 @@ export async function POST(request: NextRequest) {
       const status = accepted.data?.status;
       const applied = status === "applied" || status === "duplicate";
       const acknowledged = await answerCallbackQuery(botToken, callback.id, applied ? habitCallback.action === "done" ? "Отмечено" : habitCallback.action === "later" ? "Отложено на 10 минут" : "Пропущено" : status === "limited" ? "Достигнут лимит повторов" : "Действие устарело").catch(() => false);
+      const messageId = callback.message?.message_id;
+      const originalText = callback.message?.text;
+      if (applied && typeof messageId === "number" && typeof originalText === "string") {
+        await settleReminderMessage(botToken, chatId, messageId, originalText, habitCallback.action === "done" ? "✅ Отмечено" : habitCallback.action === "later" ? "⏰ Отложено на 10 минут" : "⏭ Пропущено");
+      }
       if (!await finishUpdate("processed")) return NextResponse.json({ error: "storage_unavailable" }, { status: 503 });
       return NextResponse.json({ accepted: true, callback: status, acknowledgement: acknowledged ? "sent" : "unknown" });
     }

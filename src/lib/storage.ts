@@ -16,6 +16,8 @@ export type TrackerState = {
   workouts: Workout[];
   workoutTemplates?: Workout[];
   activeWorkoutId?: string;
+  /** Недельная сводка в Telegram по воскресеньям. Включена, пока не выключена явно. */
+  weeklyDigest?: boolean;
   workoutCommands?: WorkoutCommand[];
   activeTimer: RestTimer | null;
   observations: Array<{

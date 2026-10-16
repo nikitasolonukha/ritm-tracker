@@ -162,14 +162,90 @@ test("machine settings are edited in the workout and show up in the next one", a
   const sheet = page.getByRole("dialog");
   await sheet.getByLabel("Настройки тренажёра").fill("сиденье 4, спинка 2");
   await sheet.getByRole("button", { name: "Сохранить" }).click();
-  await expect(page.locator(".wkSettingsBtn")).toContainText("сиденье 4, спинка 2");
+  await expect(page.locator(".wkSettingsBtn", { hasText: "сиденье 4, спинка 2" })).toBeVisible();
   await page.reload();
-  await expect(page.locator(".wkSettingsBtn")).toContainText("сиденье 4, спинка 2");
+  await expect(page.locator(".wkSettingsBtn", { hasText: "сиденье 4, спинка 2" })).toBeVisible();
   await recordFirstSet(page);
   await page.getByRole("button", { name: "Меню тренировки" }).click();
   await page.getByRole("button", { name: /^Завершить досрочно/ }).click();
   await page.getByRole("button", { name: "Подтвердить завершение" }).click();
   await page.getByRole("link", { name: "Готово" }).click();
   await startFromToday(page);
-  await expect(page.locator(".wkSettingsBtn")).toContainText("сиденье 4, спинка 2");
+  await expect(page.locator(".wkSettingsBtn", { hasText: "сиденье 4, спинка 2" })).toBeVisible();
+});
+
+async function finishEarly(page: Page) {
+  await page.getByRole("button", { name: "Меню тренировки" }).click();
+  await page.getByRole("button", { name: /^Завершить досрочно/ }).click();
+  await page.getByRole("button", { name: "Подтвердить завершение" }).click();
+  await expect(page.locator(".summaryMetrics")).toBeVisible();
+}
+
+test("the summary can be shared as a PNG card, or downloaded when the system share sheet is missing", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "share", { value: undefined, configurable: true });
+    Object.defineProperty(navigator, "canShare", { value: undefined, configurable: true });
+  });
+  await startFromToday(page);
+  await recordFirstSet(page);
+  await finishEarly(page);
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Поделиться картинкой" }).click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/^ritm-\d{4}-\d{2}-\d{2}\.png$/);
+  const path = await download.path();
+  const { readFileSync } = await import("node:fs");
+  const bytes = readFileSync(path);
+  expect([...bytes.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  expect(bytes.readUInt32BE(16)).toBe(1080);
+  expect(bytes.readUInt32BE(20)).toBe(1350);
+  expect(bytes.length).toBeGreaterThan(20_000);
+  await expect(page.getByText("Картинка сохранена в загрузки.")).toBeVisible();
+});
+
+test("with a system share sheet the PNG card is handed over as a file", async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __shared?: { name: string; type: string; size: number; title?: string } };
+    Object.defineProperty(navigator, "canShare", { value: (data: { files?: File[] }) => Boolean(data.files?.length), configurable: true });
+    Object.defineProperty(navigator, "share", { value: async (data: { files: File[]; title?: string }) => { w.__shared = { name: data.files[0].name, type: data.files[0].type, size: data.files[0].size, title: data.title }; }, configurable: true });
+  });
+  await startFromToday(page);
+  await recordFirstSet(page);
+  await finishEarly(page);
+  await page.getByRole("button", { name: "Поделиться картинкой" }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __shared?: unknown }).__shared)).toMatchObject({ type: "image/png" });
+  const shared = await page.evaluate(() => (window as unknown as { __shared: { name: string; size: number; title: string } }).__shared);
+  expect(shared.name).toMatch(/^ritm-\d{4}-\d{2}-\d{2}\.png$/);
+  expect(shared.size).toBeGreaterThan(20_000);
+  await expect(page.getByText("Картинка сохранена в загрузки.")).toHaveCount(0);
+});
+
+test("an exercise note is kept, shown in the journal and offered as a hint next time", async ({ page }) => {
+  await startFromToday(page);
+  await page.getByRole("button", { name: "Заметка", exact: true }).click();
+  const sheet = page.getByRole("dialog");
+  await sheet.getByRole("textbox", { name: "Заметка к упражнению" }).fill("болело плечо, снизил вес");
+  await sheet.getByRole("button", { name: "Сохранить" }).click();
+  await expect(page.locator(".wkSettingsBtn", { hasText: "болело плечо" })).toBeVisible();
+  await page.reload();
+  await expect(page.locator(".wkSettingsBtn", { hasText: "болело плечо" })).toBeVisible();
+  await recordFirstSet(page);
+  await finishEarly(page);
+  await page.getByRole("link", { name: "Открыть в журнале" }).click();
+  await expect(page.getByText("Заметка: болело плечо, снизил вес")).toBeVisible();
+  await page.goto("/today");
+  await startFromToday(page);
+  await expect(page.getByText(/^Заметка в прошлый раз \(.*\): болело плечо, снизил вес/)).toBeVisible();
+  await expect(page.locator(".wkSettingsBtn", { hasText: "болело плечо" })).toHaveCount(0);
+});
+
+test("the weekly digest switch is on by default and stays off after a reload", async ({ page }) => {
+  await page.goto("/settings?section=telegram");
+  const toggle = page.getByRole("checkbox", { name: "Недельная сводка в Telegram" });
+  await expect(toggle).toBeChecked();
+  await toggle.uncheck();
+  await expect(page.getByText("выключено").first()).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("checkbox", { name: "Недельная сводка в Telegram" })).not.toBeChecked();
 });

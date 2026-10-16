@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { verifyTelegramSecret } from "@/lib/telegram";
 import { POST as handleSavedUpdate } from "../webhook/route";
 import { boundedServerFetch } from "@/lib/server-fetch";
+import { planWeeklyDigests } from "@/lib/weekly-digest-plan";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -39,6 +40,7 @@ export async function POST(request: NextRequest) {
       method: "POST", headers: { "content-type": "application/json", "x-telegram-bot-api-secret-token": process.env.TELEGRAM_WEBHOOK_SECRET! }, body: JSON.stringify(update.payload),
     })).catch(() => undefined);
   }
+  await planWeeklyDigests(admin, new Date()).catch(() => 0);
   const refresh = await admin.rpc("refresh_habit_notifications");
   if (refresh.error) return NextResponse.json({ error: "queue_unavailable" }, { status: 503 });
   const { data, error } = await admin.rpc("claim_notification_jobs", { p_limit: 1, p_lease_seconds: 45 });
@@ -69,7 +71,7 @@ export async function POST(request: NextRequest) {
     const replyMarkup = job.source_entity_id.startsWith("habit:") ? { inline_keyboard: [[
       { text: "Выполнено", callback_data: `habit_done:${job.id}:${job.source_version}` },
       { text: "Пропустить", callback_data: `habit_skip:${job.id}:${job.source_version}` },
-    ],[{ text: "+10 минут", callback_data: `habit_later:${job.id}:${job.source_version}` }]] } : job.source_entity_id.startsWith("telegram-diagnostic:") ? undefined : { inline_keyboard: [[
+    ],[{ text: "+10 минут", callback_data: `habit_later:${job.id}:${job.source_version}` }]] } : job.source_entity_id.startsWith("telegram-diagnostic:") || job.source_entity_id.startsWith("weekly:") ? undefined : { inline_keyboard: [[
       { text: "+30 сек", callback_data: `rest_add30:${job.id}:${job.source_version}` },
       { text: "Пропустить", callback_data: `rest_skip:${job.id}:${job.source_version}` },
     ]] };

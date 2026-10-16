@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bell, BellOff, Check, ChevronRight, Clock, Flame, History, MoreHorizontal, Pencil, Play, Plus, SkipForward, Square, Trophy, XCircle } from "lucide-react";
+import { ArrowLeft, Bell, BellOff, Check, ChevronRight, Clock, Flame, History, MoreHorizontal, NotebookPen, Pencil, Play, Plus, SkipForward, Square, Trophy, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button, Chip, IconButton, Segmented, Sheet, Stepper } from "@/components/ds";
 import { useTrackerState } from "@/components/tracker-state";
@@ -11,10 +11,10 @@ import { useRestAlert } from "@/components/use-rest-alert";
 import { AddExerciseSheet } from "@/components/add-exercise-sheet";
 import { useWakeLock } from "@/components/use-wake-lock";
 import { Notice, useConfirm } from "@/components/ui";
-import { detectLiveRecord, formatSets, lastPerformance } from "@/lib/exercises";
-import { createRestTimerCommand, formatLocalDate, restoreRestTimer, visibleCopy, type Exercise, type ExerciseSet } from "@/lib/tracker";
+import { detectLiveRecord, formatSets, lastExerciseNote, lastPerformance } from "@/lib/exercises";
+import { calculateWorkoutTotals, createRestTimerCommand, formatLocalDate, restoreRestTimer, visibleCopy, type Exercise, type ExerciseSet } from "@/lib/tracker";
 import { cancelWorkoutSession, finishWorkoutSession, type SessionTrackerState } from "@/lib/workout-session";
-import { addExerciseToSession, addExtraSet, addWarmups, currentLogicalSet, currentWarmup, goToExercise, logicalSets, parseRepsInput, parseWeightInput, recordLogicalSet, recordWarmup, setExerciseSettings, setSetWeight, setWarmupWeight, skipWarmups, type NewExerciseInput, type WeightScope } from "@/lib/workout-flow";
+import { addExerciseToSession, addExtraSet, addWarmups, currentLogicalSet, currentWarmup, goToExercise, logicalSets, parseRepsInput, parseWeightInput, recordLogicalSet, recordWarmup, setExerciseNote, setExerciseSettings, setSetWeight, setWarmupWeight, skipWarmups, type NewExerciseInput, type WeightScope } from "@/lib/workout-flow";
 
 const WEIGHT_STEP = 2.5;
 const formatTime = (value: number) => `${Math.floor(value / 60).toString().padStart(2, "0")}:${(value % 60).toString().padStart(2, "0")}`;
@@ -79,6 +79,34 @@ function PairEditor({ parts, reps, onRepsText, onRepsStep, ...weight }: NumberHa
   </div>;
 }
 
+const kgShort = (value: number | null | undefined) => (value == null ? "—" : String(value).replace(".", ","));
+
+/** Все подходы упражнения одним взглядом: разминка, рабочие подходы, текущий и выполненные. */
+function SetTable({ exercise, groups, currentKey, warmupId }: { exercise: Exercise; groups: ReturnType<typeof logicalSets>; currentKey?: string; warmupId?: string }) {
+  const warmups = exercise.warmups ?? [];
+  if (!groups.length && !warmups.length) return null;
+  return <table className="setTable">
+    <caption className="srOnly">Подходы упражнения</caption>
+    <thead><tr><th scope="col">Подход</th><th scope="col">Вес, кг</th><th scope="col">Повторы</th><th scope="col"><span className="srOnly">Статус</span></th></tr></thead>
+    <tbody>
+      {warmups.map((warmup, index) => <tr key={warmup.id} className={`warm${warmup.completed ? " done" : warmup.id === warmupId ? " current" : ""}`} aria-current={warmup.id === warmupId ? "step" : undefined}>
+        <th scope="row">Р{index + 1}</th><td>{kgShort(warmup.weightKg)}</td><td>{warmup.reps ?? "—"}</td>
+        <td>{warmup.completed ? <span className="setCheck" role="img" aria-label="Записано"><Check size={14} /></span> : <span className="setCheck empty" role="img" aria-label="Не записано" />}</td>
+      </tr>)}
+      {groups.map((group) => {
+        const weights = [...new Set(group.parts.map((part) => part.set.weightKg))];
+        const isCurrent = !warmupId && group.key === currentKey;
+        return <tr key={group.key} className={group.completed ? "done" : isCurrent ? "current" : ""} aria-current={isCurrent ? "step" : undefined}>
+          <th scope="row">{group.number}{group.paired ? <small>П+Л</small> : null}</th>
+          <td>{weights.map(kgShort).join(" / ")}</td>
+          <td>{group.parts.map((part) => part.set.reps ?? "—").join(" + ")}</td>
+          <td>{group.completed ? <span className="setCheck" role="img" aria-label="Записано"><Check size={14} /></span> : <span className="setCheck empty" role="img" aria-label="Не записано" />}</td>
+        </tr>;
+      })}
+    </tbody>
+  </table>;
+}
+
 export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const router = useRouter();
   const { state, update, userId, syncStatus, storageError } = useTrackerState();
@@ -97,6 +125,8 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
   const [addOpen, setAddOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsText, setSettingsText] = useState("");
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [noteText, setNoteText] = useState("");
   const [recordNote, setRecordNote] = useState<{ id: number; text: string } | null>(null);
   const initKey = useRef<string | undefined>(undefined);
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -152,8 +182,13 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
   if (session.status !== "active") return <main className="wk"><p>Эта сессия уже закрыта.</p><Link className="btn btn-secondary" href={`/workout/${session.id}/summary`}>Открыть результат</Link></main>;
 
   const previous = lastPerformance(sessionState, exercise.name, workout.id);
+  const previousNote = lastExerciseNote(sessionState, exercise.name, workout.id);
   const exerciseDone = groups.length > 0 && groups.every((group) => group.completed);
   const isLastExercise = session.activeExerciseIndex >= workout.exercises.length - 1;
+  const nextExercise = workout.exercises[session.activeExerciseIndex + 1];
+  const nextGroups = nextExercise ? logicalSets(nextExercise) : [];
+  const nextFirst = nextGroups[0]?.parts[0]?.set;
+  const nextPlan = nextExercise ? `${nextGroups.length} × ${nextFirst?.reps ?? "—"}${nextFirst?.weightKg != null ? ` · ${kgShort(nextFirst.weightKg)} кг` : ""}` : "";
   const hasRecorded = workout.exercises.some((item) => item.sets.some((set) => set.completed));
   const rest = sessionState.activeTimer && sessionState.activeTimer.sourceId?.startsWith(`${workout.id}:`) ? restoreRestTimer(sessionState.activeTimer, now) : null;
   const restSetId = sessionState.activeTimer?.sourceId?.split(":").at(-1);
@@ -266,7 +301,7 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
   return <main className="wk">
     <header className="wkTop">
       <IconButton label="Свернуть" icon={ArrowLeft} onClick={collapse} />
-      <span className="workoutTimer"><Clock size={18} />{formatTime(elapsed)}</span>
+      <div className="wkClock"><span className="workoutTimer"><Clock size={18} />{formatTime(elapsed)}</span><small className="wkVolume">Объём {calculateWorkoutTotals(workout).volumeKg.toLocaleString("ru-RU")} кг</small></div>
       <IconButton label="Меню тренировки" icon={MoreHorizontal} onClick={() => setMenuOpen(true)} />
     </header>
     {syncText ? <p className="wkHint" role="status">{syncText}</p> : null}
@@ -284,6 +319,8 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
         <div>
         <h1>{exercise.name}</h1>
         <button type="button" className={`wkSettingsBtn${visibleCopy(exercise.settings) ? "" : " empty"}`} onClick={() => { setSettingsText(visibleCopy(exercise.settings) ?? ""); setSettingsOpen(true); }}><Pencil size={14} />{visibleCopy(exercise.settings) ? <span>{visibleCopy(exercise.settings)}</span> : <span>Настройки тренажёра</span>}</button>
+        <button type="button" className={`wkSettingsBtn${exercise.note ? "" : " empty"}`} onClick={() => { setNoteText(exercise.note ?? ""); setNoteOpen(true); }}><NotebookPen size={14} /><span>{exercise.note ? exercise.note : "Заметка"}</span></button>
+        {previousNote ? <p className="wkLast">Заметка в прошлый раз ({formatLocalDate(previousNote.date)}): <b>{previousNote.text}</b></p> : null}
         {previous ? <p className="wkLast">В прошлый раз ({formatLocalDate(previous.date)}): <b>{formatSets(previous.sets)}</b></p> : null}
         </div>
         <ExercisePhoto name={exercise.name} size={72} />
@@ -350,7 +387,11 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
           </div>
           {error ? <p className="wkError" role="alert">{error}</p> : null}
         </>}
+      {!exerciseDone && <SetTable exercise={exercise} groups={groups} currentKey={current?.key} warmupId={warmup?.id} />}
     </section>
+    {!isLastExercise && nextExercise && <button type="button" className="wkNext" onClick={() => update((previousState) => goToExercise(previousState as SessionTrackerState, session.id, session.activeExerciseIndex + 1))}>
+      <span><small>Дальше</small><strong>{nextExercise.name}</strong><em>{nextPlan}</em></span><ChevronRight size={20} />
+    </button>}
     <div className="wkBottom">
       {recordNote && <p className="wkRecord" role="status" key={recordNote.id}><Trophy size={18} />{recordNote.text}</p>}
       {restRunning && rest && <div className="restState" role="timer" aria-label="Отдых">
@@ -382,6 +423,14 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
         <li><button type="button" className="menuItem danger" onClick={() => void cancel()}><XCircle size={20} /><span>Отменить тренировку<small>Подходы останутся в «Отменённых»</small></span></button></li>
       </ul>
       <Button variant="ghost" block onClick={() => setMenuOpen(false)}>Закрыть</Button>
+    </Sheet>
+    <Sheet open={noteOpen} onClose={() => setNoteOpen(false)} title="Заметка к упражнению">
+      <p>Что запомнить про это упражнение сегодня. Видна в журнале и подсказкой в следующий раз.</p>
+      <textarea className="settingsField" aria-label="Заметка к упражнению" rows={4} maxLength={500} placeholder="Например: болело плечо, снизил вес" value={noteText} onChange={(event) => setNoteText(event.target.value)} />
+      <div className="sheetActions two">
+        <Button onClick={() => setNoteOpen(false)}>Отмена</Button>
+        <Button variant="primary" onClick={() => { update((previousState) => setExerciseNote(previousState as SessionTrackerState, session.id, exercise.id, noteText)); setNoteOpen(false); }}>Сохранить</Button>
+      </div>
     </Sheet>
     <Sheet open={settingsOpen} onClose={() => setSettingsOpen(false)} title="Настройки тренажёра">
       <p>Сиденье, спинка, упор: запишите один раз, и в следующий раз они будут на экране. Сохраняется в программе.</p>

@@ -1,9 +1,13 @@
 import { applyHabitCompletion, getHabitCommandIdentity, getLocalDate, type Habit, type HabitCompletion } from "./tracker.ts";
 import type { TrackerState } from "./storage.ts";
 
+/** Привычки-события, которые заводит карточка «Сон». Они отмечаются кнопками «Лёг» и «Проснулся» и не входят в план дня. */
+export const sleepHabitIds = { bedtime: "sleep-bedtime", wake: "sleep-wake" } as const;
+const sleepCardIds: ReadonlySet<string> = new Set(Object.values(sleepHabitIds));
+
 export function habitsForDate(habits: Habit[], localDate: string): Habit[] {
   const weekday = new Date(`${localDate}T12:00:00Z`).getUTCDay();
-  return habits.filter((habit) => !habit.archived && habit.type !== "workout" && (!habit.createdAt || localDate >= habit.createdAt) && (!habit.daysOfWeek?.length || habit.daysOfWeek.includes(weekday)));
+  return habits.filter((habit) => !habit.archived && habit.type !== "workout" && !sleepCardIds.has(habit.id) && (!habit.createdAt || localDate >= habit.createdAt) && (!habit.daysOfWeek?.length || habit.daysOfWeek.includes(weekday)));
 }
 
 export function habitAnchors(habits: Habit[], habitId: string): Habit[] {
@@ -40,6 +44,7 @@ export function snoozeHabit(state: TrackerState, habitId: string, date: string, 
   const snooze={ id:`snooze-${habitId}-${date}`,habitId,localDate:date,dueAt:new Date(now.getTime()+10*60_000).toISOString(),count:(prior?.count ?? 0)+1 };
   return { ...state,habitSnoozes:[...(state.habitSnoozes ?? []).filter((s) => s.id!==snooze.id),snooze] };
 }
+export const MAX_PLAUSIBLE_SLEEP_HOURS = 16;
 export function sleepFromEvents(habits: Habit[], completions: HabitCompletion[], date: string): number | undefined {
   const wakeIds = new Set(habits.filter((h) => h.eventRole === "wake").map((h) => h.id));
   const sleepIds = new Set(habits.filter((h) => h.eventRole === "bedtime").map((h) => h.id));
@@ -49,7 +54,8 @@ export function sleepFromEvents(habits: Habit[], completions: HabitCompletion[],
   const bedtime = completions.filter((c) => sleepIds.has(c.habitId) && c.outcome !== "skipped" && !c.backfilled && Date.parse(c.completedAt) < wakeAt).sort((a,b) => Date.parse(b.completedAt) - Date.parse(a.completedAt))[0];
   if (!bedtime) return;
   const hours = (wakeAt - Date.parse(bedtime.completedAt)) / 3_600_000;
-  return hours > 0 && hours <= 24 ? Math.round(hours * 10) / 10 : undefined;
+  // Дольше 16 часов — почти наверняка забытая отметка «лёг», такое число только испортит среднее.
+  return hours > 0 && hours <= MAX_PLAUSIBLE_SLEEP_HOURS ? Math.round(hours * 10) / 10 : undefined;
 }
 
 /** Готово ли напоминание: серверный планировщик создаёт его только при заданном времени или привязке к другому действию. */

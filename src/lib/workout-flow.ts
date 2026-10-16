@@ -1,4 +1,4 @@
-import { completeWorkoutSet, logicalSetKey, normalizeDecimalInput, type Exercise, type ExerciseSet, type Workout } from "./tracker.ts";
+import { completeWorkoutSet, logicalSetKey, normalizeDecimalInput, type Exercise, type ExerciseSet, type Workout, type WeightMode } from "./tracker.ts";
 import type { SessionTrackerState } from "./workout-session.ts";
 
 export { logicalSetKey };
@@ -172,5 +172,50 @@ export function addExtraSet(state: SessionTrackerState, sessionId: string, exerc
       ...workout,
       exercises: workout.exercises.map((exercise) => exercise.id !== exerciseId ? exercise : { ...exercise, sets: [...exercise.sets, ...copies] }),
     }),
+  };
+}
+
+export type NewExerciseInput = {
+  name: string;
+  sets: number;
+  weightKg: number | null;
+  reps: number | null;
+  weightMode: WeightMode;
+  paired?: boolean;
+  restSec?: number;
+  muscleGroup?: string;
+  equipment?: string;
+};
+
+/**
+ * Добавляет упражнение в конец идущей тренировки и делает его текущим. Шаблон программы не меняется:
+ * упражнение есть только в этой тренировке. «Парное» создаёт для каждого подхода правую и левую часть.
+ */
+export function addExerciseToSession(state: SessionTrackerState, sessionId: string, input: NewExerciseInput, seed: string = globalThis.crypto?.randomUUID?.() ?? String(Date.now())): SessionTrackerState {
+  const session = state.workoutSessions?.find((item) => item.id === sessionId);
+  const workout = session && session.status === "active" ? state.workouts.find((item) => item.id === session.workoutId) : undefined;
+  const name = input.name.trim().replace(/\s+/g, " ");
+  if (!session || !workout || !name || name.length > 80 || workout.exercises.length >= 30) return state;
+  const count = Math.min(10, Math.max(1, Math.trunc(input.sets)));
+  const exerciseId = `${workout.id}-added-${seed}`;
+  const base = { weightKg: input.weightKg, reps: input.reps, completed: false, weightMode: input.weightMode } as const;
+  const sets: ExerciseSet[] = Array.from({ length: count }, (_, index) => input.paired
+    ? [
+      { ...base, id: `${exerciseId}-set-${index}-a`, component: "compound-a" as const, segmentId: `pair-${seed}-${index}` },
+      { ...base, id: `${exerciseId}-set-${index}-b`, component: "compound-b" as const, segmentId: `pair-${seed}-${index}` },
+    ]
+    : [{ ...base, id: `${exerciseId}-set-${index}`, component: "single" as const }]).flat();
+  const exercise: Exercise = {
+    id: exerciseId,
+    name,
+    sets,
+    ...(input.restSec ? { restSec: input.restSec } : {}),
+    ...(input.muscleGroup ? { muscleGroup: input.muscleGroup } : {}),
+    ...(input.equipment ? { equipment: input.equipment } : {}),
+  };
+  return {
+    ...state,
+    workouts: state.workouts.map((item) => item.id === workout.id ? { ...item, exercises: [...item.exercises, exercise] } : item),
+    workoutSessions: (state.workoutSessions ?? []).map((item) => item.id === sessionId ? { ...item, activeExerciseIndex: workout.exercises.length } : item),
   };
 }

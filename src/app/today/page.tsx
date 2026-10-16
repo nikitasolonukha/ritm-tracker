@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Check, Clock, Dumbbell, Flame, Play, SkipForward, Undo2 } from "lucide-react";
+import { ArrowRight, Check, Clock, Dumbbell, Flame, Moon, Play, SkipForward, Sun, Undo2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { AppNav } from "@/components/app-nav";
 import { Button, Card, Ring } from "@/components/ds";
 import { useTrackerState } from "@/components/tracker-state";
 import { EmptyState, Notice, PageHeader } from "@/components/ui";
 import { useStartWorkout } from "@/components/use-start-workout";
-import { changeHabit, habitsForDate, sleepFromEvents, snoozeHabit } from "@/lib/habits";
+import { changeHabit, habitsForDate, snoozeHabit } from "@/lib/habits";
+import { enableSleepTracking, formatSleep, markSleepEvent, sleepSummary, type SleepSummary } from "@/lib/sleep";
 import { habitStreaks } from "@/lib/streaks";
 import type { TrackerState } from "@/lib/storage";
 import { calculateWorkoutTotals, getLocalDate, russianWord, visibleCopy, type HabitCompletion } from "@/lib/tracker";
@@ -71,11 +72,48 @@ function HabitRow({ habit, state, date, today, update }: { habit: Habit; state: 
   </div>;
 }
 
+function SleepCard({ summary, today, update }: { summary: SleepSummary; today: string; update: Update }) {
+  if (!summary.configured) {
+    return <Card pad className="sleepCard">
+      <div className="sleepHead"><Moon size={20} className="accentIcon" /><div><h2>Сон</h2><p className="muted">Нажимайте «Лёг спать» вечером и «Проснулся» утром, приложение посчитает часы и среднее за неделю.</p></div></div>
+      <Button onClick={() => update((previous) => enableSleepTracking(previous, today))}>Считать сон</Button>
+    </Card>;
+  }
+  const peak = Math.max(9, ...summary.week.map((night) => night.hours));
+  const asleep = summary.asleepSince ? Date.parse(summary.asleepSince) : undefined;
+  return <Card pad className="sleepCard">
+    <div className="sleepHead">
+      <Moon size={20} className="accentIcon" />
+      <div>
+        <h2>Сон</h2>
+        <p className="muted">{summary.last ? `Эта ночь: ${formatSleep(summary.last.hours)}` : asleep ? `Лёг в ${clock(new Date(asleep))}` : "Нет отметки за эту ночь"}{summary.averageHours != null ? ` · в среднем ${formatSleep(summary.averageHours)}` : ""}</p>
+      </div>
+    </div>
+    {summary.week.length > 0 && <div className="sleepBars" role="img" aria-label={`Сон за неделю: ${summary.week.map((night) => `${night.date.slice(-2)}-е ${formatSleep(night.hours)}`).join(", ")}`}>
+      {summary.week.map((night) => <span key={night.date} style={{ height: `${Math.max(8, (night.hours / peak) * 100)}%` }} title={`${night.date.slice(-2)}: ${formatSleep(night.hours)}`} />)}
+    </div>}
+    <div className="sleepActions">
+      <Button icon={Moon} onClick={() => update((previous) => markSleepEvent(previous, "bedtime", today))}>{asleep && !summary.wokeAt ? "Отменить «лёг»" : "Лёг спать"}</Button>
+      <Button variant={asleep && !summary.wokeAt ? "primary" : "secondary"} icon={Sun} onClick={() => update((previous) => markSleepEvent(previous, "wake", today))}>{summary.wokeAt ? `Проснулся в ${clock(new Date(summary.wokeAt))}` : "Проснулся"}</Button>
+    </div>
+  </Card>;
+}
+
 export default function TodayPage() {
   const { state, update, storageError } = useTrackerState();
   const { start, dialog } = useStartWorkout();
-  const today = getLocalDate();
-  const [selectedDate, setSelectedDate] = useState(today);
+  const [today, setToday] = useState(() => getLocalDate());
+  // null — «сегодня»: страница следует за текущей датой, а не остаётся на вчерашнем дне после полуночи.
+  const [pickedDate, setPickedDate] = useState<string | null>(null);
+  const selectedDate = pickedDate ?? today;
+  const setSelectedDate = (date: string) => setPickedDate(date === today ? null : date);
+  useEffect(() => {
+    const refresh = () => setToday(getLocalDate());
+    const id = window.setInterval(refresh, 30_000);
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => { window.clearInterval(id); document.removeEventListener("visibilitychange", refresh); window.removeEventListener("focus", refresh); };
+  }, []);
   if (!state) return <main className="shell"><p>Загружаю день…</p></main>;
   const sessionState = state as SessionTrackerState;
   const active = sessionState.workoutSessions?.find((item) => item.status === "active");
@@ -96,7 +134,7 @@ export default function TodayPage() {
   const goal = state.habits.find((habit) => !habit.archived && habit.type === "workout")?.targetDays ?? 3;
   const templates = sessionState.workoutTemplates ?? [];
   const template = templates.length === 1 ? templates[0] : undefined;
-  const sleep = sleepFromEvents(state.habits, state.completions, today);
+  const sleep = sleepSummary(state, today);
   const lastObservation = state.observations.map((o) => o.date).sort().at(-1);
   const checkInDue = !lastObservation || (Date.parse(today) - Date.parse(lastObservation)) / 86_400_000 >= 3;
   const completedDays = [...new Set(state.completions.map((c) => c.localDate))].filter((date) => { const planned = habitsForDate(state.habits, date); return planned.length > 0 && planned.every((h) => isDone(h.id, date)); }).length;
@@ -134,7 +172,7 @@ export default function TodayPage() {
         <div className="habitList">{habits.map((habit) => <HabitRow key={habit.id} habit={habit} state={state} date={selectedDate} today={today} update={update} />)}</div>
       </section>}
     {selectedDate !== today && workoutHabits.length > 0 && <Link className="card card-pad linkRow" href="/workouts"><span><strong>Тренировки</strong><small>Открыть программы</small></span><ArrowRight size={18} /></Link>}
-    {sleep != null && <p className="muted">Сон по отметкам: {sleep} ч.</p>}
+    {selectedDate === today && <SleepCard summary={sleep} today={today} update={update} />}
     {checkInDue && <Link className="card card-pad linkRow" href="/progress"><span><strong>Как самочувствие?</strong><small>Короткая отметка за сегодня</small></span><ArrowRight size={18} /></Link>}
     {(streaks.current > 0 || completedDays > 0) && <Link className="card card-pad linkRow" href="/calendar"><Flame size={20} className="accentIcon" /><span><strong>{streaks.current > 0 ? `Серия: ${streaks.current} ${russianWord(streaks.current, "день", "дня", "дней")} подряд` : "Серия начнётся с закрытого дня"}</strong><small>Лучшая серия: {streaks.longest}. Закрытых дней: {completedDays}. Цель: {nextMilestone}.</small></span><ArrowRight size={18} /></Link>}
     <AppNav active="today" />

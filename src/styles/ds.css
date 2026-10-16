@@ -335,3 +335,20 @@
 .formCard label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 600; }
 .formCard .btn.photoUpload { display: inline-flex; }
 .formCard .photoGrid:empty { display: none; }
+
+/* Добавление упражнения и рекорд в ходе тренировки */
+.chipRow { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.wkMore { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
+.wkRecord { display: flex; align-items: center; gap: var(--s-2); margin: 0; padding: var(--s-2) var(--s-4); border-radius: var(--r); background: var(--accent-soft, rgba(255, 107, 44, 0.14)); box-shadow: inset 0 0 0 1px var(--accent-line); color: var(--accent); font-size: var(--fs-sm); font-weight: 650; animation: wkRecordIn 260ms ease-out; }
+@keyframes wkRecordIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .wkRecord { animation: none; } }
+
+/* Карточка сна на «Сегодня» */
+.sleepCard { display: grid; gap: var(--s-3); }
+.sleepHead { display: flex; align-items: flex-start; gap: var(--s-3); }
+.sleepHead h2 { margin: 0; font-size: var(--fs-lg); }
+.sleepHead p { margin: 2px 0 0; font-size: var(--fs-sm); }
+.sleepBars { display: flex; align-items: flex-end; gap: 6px; height: 56px; }
+.sleepBars span { flex: 1; min-width: 0; border-radius: 6px 6px 3px 3px; background: var(--accent-grad); opacity: 0.85; }
+.sleepActions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
+.sleepActions .btn { padding: 0 var(--s-2); }

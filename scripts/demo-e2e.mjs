@@ -25,7 +25,7 @@ async function waitForServer() {
 try {
   await waitForServer();
   const args = process.argv.slice(2);
-  const specs = ["tests/e2e/app-journeys.spec.ts", "tests/e2e/app-journeys-more.spec.ts", "tests/e2e/workout-demo.spec.ts", "tests/e2e/settings.spec.ts"];
+  const specs = ["tests/e2e/app-journeys.spec.ts", "tests/e2e/app-journeys-more.spec.ts", "tests/e2e/workout-demo.spec.ts", "tests/e2e/settings.spec.ts", "tests/e2e/features-v16.spec.ts"];
   const projects = args.some((arg) => arg.startsWith("--project")) ? [] : ["--project=chromium", "--project=iphone"];
   const run = spawnSync(pnpm, ["exec", "playwright", "test", ...specs, ...projects, ...args], { env, stdio: "inherit", shell });
   stop();

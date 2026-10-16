@@ -2,18 +2,19 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bell, BellOff, Check, ChevronRight, Clock, History, MoreHorizontal, Play, Plus, Square, XCircle } from "lucide-react";
+import { ArrowLeft, Bell, BellOff, Check, ChevronRight, Clock, History, MoreHorizontal, Play, Plus, Square, Trophy, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button, Chip, IconButton, Segmented, Sheet, Stepper } from "@/components/ds";
 import { useTrackerState } from "@/components/tracker-state";
 import { ExercisePhoto } from "@/components/exercise-photo";
 import { useRestAlert } from "@/components/use-rest-alert";
+import { AddExerciseSheet } from "@/components/add-exercise-sheet";
 import { useWakeLock } from "@/components/use-wake-lock";
 import { Notice, useConfirm } from "@/components/ui";
-import { formatSets, lastPerformance } from "@/lib/exercises";
+import { detectLiveRecord, formatSets, lastPerformance } from "@/lib/exercises";
 import { createRestTimerCommand, formatLocalDate, restoreRestTimer, visibleCopy, type Exercise, type ExerciseSet } from "@/lib/tracker";
 import { cancelWorkoutSession, finishWorkoutSession, type SessionTrackerState } from "@/lib/workout-session";
-import { addExtraSet, currentLogicalSet, goToExercise, logicalSets, parseRepsInput, parseWeightInput, recordLogicalSet, setSetWeight, type WeightScope } from "@/lib/workout-flow";
+import { addExerciseToSession, addExtraSet, currentLogicalSet, goToExercise, logicalSets, parseRepsInput, parseWeightInput, recordLogicalSet, setSetWeight, type NewExerciseInput, type WeightScope } from "@/lib/workout-flow";
 
 const WEIGHT_STEP = 2.5;
 const formatTime = (value: number) => `${Math.floor(value / 60).toString().padStart(2, "0")}:${(value % 60).toString().padStart(2, "0")}`;
@@ -93,6 +94,8 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
   const [weightText, setWeightText] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [recordNote, setRecordNote] = useState<{ id: number; text: string } | null>(null);
   const initKey = useRef<string | undefined>(undefined);
   const tabsRef = useRef<HTMLDivElement>(null);
 
@@ -128,6 +131,12 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
     if (!touched) return;
     for (const [setId, value] of Object.entries(reps)) { try { window.localStorage.setItem(`${draftPrefix}${setId}`, value); } catch { /* local state is the fallback */ } }
   }, [reps, touched, draftPrefix]);
+
+  useEffect(() => {
+    if (!recordNote) return;
+    const id = window.setTimeout(() => setRecordNote(null), 6000);
+    return () => window.clearTimeout(id);
+  }, [recordNote]);
 
   useEffect(() => {
     const active = tabsRef.current?.querySelector<HTMLElement>("[aria-current='true']");
@@ -166,6 +175,11 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
     setError("");
     applyWeightToParts(value);
   };
+  const addExercise = (input: NewExerciseInput) => {
+    setAddOpen(false);
+    setMenuOpen(false);
+    update((previousState) => addExerciseToSession(previousState as SessionTrackerState, session.id, input));
+  };
   const addSet = () => { setMenuOpen(false); update((previousState) => addExtraSet(previousState as SessionTrackerState, session.id, exercise.id)); };
   // «Как в прошлый раз»: вес каждой стороны из такого же подхода прошлой тренировки.
   const lastWeights = incompleteParts.map((part) => ({ part, weight: previous?.sets[part.index]?.weightKg ?? null }));
@@ -191,8 +205,10 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
       entries.push({ setId: part.set.id, reps: value });
     }
     setError("");
+    const liveRecord = current.parts.map((part) => { const entry = entries.find((item) => item.setId === part.set.id); return entry ? detectLiveRecord(sessionState, exercise, { ...part.set, reps: entry.reps, completed: true }) : null; }).find(Boolean) ?? null;
     const saved = update((previousState) => recordLogicalSet(previousState as SessionTrackerState, session.id, exercise.id, entries));
     if (!saved) { setError("Не удалось сохранить подход. Черновик оставлен, повтори действие."); return; }
+    if (liveRecord) setRecordNote({ id: Date.now(), text: liveRecord.kind === "weight" ? `Рекорд веса: ${String(liveRecord.value).replace(".", ",")} кг (было ${String(liveRecord.previous).replace(".", ",")})` : `Рекорд по расчётному максимуму: ${String(liveRecord.value).replace(".", ",")} кг (было ${String(liveRecord.previous).replace(".", ",")})` });
     for (const entry of entries) { try { window.localStorage.removeItem(`${draftPrefix}${entry.setId}`); } catch { /* ignore */ } }
     setTouched(false);
   };
@@ -296,6 +312,7 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
         </>}
     </section>
     <div className="wkBottom">
+      {recordNote && <p className="wkRecord" role="status" key={recordNote.id}><Trophy size={18} />{recordNote.text}</p>}
       {restRunning && rest && <div className="restState" role="timer" aria-label="Отдых">
         <span className="restLabel">Отдых</span>
         <strong>{formatTime(rest.remainingSec)}</strong>
@@ -308,7 +325,7 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
       </div>}
       {exerciseDone
         ? <>
-          <Button block icon={Plus} onClick={addSet}>Ещё подход</Button>
+          <div className="wkMore"><Button block icon={Plus} onClick={addSet}>Ещё подход</Button><Button block icon={Plus} onClick={() => setAddOpen(true)}>Упражнение</Button></div>
           {isLastExercise
             ? <Button variant="primary" size="lg" block icon={Square} onClick={() => setFinishOpen(true)}>Завершить тренировку</Button>
             : <Button variant="primary" size="lg" block onClick={() => update((previousState) => goToExercise(previousState as SessionTrackerState, session.id, session.activeExerciseIndex + 1))}>Следующее упражнение<ChevronRight size={22} /></Button>}
@@ -318,12 +335,14 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
     <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title="Тренировка">
       <ul className="menuList">
         <li><button type="button" className="menuItem" onClick={() => setSoundOn(!soundOn)} aria-pressed={soundOn}>{soundOn ? <Bell size={20} /> : <BellOff size={20} />}<span>Сигнал после отдыха: {soundOn ? "включён" : "выключен"}<small>Звук и вибрация, пока экран открыт</small></span></button></li>
+        <li><button type="button" className="menuItem" onClick={() => { setMenuOpen(false); setAddOpen(true); }}><Plus size={20} /><span>Добавить упражнение<small>Из библиотеки или своё, только в этой тренировке</small></span></button></li>
         <li><button type="button" className="menuItem" onClick={addSet}><Plus size={20} /><span>Добавить подход<small>Ещё один подход в это упражнение</small></span></button></li>
         <li><button type="button" className="menuItem" onClick={askFinish}><Play size={20} /><span>Завершить досрочно<small>Невыполненные подходы не попадут в итог</small></span></button></li>
         <li><button type="button" className="menuItem danger" onClick={() => void cancel()}><XCircle size={20} /><span>Отменить тренировку<small>Подходы останутся в «Отменённых»</small></span></button></li>
       </ul>
       <Button variant="ghost" block onClick={() => setMenuOpen(false)}>Закрыть</Button>
     </Sheet>
+    <AddExerciseSheet open={addOpen} onClose={() => setAddOpen(false)} state={sessionState} onAdd={addExercise} />
     <Sheet open={finishOpen} onClose={() => setFinishOpen(false)} title="Завершить тренировку?">
       <p>{groups.every((group) => group.completed) && workout.exercises.every((item) => item.sets.every((set) => set.completed)) ? "Все подходы записаны." : "Незаписанные подходы не попадут в результат. В недельной цели останутся только записанные."}</p>
       <div className="sheetActions two">

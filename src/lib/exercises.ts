@@ -1,4 +1,4 @@
-import { calculateExerciseVolume, calculateWorkoutTotals, type Exercise, type ExerciseSet, type Workout } from "./tracker.ts";
+import { calculateExerciseVolume, calculateWorkoutTotals, logicalSetKey, type Exercise, type ExerciseSet, type Workout } from "./tracker.ts";
 import type { SessionTrackerState } from "./workout-session.ts";
 
 /** Ключ упражнения: одинаковые названия («Жим лёжа», «жим  лежа») склеиваются в одно. */
@@ -140,4 +140,38 @@ export function recentRecords(state: SessionTrackerState, limit = 5): RecordEntr
     if (heaviest) entries.push({ key: entry.key, name: entry.name, weightKg: heaviest.weightKg, reps: heaviest.reps, date: heaviest.date });
   }
   return entries.sort((a, b) => b.date.localeCompare(a.date) || b.weightKg - a.weightKg).slice(0, limit);
+}
+
+export type LiveRecord = { kind: "weight" | "oneRepMax"; value: number; previous: number };
+
+/**
+ * Рекорд в момент записи подхода: сравнение с прошлыми тренировками и с уже записанными подходами этого же упражнения.
+ * Без истории рекорда нет: первый раз всегда «точка отсчёта». Режимы веса («на руку» и «общий») не смешиваются.
+ */
+export function detectLiveRecord(state: SessionTrackerState, exercise: Pick<Exercise, "id" | "name" | "sets">, set: ExerciseSet): LiveRecord | null {
+  if (set.weightKg == null || set.reps == null || set.weightKg <= 0 || set.reps <= 0 || !set.weightMode) return null;
+  const baseline: ExerciseSet[] = getExerciseSessions(state, exerciseKey(exercise.name)).flatMap((session) => session.sets);
+  baseline.push(...exercise.sets.filter((other) => other.id !== set.id && other.completed));
+  const comparable = baseline.filter((other) => other.weightMode === set.weightMode && other.weightKg != null && other.reps != null && other.weightKg > 0 && other.reps > 0);
+  if (!comparable.length) return null;
+  const heaviest = Math.max(...comparable.map((other) => other.weightKg as number));
+  if (set.weightKg > heaviest) return { kind: "weight", value: set.weightKg, previous: heaviest };
+  const bestOneRepMax = Math.max(...comparable.map((other) => estimateOneRepMax(other.weightKg as number, other.reps as number)));
+  const oneRepMax = estimateOneRepMax(set.weightKg, set.reps);
+  return oneRepMax > bestOneRepMax ? { kind: "oneRepMax", value: oneRepMax, previous: bestOneRepMax } : null;
+}
+
+export type ExerciseDefaults = { sets: number; weightKg: number | null; reps: number | null; weightMode: "total" | "per-hand"; restSec?: number; muscleGroup?: string; equipment?: string; paired: boolean };
+
+/** Значения для упражнения, добавленного в ходе тренировки: как в прошлый раз, если оно уже было, иначе 3×10 без веса. */
+export function exerciseDefaults(state: SessionTrackerState, name: string): ExerciseDefaults {
+  const key = exerciseKey(name);
+  const last = lastPerformance(state, name);
+  const known = [...(state.workoutTemplates ?? []).flatMap((template) => template.exercises), ...state.workouts.flatMap((workout) => workout.exercises)].find((item) => exerciseKey(item.name) === key);
+  const base = { restSec: known?.restSec, muscleGroup: known?.muscleGroup, equipment: known?.equipment };
+  if (!last?.sets.length) return { sets: 3, weightKg: null, reps: 10, weightMode: "total", paired: false, ...base };
+  const paired = last.sets.some((set) => set.component === "compound-a" || set.component === "compound-b");
+  const logicalCount = new Set(last.sets.map((set, index) => logicalSetKey(set, index))).size;
+  const lastSet = last.sets.at(-1)!;
+  return { sets: Math.min(10, Math.max(1, paired ? logicalCount : last.sets.length)), weightKg: lastSet.weightKg, reps: lastSet.reps, weightMode: lastSet.weightMode ?? "total", paired, ...base };
 }

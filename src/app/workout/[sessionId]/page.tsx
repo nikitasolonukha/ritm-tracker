@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bell, BellOff, Check, ChevronRight, Clock, History, MoreHorizontal, Play, Plus, SkipForward, Square, XCircle } from "lucide-react";
+import { ArrowLeft, Bell, BellOff, Check, ChevronRight, Clock, History, MoreHorizontal, Play, Plus, Square, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button, Chip, IconButton, Segmented, Sheet, Stepper } from "@/components/ds";
 import { useTrackerState } from "@/components/tracker-state";
@@ -301,8 +301,8 @@ export default function ActiveWorkoutPage({ params }: { params: Promise<{ sessio
         <strong>{formatTime(rest.remainingSec)}</strong>
         <small>Записано: {restSet?.weightKg != null ? `${restSet.weightKg} кг × ` : ""}{restSet?.reps ?? "—"}</small>
         <div className="restActions">
-          <Button size="sm" onClick={() => changeRest("reschedule")}>+30 секунд</Button>
-          <Button size="sm" icon={SkipForward} onClick={() => changeRest("cancel")}>Пропустить отдых</Button>
+          <Button size="sm" aria-label="+30 секунд" onClick={() => changeRest("reschedule")}>+30 с</Button>
+          <Button size="sm" aria-label="Пропустить отдых" onClick={() => changeRest("cancel")}>Пропустить</Button>
         </div>
         <div className="restBar"><span style={{ width: `${Math.max(0, Math.min(100, (rest.remainingSec / (sessionState.activeTimer?.durationSec || 1)) * 100))}%` }} /></div>
       </div>}

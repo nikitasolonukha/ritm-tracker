@@ -169,6 +169,39 @@ test("data tab: the journal downloads as CSV and the backup as JSON", async ({ p
   expect(text.split("\r\n").length).toBeGreaterThan(2);
 });
 
+test("the rest panel stays compact and does not cover the set controls or the record button", async ({ page }) => {
+  await startFromToday(page);
+  await page.locator(".repsControl input").first().fill("8");
+  await page.getByRole("button", { name: /^Записать/ }).click();
+  const panel = page.locator(".restState");
+  await expect(panel).toBeVisible();
+  const box = await panel.boundingBox();
+  const viewport = page.viewportSize();
+  expect(box && viewport).toBeTruthy();
+  // снимок владельца: панель занимала ~40% экрана, кнопки вытягивались на 300px
+  expect(box!.height).toBeLessThan(150);
+  expect(box!.height).toBeLessThan(viewport!.height * 0.22);
+  for (const name of [/^\+30 секунд/, /^Пропустить отдых/]) {
+    const button = await page.getByRole("button", { name }).boundingBox();
+    expect(button!.height).toBeLessThanOrEqual(60);
+    expect(button!.height).toBeGreaterThanOrEqual(40);
+  }
+  // кнопка записи видна и ниже панели, панель не перекрывает вес и повторы
+  const record = await page.getByRole("button", { name: /^Записать/ }).boundingBox();
+  expect(record!.y).toBeGreaterThanOrEqual(box!.y + box!.height - 1);
+  // таймер не налезает на кнопки
+  const time = await panel.locator("strong").boundingBox();
+  const plus30 = await page.getByRole("button", { name: /^\+30 секунд/ }).boundingBox();
+  expect(plus30!.x).toBeGreaterThanOrEqual(time!.x + time!.width + 4);
+  // после прокрутки вниз вес и повторы целиком выше панели (на низких экранах без прокрутки они частично под ней)
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  const panelAfter = await panel.boundingBox();
+  const weight = await page.locator(".workWeight").first().boundingBox();
+  expect(weight!.y + weight!.height).toBeLessThanOrEqual(panelAfter!.y + 1);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+  expect(overflow).toBe(false);
+});
+
 test("the rest ends with a vibration and two beeps once, and the signal can be switched off", async ({ page }) => {
   await page.addInitScript(() => {
     const w = window as unknown as { __vibrations: number; __beeps: number; AudioContext: unknown };

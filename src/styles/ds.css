@@ -120,12 +120,18 @@
 .wkHint { margin: 0; color: var(--muted); font-size: var(--fs-xs); }
 .wkError { margin: 0; color: var(--warning); font-size: var(--fs-sm); }
 .wkBottom { position: sticky; z-index: 5; bottom: 0; display: grid; gap: var(--s-2); margin: auto calc(var(--s-4) * -1) 0; padding: var(--s-4) var(--s-4) calc(var(--s-4) + env(safe-area-inset-bottom)); background: linear-gradient(to bottom, rgba(6, 7, 9, 0), var(--bg) 28%); }
-.restState { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: var(--s-1) var(--s-3); padding: var(--s-3) var(--s-4); border-radius: var(--r); background: var(--card-sheen), var(--surface-2); box-shadow: inset 0 0 0 1px var(--accent-line); }
-.restState .restLabel { color: var(--accent); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
-.restState small { color: var(--muted); font-size: var(--fs-sm); text-align: right; }
-.restState strong { grid-column: 1 / -1; font-size: 56px; font-weight: 800; line-height: 1; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
-.restActions { display: grid; grid-column: 1 / -1; grid-template-columns: 1fr 1.4fr; gap: var(--s-2); margin-top: var(--s-2); }
-.restBar { grid-column: 1 / -1; height: 4px; overflow: hidden; border-radius: var(--r-pill); background: var(--surface-3); }
+/* Панель отдыха: компактная, ~100px, чтобы не закрывать степперы. Строки не растягиваются (align-content: start). */
+.restState { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "label note" "time actions" "bar bar"; align-content: start; align-items: center; gap: var(--s-1) var(--s-3); padding: var(--s-3) var(--s-4); border-radius: var(--r); background: var(--card-sheen), var(--surface-2); box-shadow: inset 0 0 0 1px var(--accent-line), var(--shadow-1, 0 -8px 24px rgba(0, 0, 0, 0.35)); }
+.restState .restLabel { grid-area: label; color: var(--accent); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.restState small { grid-area: note; min-width: 0; overflow: hidden; color: var(--muted); font-size: var(--fs-sm); text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.restState strong { grid-area: time; font-size: 44px; font-weight: 800; line-height: 1; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.restActions { grid-area: actions; display: flex; justify-content: flex-end; gap: var(--s-2); margin: 0; }
+.restActions .btn { flex: 0 1 auto; min-height: 44px; padding: 0 var(--s-3); white-space: nowrap; }
+.restBar { grid-area: bar; height: 4px; margin-top: var(--s-1); overflow: hidden; border-radius: var(--r-pill); background: var(--surface-3); }
+@media (max-width: 360px) {
+  .restState { grid-template-areas: "label note" "time time" "actions actions" "bar bar"; }
+  .restActions { display: grid; grid-template-columns: 1fr 1fr; }
+}
 .restBar span { display: block; height: 100%; border-radius: inherit; background: var(--accent-grad); transition: width 300ms linear; }
 .wkDone { display: grid; justify-items: center; gap: var(--s-3); padding: var(--s-5) 0; text-align: center; }
 .wkDone svg { color: var(--ok); }

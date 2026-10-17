@@ -31,7 +31,8 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "invalid_payload" }, { status: 400 });
   }
   const { data, error } = await supabase.rpc("save_tracker_state", { p_expected_revision: body.expectedRevision, p_payload: payload });
-  if (error?.code === "40001") {
+  // PT409 is the current conflict code; 40001 is what the function raised before the retry-loop fix.
+  if (error?.code === "PT409" || error?.code === "40001") {
     const revision = Number(error.details);
     const remote = await supabase.from("tracker_state").select("payload, version, updated_at").eq("user_id", user.id).maybeSingle();
     return NextResponse.json({ error: "revision_conflict", revision: Number.isInteger(revision) ? revision : remote.data?.version ?? null, remote: remote.data?.payload ?? null }, { status: 409 });
